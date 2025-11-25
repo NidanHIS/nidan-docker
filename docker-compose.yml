@@ -77,17 +77,19 @@ services:
     image: openmrs/openmrs-reference-application-3-backend:${TAG:-qa}
     restart: unless-stopped
     depends_on:
-      - db_openmrs
+      - db
     environment:
-      OMRS_CONFIG_MODULE_WEB_ADMIN: "true"
-      OMRS_CONFIG_AUTO_UPDATE_DATABASE: "true"
-      OMRS_CONFIG_CREATE_TABLES: "true"
-      OMRS_CONFIG_CONNECTION_SERVER: db_openmrs
-      OMRS_CONFIG_CONNECTION_DATABASE: openmrs
-      OMRS_CONFIG_CONNECTION_USERNAME: ${OMRS_DB_USER:-openmrs}
-      OMRS_CONFIG_CONNECTION_PASSWORD: ${OMRS_DB_PASSWORD:-openmrs}
+      OMRS_MODULE_WEB_ADMIN: "true"
+      OMRS_AUTO_UPDATE_DATABASE: "true"
+      OMRS_CREATE_TABLES: "true"
+      OMRS_DB: postgresql
+      OMRS_DB_PORT: 5432
+      OMRS_DB_HOSTNAME: openmrs-db
+      OMRS_DB_NAME: openmrs
+      OMRS_DB_USERNAME: ${OMRS_DB_USER:-openmrs}
+      OMRS_DB_PASSWORD: ${OMRS_DB_PASSWORD:-openmrs}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8085/openmrs"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/openmrs"]
       timeout: 5s
       interval: 30s
       retries: 5
@@ -99,22 +101,20 @@ services:
 
 
 
-  db_openmrs:
-    image: mariadb:10.11.7
+  openmrs-db:
+    image: postgres:15
     restart: unless-stopped
-    command: "mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${OMRS_DB_USER:-openmrs}", "-p${OMRS_DB_PASSWORD:-openmrs}"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD-SHELL", "pg_isready", "-d", "openmrs"]
+      interval: 30s
+      timeout: 1s
       retries: 5
     environment:
-      MYSQL_DATABASE: openmrs
-      MYSQL_USER: ${OMRS_DB_USER:-openmrs}
-      MYSQL_PASSWORD: ${OMRS_DB_PASSWORD:-openmrs}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-openmrs}
+      POSTGRES_DB: openmrs
+      POSTGRES_USER: ${OMRS_DB_USER:-openmrs}
+      POSTGRES_PASSWORD: ${OMRS_DB_PASSWORD:-openmrs}
     volumes:
-      - db-openmrs-data:/var/lib/MySQL
+      - db-openmrs-data:/var/lib/postgresql/data
     networks:
       - his_core
     profiles: ["core", "reports"]
@@ -314,7 +314,7 @@ services:
     env_file:
       - config/env/bahmni-reports.env
     depends_on:
-      db_openmrs:
+      db:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
