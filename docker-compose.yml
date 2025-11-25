@@ -77,7 +77,7 @@ services:
     image: openmrs/openmrs-reference-application-3-backend:${TAG:-qa}
     restart: unless-stopped
     depends_on:
-      - db
+      - openmrs-db
     environment:
       OMRS_MODULE_WEB_ADMIN: "true"
       OMRS_AUTO_UPDATE_DATABASE: "true"
