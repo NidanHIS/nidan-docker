@@ -1,0 +1,400 @@
+services:
+  homepage:
+    #image: nginx:alpine
+    image : nidan/nidan-proxy:latest
+    container_name: nidan-homepage
+    restart: unless-stopped
+    volumes:
+      - ./landing:/usr/share/nginx/html:ro
+      - ./certs/nginx.crt:/etc/nginx/certs/apache-selfsigned.crt:ro
+      - ./keys/nginx.key:/etc/nginx/certs/apache-selfsigned.key:ro
+      - ./volume/nginx/nginx-prod.conf:/etc/nginx/nginx.conf:ro
+      - ./volume/nginx/conf.d/:/etc/nginx/conf.d/
+      #- ./volume/nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
+      #- ./volume/nginx/conf.d/odoo.conf:/etc/nginx/conf.d/odoo.conf:ro
+      #- ./volume/nginx/conf.d/openelis.conf:/etc/nginx/conf.d/openelis.conf:ro
+      #- ./volume/nginx/conf.d/redirect.conf:/etc/nginx/conf.d/redirect.conf:ro
+
+
+    depends_on:
+      - certs
+      - openelis-frontend
+      - openelis-backend
+      - openmrs-frontend
+      - openmrs-backend
+    #labels:
+    #  - "traefik.enable=true"
+    #  - traefik.http.middlewares.homepage-redirect.redirectscheme.scheme=https
+    #  - "traefik.http.routers.homepage.rule=Host(`${NIDAN_HOME_HOST}`)"
+    #  - "traefik.http.services.homepage.loadbalancer.server.port=80"
+    #  - "traefik.http.routers.homepage.entrypoints=web"
+    #  - traefik.http.routers.homepage-http.middlewares=homepage-redirect
+    #  - traefik.http.routers.homepage.rule=Host(`${NIDAN_HOME_HOST}`)
+    #  - traefik.http.routers.homepage.entrypoints=websecure
+    #  - traefik.http.routers.homepage.tls.certresolver=letsencrypt 
+    #  - traefik.http.services.homepage.loadbalancer.server.port=80
+    ports:
+       - "80:80"
+       - "443:443"
+       
+    networks:
+      - his_core
+
+
+  #gateway:
+  #  image: openmrs/openmrs-reference-application-3-gateway:${TAG:-qa}
+  #  platform: linux/amd64
+  #  restart: unless-stopped
+  #  depends_on:
+  #    - frontend
+  #    - backend
+  #  ports:
+  #    - "8085:80"
+  #  networks:
+  #    - his_core
+  #  profiles: ["core", "reports"]
+
+  openmrs-frontend:
+    image: openmrs/openmrs-reference-application-3-frontend:${TAG:-qa}
+    restart: unless-stopped
+    environment:
+      SPA_PATH: /openmrs/spa
+      API_URL: /openmrs
+      SPA_CONFIG_URLS: /openmrs/spa/config-core_demo.json
+      SPA_DEFAULT_LOCALE: en
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      timeout: 5s
+      interval: 30s
+      retries: 3
+    depends_on:
+      - openmrs-backend
+    networks:
+      - his_core
+    profiles: ["core", "reports"]
+ 
+
+  openmrs-backend:
+    image: openmrs/openmrs-reference-application-3-backend:${TAG:-qa}
+    restart: unless-stopped
+    depends_on:
+      - openmrs-db
+    # environment:
+    #   OMRS_MODULE_WEB_ADMIN: "true"
+    #   OMRS_AUTO_UPDATE_DATABASE: "true"
+    #   OMRS_CREATE_TABLES: "true"
+    #   OMRS_DB: postgresql
+    #   OMRS_DB_PORT: 5432
+    #   OMRS_DB_HOSTNAME: openmrs-db
+    #   OMRS_DB_NAME: openmrs
+    #   OMRS_DB_USERNAME: ${OMRS_DB_USER:-openmrs}
+    #   OMRS_DB_PASSWORD: ${OMRS_DB_PASSWORD:-openmrs}
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:8080/openmrs"]
+    #   timeout: 5s
+    #   interval: 30s
+    #   retries: 5
+    # volumes:
+    #   - openmrs-data:/openmrs/data
+    environment:
+      OMRS_CONFIG_MODULE_WEB_ADMIN: "true"
+      OMRS_CONFIG_AUTO_UPDATE_DATABASE: "true"
+      OMRS_CONFIG_CREATE_TABLES: "true"
+      OMRS_CONFIG_CONNECTION_SERVER: openmrs-db
+      OMRS_CONFIG_CONNECTION_DATABASE: openmrs
+      OMRS_CONFIG_CONNECTION_USERNAME: ${OMRS_DB_USER:-openmrs}
+      OMRS_CONFIG_CONNECTION_PASSWORD: ${OMRS_DB_PASSWORD:-openmrs}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/openmrs"]
+      timeout: 5s
+    volumes:
+      - openmrs-data:/openmrs/data
+    networks:
+      - his_core
+    profiles: ["core", "reports"]
+
+
+  openmrs-db:
+    image: mariadb:10.11.7
+    restart: "unless-stopped"
+    command: "mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci"
+    healthcheck:
+      test: "mysql --user=${OMRS_DB_USER:-openmrs} --password=${OMRS_DB_PASSWORD:-openmrs} --execute \"SHOW DATABASES;\""
+      interval: 3s
+      timeout: 1s
+      retries: 5
+    environment:
+      MYSQL_DATABASE: openmrs
+      MYSQL_USER: ${OMRS_DB_USER:-openmrs}
+      MYSQL_PASSWORD: ${OMRS_DB_PASSWORD:-openmrs}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-openmrs}
+    ports:
+       - "3310:3306"
+    volumes:
+      - db-openmrs-data:/var/lib/postgresql/data
+
+    # image: postgres:15
+    # restart: unless-stopped
+    # healthcheck:
+    #   test: ["CMD-SHELL", "pg_isready", "-d", "openmrs"]
+    #   interval: 30s
+    #   timeout: 1s
+    #   retries: 5
+    # environment:
+    #   POSTGRES_DB: openmrs
+    #   POSTGRES_USER: ${OMRS_DB_USER:-openmrs}
+    #   POSTGRES_PASSWORD: ${OMRS_DB_PASSWORD:-openmrs}
+    # volumes:
+    #   - db-openmrs-data:/var/lib/postgresql/data
+    networks:
+      - his_core
+    profiles: ["core", "reports"]
+
+  certs:
+    container_name: oe-certs 
+    image: itechuw/certgen:main
+    platform: linux/amd64
+    restart: always
+    environment:
+      - KEYSTORE_PW="kspass"
+      - TRUSTSTORE_PW="tspass"
+    networks:
+      - his_core
+    volumes:
+      -  key_trust-store-volume:/etc/openelis-global
+      -  keys-vol:/etc/ssl/private/
+      -  certs-vol:/etc/ssl/certs/
+    profiles: ["elis"]
+
+  openelis-db:
+    container_name: openelisglobal-database 
+    image: postgres:14.4
+    ports:
+      - "15432:5432"
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=clinlims
+      - POSTGRES_INITDB_ARGS="--auth-host=md5"
+    volumes:
+         # preserves the database between containers
+      - db-data:/var/lib/postgresql/data                
+         # files here will run on install
+      - ./volume/database/dbInit:/docker-entrypoint-initdb.d
+    networks:
+      - his_core
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-q", "-d", "clinlims", "-U", "clinlims" ]
+      timeout: 45s
+      interval: 10s
+      retries: 10 
+    profiles: ["elis"]
+       
+  openelis-backend:
+    container_name: openelisglobal-webapp 
+    image: itechuw/openelis-global-2:develop   
+    platform: linux/amd64 
+    depends_on:
+      - openelis-db
+      - certs
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    restart: always
+    networks:
+      - his_core
+    environment:
+      - DEFAULT_PW=adminADMIN! 
+      - TZ=Africa/Nairobi
+       # context.xml doesn't seem to be able to pick up environment variables directly, so we are passing them in as CATALINA_OPTS
+      - CATALINA_OPTS= -Ddatasource.url=jdbc:postgresql://database:5432/clinlims -Ddatasource.username=clinlims
+    volumes:
+      -  key_trust-store-volume:/etc/openelis-global
+      - ./volume/plugins/:/var/lib/openelis-global/plugins
+      - ./volume/tomcat/oe_server.xml:/usr/local/tomcat/conf/server.xml
+      -  lucene_index-vol:/var/lib/lucene_index
+      - ./volume/test-map/test-loinc-map.csv:/var/lib/openelis-global/plugin-test-mappings/test-loinc-map.csv
+      - ./volume/properties/SystemConfiguration.properties:/var/lib/openelis-global/properties/SystemConfiguration.properties
+      - ./volume/odoo/odoo-test-product-mapping.csv:/var/lib/openelis-global/odoo/odoo-test-product-mapping.csv
+      #Runing OpenELIS with the locally compiled war file
+      #- ./target/OpenELIS-Global.war:/usr/local/tomcat/webapps/OpenELIS-Global.war
+    secrets:
+      - source: datasource.password
+      - source: common.properties
+    profiles: ["elis"]
+        
+  openelis-fhir:
+    container_name: external-fhir-api
+    image: itechuw/openelis-global-2-fhir:develop
+    platform: linux/amd64
+    depends_on:
+      - openelis-db
+      - certs
+    ports:
+      - "8081:8080"
+      - "8444:8443"
+    networks:
+      - his_core
+    restart: always
+    environment:
+      SPRING_CONFIG_LOCATION: file:///run/secrets/hapi_application.yaml
+      TZ: Africa/Nairobi
+    
+      JAVA_OPTS: "-Djavax.net.ssl.trustStore=/etc/openelis-global/truststore 
+      		  -Djavax.net.ssl.trustStorePassword=tspass
+      		  -Djavax.net.ssl.trustStoreType=pkcs12 
+      		  -Djavax.net.ssl.keyStore=/etc/openelis-global/keystore 
+      		  -javax.net.ssl.keyStorePassword=kspass 
+      		  -Djavax.net.ssl.keyStoreType=pkcs12"            
+    profiles: ["elis"]    
+    volumes:
+      -  key_trust-store-volume:/etc/openelis-global
+      - ./volume/tomcat/hapi_server.xml:/opt/bitnami/tomcat/conf/server.xml
+    secrets:
+      - source: hapi_application.yaml 
+
+
+         
+  openelis-frontend:
+    image: itechuw/openelis-global-2-frontend:develop
+    container_name: openelisglobal-front-end
+    platform: linux/amd64
+    networks:
+      - his_core
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    tty: true
+    profiles: ["elis"]
+
+      
+  #openmrs-frontend:
+  #  image: openmrs/openmrs-reference-application-3-frontend:${OPENMRS_IMAGE_TAG:-qa}
+  #  restart: unless-stopped
+  #  environment:
+  #    TZ: ${DEFAULT_TIMEZONE}
+  #  depends_on:
+  #    openmrs-backend:
+  #      condition: service_started
+  #  healthcheck:
+  #    test: ["CMD-SHELL", "curl -f http://localhost:80 || exit 1"]
+  #    interval: 30s
+  ##    timeout: 10s
+   #   retries: 5
+  #  labels:
+  #    - traefik.enable=true
+  #    - traefik.http.routers.openmrs-spa.rule=Host(`${OPENMRS_HOST}`) && PathPrefix(`/openmrs/spa`)
+  ##    - traefik.http.routers.openmrs-spa.entrypoints=websecure
+  #    - traefik.http.routers.openmrs-spa.tls.certresolver=letsencrypt
+  #    - traefik.http.routers.openmrs-spa.middlewares=openmrs-spa-strip
+  #    - traefik.http.routers.openmrs-spa.service=openmrs-spa
+  #    - traefik.http.services.openmrs-spa.loadbalancer.server.port=80
+  #    - traefik.http.routers.openmrs-spa-http.rule=Host(`${OPENMRS_HOST}`) && PathPrefix(`/openmrs/spa`)
+  #    - traefik.http.routers.openmrs-spa-http.entrypoints=web
+  #    - traefik.http.routers.openmrs-spa-http.middlewares=openmrs-redirect,openmrs-spa-strip
+  #  networks:
+  #    - his_core
+  #  profiles: ["core"]
+
+  
+
+  odoo:
+    image: odoo:19.0
+    restart: unless-stopped
+    env_file:
+      - config/env/odoo.env
+    depends_on:
+      odoo-db:
+        condition: service_healthy
+    environment:
+      - DB_HOST=odoo_db
+      - DB_USER=${ODOO_DB_USER:-odoo}
+      - DB_PASSWORD=${ODOO_DB_PASSWORD:-odoo}
+    volumes:
+      - odoo-data:/var/lib/odoo
+      - odoo-addons:/mnt/extra-addons
+    networks:
+      - his_core
+    ports:
+      - "8069:8069"
+    profiles: ["odoo"]
+
+  odoo-db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=${ODOO_DB_PASSWORD:-odoo}
+      - POSTGRES_USER=${ODOO_DB_USER:-odoo}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ODOO_DB_USER:-odoo}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks:
+      - his_core
+    profiles: ["odoo"]
+
+ 
+  bahmni-reports:
+    image: bahmni/reports:1.0.0
+    restart: unless-stopped
+    env_file:
+      - config/env/bahmni-reports.env
+    depends_on:
+      openmrs-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    labels:
+      - traefik.enable=true
+      - traefik.http.middlewares.reports-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.reports-http.rule=Host(`${BAHMNI_REPORTS_HOST}`)
+      - traefik.http.routers.reports-http.entrypoints=web
+      - traefik.http.routers.reports-http.middlewares=reports-redirect
+      - traefik.http.routers.reports.rule=Host(`${BAHMNI_REPORTS_HOST}`)
+      - traefik.http.routers.reports.entrypoints=websecure
+      - traefik.http.routers.reports.tls.certresolver=letsencrypt
+      - traefik.http.services.reports.loadbalancer.server.port=8080
+    networks:
+      - his_core
+    profiles: ["reports"]
+
+networks:
+  his_core:
+    driver: bridge
+
+secrets:
+  datasource.password:
+    file: ./volume/properties/datasource.password  
+  common.properties:
+    file:  ./volume/properties/common.properties  
+  hapi_application.yaml:
+    file: ./volume/properties/hapi_application.yaml
+
+
+volumes:
+
+  traefik-lets-encrypt:
+  openmrs-data:
+  db-openmrs-data:
+  odoo-db-data:
+  openmrs-appdata:
+  odoo-data:
+  odoo-addons:
+  odoo-config:
+  odoo-checksums:
+  odoo-filestore:
+  db-data:
+  key_trust-store-volume:
+  certs-vol:
+  keys-vol:
+  lucene_index-vol:
+  
+

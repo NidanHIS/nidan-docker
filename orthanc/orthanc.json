@@ -1,0 +1,13 @@
+{
+    "Name": "Nidan Orthanc",
+    "PostgreSQL": {
+        "Enable": true,
+        "Host": "orthanc-db",
+        "Port": 5432,
+        "Database": "orthanc",
+        "Username": "orthanc",
+        "Password": "orthanc_password"
+    },
+    "RemoteAccessAllowed": true,
+    "AuthenticationEnabled": false
+}
