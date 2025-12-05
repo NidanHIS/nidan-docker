@@ -1,4 +1,6 @@
 {
+    "spaPath": "/openmrs",
+    "apiUrl": "/openmrs",
     "build": {
         "libraries": {
             "@openmrs/esm-framework": "next",
