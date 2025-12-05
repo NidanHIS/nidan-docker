@@ -16,7 +16,7 @@ COPY spa-build-config.json .
 
 # We use the openmrs CLI to assemble the frontend based on the config
 # Using 'latest' for stability. Removing --manifest might ensure full build.
-RUN npx --legacy-peer-deps openmrs@latest assemble --mode config --config spa-build-config.json --target ./spa
+RUN npx --legacy-peer-deps openmrs@latest assemble --manifest --mode config --config spa-build-config.json --target ./spa
 
 # Debug: Check if index.html exists
 RUN ls -la ./spa
