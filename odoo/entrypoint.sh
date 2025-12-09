@@ -60,7 +60,20 @@ EOSQL
         echo "db_name = $DB_NAME" >> /etc/odoo/odoo.conf
     fi
     
+    # Copy update-admin script if it exists
+    if [ -f /entrypoint.sh.update-admin.sh ]; then
+        cp /entrypoint.sh.update-admin.sh /tmp/update-admin.sh
+        chmod +x /tmp/update-admin.sh
+        chown odoo:odoo /tmp/update-admin.sh
+    fi
+    
     # Switch to odoo user and exec the command
+    # Start admin password update in background if password is set
+    if [ -f /tmp/update-admin.sh ] && [ -n "$ODOO_ADMIN_PASSWORD" ] && [ "$ODOO_ADMIN_PASSWORD" != "admin" ]; then
+        echo "Admin password update will run in background after Odoo starts..."
+        gosu odoo /tmp/update-admin.sh &
+    fi
+    
     exec gosu odoo "$@"
 else
     # Already running as odoo user, just ensure directory exists
