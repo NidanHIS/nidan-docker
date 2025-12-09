@@ -1,0 +1,20 @@
+# Minimal HAPI FHIR JPA config (adjust as needed)
+hapi:
+  fhir:
+    server_address: "http://localhost:8080/fhir"
+    rest:
+      server-name: "OpenELIS FHIR Server"
+      server-version: "1.0.0"
+spring:
+  datasource:
+    url: jdbc:postgresql://openelis-db:5432/clinlims?currentSchema=clinlims
+    username: clinlims
+    password: changeme
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        hbm2ddl.auto: update
+    hibernate:
+      ddl-auto: update
+

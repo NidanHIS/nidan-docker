@@ -1,16 +1,136 @@
-09 Dec 2025 09:07:10 -- INFO -- Root WebApplicationContext: initialization started
-09 Dec 2025 09:07:10 -- WARN -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanDefinitionStoreException: I/O failure while processing configuration class [org.openelisglobal.config.AppConfig]
-09 Dec 2025 09:07:10 -- ERROR -- Context initialization failed
-org.springframework.beans.factory.BeanDefinitionStoreException: I/O failure while processing configuration class [org.openelisglobal.config.AppConfig]
-	at org.springframework.context.annotation.ConfigurationClassParser.processConfigurationClass(ConfigurationClassParser.java:272) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.parse(ConfigurationClassParser.java:193) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.parse(ConfigurationClassParser.java:171) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassPostProcessor.processConfigBeanDefinitions(ConfigurationClassPostProcessor.java:418) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassPostProcessor.postProcessBeanDefinitionRegistry(ConfigurationClassPostProcessor.java:290) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanDefinitionRegistryPostProcessors(PostProcessorRegistrationDelegate.java:349) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(PostProcessorRegistrationDelegate.java:118) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.AbstractApplicationContext.invokeBeanFactoryPostProcessors(AbstractApplicationContext.java:791) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:609) ~[spring-context-6.2.2.jar:6.2.2]
+09 Dec 2025 11:17:45 -- INFO -- Root WebApplicationContext: initialization started
+09 Dec 2025 11:17:45 -- INFO -- Properties location [file:/run/secrets/extra.properties] not resolvable: /run/secrets/extra.properties (No such file or directory)
+09 Dec 2025 11:17:46 -- INFO -- Properties location [file:/var/lib/openelis-global/properties/SystemConfiguration.properties] not resolvable: /var/lib/openelis-global/properties/SystemConfiguration.properties (No such file or directory)
+09 Dec 2025 11:17:48 -- INFO -- Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+09 Dec 2025 11:17:48 -- INFO -- Finished Spring Data repository scanning in 99 ms. Found 3 JPA repository interfaces.
+09 Dec 2025 11:17:54 -- INFO -- persistence.xml should be located inside META-INF directory; cannot determine persistence unit root URL for class path resource [persistence/persistence.xml]
+09 Dec 2025 11:17:54 -- INFO -- HHH000204: Processing PersistenceUnitInfo [name: OpenELIS-Global-persistence-unit]
+09 Dec 2025 11:17:54 -- INFO -- HHH000412: Hibernate ORM core version 5.6.15.Final
+09 Dec 2025 11:17:54 -- INFO -- HCANN000001: Hibernate Commons Annotations {5.1.2.Final}
+09 Dec 2025 11:17:59 -- INFO -- HHH000400: Using dialect: org.hibernate.dialect.PostgreSQLDialect
+09 Dec 2025 11:18:01 -- INFO -- HSEARCH000034: Hibernate Search version 6.1.8.Final
+09 Dec 2025 11:18:01 -- INFO -- HV000001: Hibernate Validator 8.0.2.Final
+09 Dec 2025 11:24:36 -- WARN -- HSEARCH000075: Missing value for configuration property 'hibernate.search.backend.lucene_version': using LATEST (currently '8.11.1'). Context: default backend
+09 Dec 2025 11:24:38 -- INFO -- Initialized JPA EntityManagerFactory for persistence unit 'OpenELIS-Global-persistence-unit'
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching datasource
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching released
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching printed
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching section
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching dictionaryType
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching defaultPageSize
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching type
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching canceled
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching assigned
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching completed
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching month
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching day
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching value
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching agent
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching holder
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching idSeparator
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching human
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching revision
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching day
+09 Dec 2025 11:24:41 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching released
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching patientSearchPassword
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching reflex_rules
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageAggregationUserName
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageAggregationPassword
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageSendStatus
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching condenseNSF
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching headerRightImage
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching programs
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching headerLeftImage
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching new born
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching infant
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching young child
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching child
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching adult
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching firstNameCharset
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching lastNameCharset
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching userNameCharset
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching patientIdCharset
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching reportsDirectory
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching labDirectorSignature
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageAggregationUserName
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching released
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching environment
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching infant
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching userNameCharset
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching released
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching dictionaryType
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching canceled
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching headerLeftImage
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching completed
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching labDirectorSignature
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching month
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching programs
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching adult
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching reportsDirectory
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching type
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching assigned
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching new born
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching agent
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageAggregationPassword
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching from
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching url
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching reflex_rules
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching day
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching patientSearchPassword
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching lastNameCharset
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching firstNameCharset
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching condenseNSF
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageSendStatus
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching section
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching defaultPageSize
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching host
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching idSeparator
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching name
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching day
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching patientIdCharset
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching child
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching printed
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching young child
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching headerRightImage
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching revision
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching datasource
+09 Dec 2025 11:24:42 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching human
+09 Dec 2025 11:24:54 -- INFO -- HAPI FHIR version 6.6.2 - Rev 8d55781507
+09 Dec 2025 11:24:54 -- INFO -- Creating new FHIR context for FHIR version [R4]
+09 Dec 2025 11:42:28 -- INFO -- Unable to determine StAX implementation: java.xml/META-INF/MANIFEST.MF not found
+09 Dec 2025 11:42:33 -- INFO -- Hibernate is in classpath; If applicable, HQL parser will be used.
+09 Dec 2025 11:42:39 -- ERROR -- Class: TestProductMapping, Method: loadCsvFromFixedPath, Error: Failed to load CSV from fixed path /var/lib/openelis-global/odoo/odoo-test-product-mapping.csv: /var/lib/openelis-global/odoo/odoo-test-product-mapping.csv (No such file or directory)
+09 Dec 2025 11:42:39 -- ERROR -- Class: TestProductMapping, Method: init, Error: No CSV mapping file could be loaded from fixed path: /var/lib/openelis-global/odoo/odoo-test-product-mapping.csv
+09 Dec 2025 11:42:40 -- WARN -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'healthCheckController' defined in file [/usr/local/tomcat/webapps/api#OpenELIS-Global/WEB-INF/classes/org/openelisglobal/odoo/controller/HealthCheckController.class]: Unsatisfied dependency expressed through constructor parameter 0: No qualifying bean of type 'org.openelisglobal.odoo.client.OdooConnection' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
+09 Dec 2025 11:42:40 -- INFO -- Closing JPA EntityManagerFactory for persistence unit 'OpenELIS-Global-persistence-unit'
+09 Dec 2025 11:42:40 -- ERROR -- Context initialization failed
+org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'healthCheckController' defined in file [/usr/local/tomcat/webapps/api#OpenELIS-Global/WEB-INF/classes/org/openelisglobal/odoo/controller/HealthCheckController.class]: Unsatisfied dependency expressed through constructor parameter 0: No qualifying bean of type 'org.openelisglobal.odoo.client.OdooConnection' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1381) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1218) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:563) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:523) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:336) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:307) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:334) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.instantiateSingleton(DefaultListableBeanFactory.java:1122) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingleton(DefaultListableBeanFactory.java:1093) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1030) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:987) ~[spring-context-6.2.2.jar:6.2.2]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:627) ~[spring-context-6.2.2.jar:6.2.2]
 	at org.springframework.web.context.ContextLoader.configureAndRefreshWebApplicationContext(ContextLoader.java:394) ~[spring-web-6.2.2.jar:6.2.2]
 	at org.springframework.web.context.ContextLoader.initWebApplicationContext(ContextLoader.java:274) [spring-web-6.2.2.jar:6.2.2]
 	at org.springframework.web.context.ContextLoaderListener.contextInitialized(ContextLoaderListener.java:126) [spring-web-6.2.2.jar:6.2.2]
@@ -42,312 +162,146 @@ org.springframework.beans.factory.BeanDefinitionStoreException: I/O failure whil
 	at java.lang.reflect.Method.invoke(Unknown Source) ~[?:?]
 	at org.apache.catalina.startup.Bootstrap.start(Bootstrap.java:342) [bootstrap.jar:10.1.50]
 	at org.apache.catalina.startup.Bootstrap.main(Bootstrap.java:473) [bootstrap.jar:10.1.50]
-Caused by: java.io.FileNotFoundException: /run/secrets/common.properties (No such file or directory)
-	at java.io.FileInputStream.open0(Native Method) ~[?:?]
-	at java.io.FileInputStream.open(Unknown Source) ~[?:?]
-	at java.io.FileInputStream.<init>(Unknown Source) ~[?:?]
-	at java.io.FileInputStream.<init>(Unknown Source) ~[?:?]
-	at sun.net.www.protocol.file.FileURLConnection.connect(Unknown Source) ~[?:?]
-	at sun.net.www.protocol.file.FileURLConnection.getInputStream(Unknown Source) ~[?:?]
-	at org.springframework.core.io.UrlResource.getInputStream(UrlResource.java:233) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.EncodedResource.getInputStream(EncodedResource.java:160) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.fillProperties(PropertiesLoaderUtils.java:100) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.fillProperties(PropertiesLoaderUtils.java:74) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.loadProperties(PropertiesLoaderUtils.java:60) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.ResourcePropertySource.<init>(ResourcePropertySource.java:67) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.DefaultPropertySourceFactory.createPropertySource(DefaultPropertySourceFactory.java:37) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertySourceProcessor.processPropertySource(PropertySourceProcessor.java:93) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.PropertySourceRegistry.processPropertySource(PropertySourceRegistry.java:75) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.doProcessConfigurationClass(ConfigurationClassParser.java:302) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.processConfigurationClass(ConfigurationClassParser.java:267) ~[spring-context-6.2.2.jar:6.2.2]
-	... 39 more
-09 Dec 2025 09:07:17 -- INFO -- Root WebApplicationContext: initialization started
-09 Dec 2025 09:07:17 -- WARN -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanDefinitionStoreException: I/O failure while processing configuration class [org.openelisglobal.config.AppConfig]
-09 Dec 2025 09:07:17 -- ERROR -- Context initialization failed
-org.springframework.beans.factory.BeanDefinitionStoreException: I/O failure while processing configuration class [org.openelisglobal.config.AppConfig]
-	at org.springframework.context.annotation.ConfigurationClassParser.processConfigurationClass(ConfigurationClassParser.java:272) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.parse(ConfigurationClassParser.java:193) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.parse(ConfigurationClassParser.java:171) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassPostProcessor.processConfigBeanDefinitions(ConfigurationClassPostProcessor.java:418) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassPostProcessor.postProcessBeanDefinitionRegistry(ConfigurationClassPostProcessor.java:290) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanDefinitionRegistryPostProcessors(PostProcessorRegistrationDelegate.java:349) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(PostProcessorRegistrationDelegate.java:118) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.AbstractApplicationContext.invokeBeanFactoryPostProcessors(AbstractApplicationContext.java:791) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:609) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.web.context.ContextLoader.configureAndRefreshWebApplicationContext(ContextLoader.java:394) ~[spring-web-6.2.2.jar:6.2.2]
-	at org.springframework.web.context.ContextLoader.initWebApplicationContext(ContextLoader.java:274) [spring-web-6.2.2.jar:6.2.2]
-	at org.springframework.web.context.ContextLoaderListener.contextInitialized(ContextLoaderListener.java:126) [spring-web-6.2.2.jar:6.2.2]
-	at org.apache.catalina.core.StandardContext.listenerStart(StandardContext.java:4032) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardContext.startInternal(StandardContext.java:4462) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase.addChildInternal(ContainerBase.java:597) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase.addChild(ContainerBase.java:569) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardHost.addChild(StandardHost.java:665) [catalina.jar:10.1.50]
-	at org.apache.catalina.startup.HostConfig.deployWAR(HostConfig.java:962) [catalina.jar:10.1.50]
-	at org.apache.catalina.startup.HostConfig$DeployWar.run(HostConfig.java:1900) [catalina.jar:10.1.50]
-	at java.util.concurrent.Executors$RunnableAdapter.call(Unknown Source) [?:?]
-	at java.util.concurrent.FutureTask.run(Unknown Source) [?:?]
-	at org.apache.tomcat.util.threads.InlineExecutorService.execute(InlineExecutorService.java:81) [tomcat-util.jar:10.1.50]
-	at java.util.concurrent.AbstractExecutorService.submit(Unknown Source) [?:?]
-	at org.apache.catalina.startup.HostConfig.deployWARs(HostConfig.java:766) [catalina.jar:10.1.50]
-	at org.apache.catalina.startup.HostConfig.deployApps(HostConfig.java:417) [catalina.jar:10.1.50]
-	at org.apache.catalina.startup.HostConfig.start(HostConfig.java:1618) [catalina.jar:10.1.50]
-	at org.apache.catalina.startup.HostConfig.lifecycleEvent(HostConfig.java:300) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.fireLifecycleEvent(LifecycleBase.java:109) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.setStateInternal(LifecycleBase.java:389) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.setState(LifecycleBase.java:336) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase.startInternal(ContainerBase.java:774) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardHost.startInternal(StandardHost.java:783) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1201) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1191) [catalina.jar:10.1.50]
-	at java.util.concurrent.FutureTask.run(Unknown Source) [?:?]
-	at org.apache.tomcat.util.threads.InlineExecutorService.execute(InlineExecutorService.java:81) [tomcat-util.jar:10.1.50]
-	at java.util.concurrent.AbstractExecutorService.submit(Unknown Source) [?:?]
-	at org.apache.catalina.core.ContainerBase.startInternal(ContainerBase.java:747) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardEngine.startInternal(StandardEngine.java:201) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardService.startInternal(StandardService.java:410) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardServer.startInternal(StandardServer.java:868) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.startup.Catalina.start(Catalina.java:758) [catalina.jar:10.1.50]
-	at jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[?:?]
-	at java.lang.reflect.Method.invoke(Unknown Source) ~[?:?]
-	at org.apache.catalina.startup.Bootstrap.start(Bootstrap.java:342) [bootstrap.jar:10.1.50]
-	at org.apache.catalina.startup.Bootstrap.main(Bootstrap.java:473) [bootstrap.jar:10.1.50]
-Caused by: java.io.FileNotFoundException: /run/secrets/common.properties (No such file or directory)
-	at java.io.FileInputStream.open0(Native Method) ~[?:?]
-	at java.io.FileInputStream.open(Unknown Source) ~[?:?]
-	at java.io.FileInputStream.<init>(Unknown Source) ~[?:?]
-	at java.io.FileInputStream.<init>(Unknown Source) ~[?:?]
-	at sun.net.www.protocol.file.FileURLConnection.connect(Unknown Source) ~[?:?]
-	at sun.net.www.protocol.file.FileURLConnection.getInputStream(Unknown Source) ~[?:?]
-	at org.springframework.core.io.UrlResource.getInputStream(UrlResource.java:233) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.EncodedResource.getInputStream(EncodedResource.java:160) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.fillProperties(PropertiesLoaderUtils.java:100) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.fillProperties(PropertiesLoaderUtils.java:74) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.loadProperties(PropertiesLoaderUtils.java:60) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.ResourcePropertySource.<init>(ResourcePropertySource.java:67) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.DefaultPropertySourceFactory.createPropertySource(DefaultPropertySourceFactory.java:37) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertySourceProcessor.processPropertySource(PropertySourceProcessor.java:93) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.PropertySourceRegistry.processPropertySource(PropertySourceRegistry.java:75) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.doProcessConfigurationClass(ConfigurationClassParser.java:302) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.processConfigurationClass(ConfigurationClassParser.java:267) ~[spring-context-6.2.2.jar:6.2.2]
-	... 50 more
-09 Dec 2025 09:17:28 -- INFO -- Root WebApplicationContext: initialization started
-09 Dec 2025 09:17:29 -- WARN -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanDefinitionStoreException: I/O failure while processing configuration class [org.openelisglobal.config.AppConfig]
-09 Dec 2025 09:17:29 -- ERROR -- Context initialization failed
-org.springframework.beans.factory.BeanDefinitionStoreException: I/O failure while processing configuration class [org.openelisglobal.config.AppConfig]
-	at org.springframework.context.annotation.ConfigurationClassParser.processConfigurationClass(ConfigurationClassParser.java:272) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.parse(ConfigurationClassParser.java:193) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.parse(ConfigurationClassParser.java:171) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassPostProcessor.processConfigBeanDefinitions(ConfigurationClassPostProcessor.java:418) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassPostProcessor.postProcessBeanDefinitionRegistry(ConfigurationClassPostProcessor.java:290) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanDefinitionRegistryPostProcessors(PostProcessorRegistrationDelegate.java:349) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(PostProcessorRegistrationDelegate.java:118) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.AbstractApplicationContext.invokeBeanFactoryPostProcessors(AbstractApplicationContext.java:791) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:609) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.web.context.ContextLoader.configureAndRefreshWebApplicationContext(ContextLoader.java:394) ~[spring-web-6.2.2.jar:6.2.2]
-	at org.springframework.web.context.ContextLoader.initWebApplicationContext(ContextLoader.java:274) [spring-web-6.2.2.jar:6.2.2]
-	at org.springframework.web.context.ContextLoaderListener.contextInitialized(ContextLoaderListener.java:126) [spring-web-6.2.2.jar:6.2.2]
-	at org.apache.catalina.core.StandardContext.listenerStart(StandardContext.java:4032) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardContext.startInternal(StandardContext.java:4462) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1201) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1191) [catalina.jar:10.1.50]
-	at java.util.concurrent.FutureTask.run(Unknown Source) [?:?]
-	at org.apache.tomcat.util.threads.InlineExecutorService.execute(InlineExecutorService.java:81) [tomcat-util.jar:10.1.50]
-	at java.util.concurrent.AbstractExecutorService.submit(Unknown Source) [?:?]
-	at org.apache.catalina.core.ContainerBase.startInternal(ContainerBase.java:747) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardHost.startInternal(StandardHost.java:783) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1201) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1191) [catalina.jar:10.1.50]
-	at java.util.concurrent.FutureTask.run(Unknown Source) [?:?]
-	at org.apache.tomcat.util.threads.InlineExecutorService.execute(InlineExecutorService.java:81) [tomcat-util.jar:10.1.50]
-	at java.util.concurrent.AbstractExecutorService.submit(Unknown Source) [?:?]
-	at org.apache.catalina.core.ContainerBase.startInternal(ContainerBase.java:747) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardEngine.startInternal(StandardEngine.java:201) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardService.startInternal(StandardService.java:410) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardServer.startInternal(StandardServer.java:868) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.startup.Catalina.start(Catalina.java:758) [catalina.jar:10.1.50]
-	at jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[?:?]
-	at java.lang.reflect.Method.invoke(Unknown Source) ~[?:?]
-	at org.apache.catalina.startup.Bootstrap.start(Bootstrap.java:342) [bootstrap.jar:10.1.50]
-	at org.apache.catalina.startup.Bootstrap.main(Bootstrap.java:473) [bootstrap.jar:10.1.50]
-Caused by: java.io.FileNotFoundException: /run/secrets/common.properties (No such file or directory)
-	at java.io.FileInputStream.open0(Native Method) ~[?:?]
-	at java.io.FileInputStream.open(Unknown Source) ~[?:?]
-	at java.io.FileInputStream.<init>(Unknown Source) ~[?:?]
-	at java.io.FileInputStream.<init>(Unknown Source) ~[?:?]
-	at sun.net.www.protocol.file.FileURLConnection.connect(Unknown Source) ~[?:?]
-	at sun.net.www.protocol.file.FileURLConnection.getInputStream(Unknown Source) ~[?:?]
-	at org.springframework.core.io.UrlResource.getInputStream(UrlResource.java:233) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.EncodedResource.getInputStream(EncodedResource.java:160) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.fillProperties(PropertiesLoaderUtils.java:100) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.fillProperties(PropertiesLoaderUtils.java:74) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.loadProperties(PropertiesLoaderUtils.java:60) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.ResourcePropertySource.<init>(ResourcePropertySource.java:67) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.DefaultPropertySourceFactory.createPropertySource(DefaultPropertySourceFactory.java:37) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertySourceProcessor.processPropertySource(PropertySourceProcessor.java:93) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.PropertySourceRegistry.processPropertySource(PropertySourceRegistry.java:75) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.doProcessConfigurationClass(ConfigurationClassParser.java:302) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.processConfigurationClass(ConfigurationClassParser.java:267) ~[spring-context-6.2.2.jar:6.2.2]
-	... 39 more
-09 Dec 2025 09:17:36 -- INFO -- Root WebApplicationContext: initialization started
-09 Dec 2025 09:17:36 -- WARN -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanDefinitionStoreException: I/O failure while processing configuration class [org.openelisglobal.config.AppConfig]
-09 Dec 2025 09:17:36 -- ERROR -- Context initialization failed
-org.springframework.beans.factory.BeanDefinitionStoreException: I/O failure while processing configuration class [org.openelisglobal.config.AppConfig]
-	at org.springframework.context.annotation.ConfigurationClassParser.processConfigurationClass(ConfigurationClassParser.java:272) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.parse(ConfigurationClassParser.java:193) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.parse(ConfigurationClassParser.java:171) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassPostProcessor.processConfigBeanDefinitions(ConfigurationClassPostProcessor.java:418) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassPostProcessor.postProcessBeanDefinitionRegistry(ConfigurationClassPostProcessor.java:290) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanDefinitionRegistryPostProcessors(PostProcessorRegistrationDelegate.java:349) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(PostProcessorRegistrationDelegate.java:118) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.AbstractApplicationContext.invokeBeanFactoryPostProcessors(AbstractApplicationContext.java:791) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:609) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.web.context.ContextLoader.configureAndRefreshWebApplicationContext(ContextLoader.java:394) ~[spring-web-6.2.2.jar:6.2.2]
-	at org.springframework.web.context.ContextLoader.initWebApplicationContext(ContextLoader.java:274) [spring-web-6.2.2.jar:6.2.2]
-	at org.springframework.web.context.ContextLoaderListener.contextInitialized(ContextLoaderListener.java:126) [spring-web-6.2.2.jar:6.2.2]
-	at org.apache.catalina.core.StandardContext.listenerStart(StandardContext.java:4032) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardContext.startInternal(StandardContext.java:4462) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase.addChildInternal(ContainerBase.java:597) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase.addChild(ContainerBase.java:569) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardHost.addChild(StandardHost.java:665) [catalina.jar:10.1.50]
-	at org.apache.catalina.startup.HostConfig.deployWAR(HostConfig.java:962) [catalina.jar:10.1.50]
-	at org.apache.catalina.startup.HostConfig$DeployWar.run(HostConfig.java:1900) [catalina.jar:10.1.50]
-	at java.util.concurrent.Executors$RunnableAdapter.call(Unknown Source) [?:?]
-	at java.util.concurrent.FutureTask.run(Unknown Source) [?:?]
-	at org.apache.tomcat.util.threads.InlineExecutorService.execute(InlineExecutorService.java:81) [tomcat-util.jar:10.1.50]
-	at java.util.concurrent.AbstractExecutorService.submit(Unknown Source) [?:?]
-	at org.apache.catalina.startup.HostConfig.deployWARs(HostConfig.java:766) [catalina.jar:10.1.50]
-	at org.apache.catalina.startup.HostConfig.deployApps(HostConfig.java:417) [catalina.jar:10.1.50]
-	at org.apache.catalina.startup.HostConfig.start(HostConfig.java:1618) [catalina.jar:10.1.50]
-	at org.apache.catalina.startup.HostConfig.lifecycleEvent(HostConfig.java:300) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.fireLifecycleEvent(LifecycleBase.java:109) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.setStateInternal(LifecycleBase.java:389) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.setState(LifecycleBase.java:336) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase.startInternal(ContainerBase.java:774) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardHost.startInternal(StandardHost.java:783) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1201) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1191) [catalina.jar:10.1.50]
-	at java.util.concurrent.FutureTask.run(Unknown Source) [?:?]
-	at org.apache.tomcat.util.threads.InlineExecutorService.execute(InlineExecutorService.java:81) [tomcat-util.jar:10.1.50]
-	at java.util.concurrent.AbstractExecutorService.submit(Unknown Source) [?:?]
-	at org.apache.catalina.core.ContainerBase.startInternal(ContainerBase.java:747) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardEngine.startInternal(StandardEngine.java:201) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardService.startInternal(StandardService.java:410) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardServer.startInternal(StandardServer.java:868) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.startup.Catalina.start(Catalina.java:758) [catalina.jar:10.1.50]
-	at jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[?:?]
-	at java.lang.reflect.Method.invoke(Unknown Source) ~[?:?]
-	at org.apache.catalina.startup.Bootstrap.start(Bootstrap.java:342) [bootstrap.jar:10.1.50]
-	at org.apache.catalina.startup.Bootstrap.main(Bootstrap.java:473) [bootstrap.jar:10.1.50]
-Caused by: java.io.FileNotFoundException: /run/secrets/common.properties (No such file or directory)
-	at java.io.FileInputStream.open0(Native Method) ~[?:?]
-	at java.io.FileInputStream.open(Unknown Source) ~[?:?]
-	at java.io.FileInputStream.<init>(Unknown Source) ~[?:?]
-	at java.io.FileInputStream.<init>(Unknown Source) ~[?:?]
-	at sun.net.www.protocol.file.FileURLConnection.connect(Unknown Source) ~[?:?]
-	at sun.net.www.protocol.file.FileURLConnection.getInputStream(Unknown Source) ~[?:?]
-	at org.springframework.core.io.UrlResource.getInputStream(UrlResource.java:233) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.EncodedResource.getInputStream(EncodedResource.java:160) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.fillProperties(PropertiesLoaderUtils.java:100) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.fillProperties(PropertiesLoaderUtils.java:74) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.loadProperties(PropertiesLoaderUtils.java:60) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.ResourcePropertySource.<init>(ResourcePropertySource.java:67) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.DefaultPropertySourceFactory.createPropertySource(DefaultPropertySourceFactory.java:37) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertySourceProcessor.processPropertySource(PropertySourceProcessor.java:93) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.PropertySourceRegistry.processPropertySource(PropertySourceRegistry.java:75) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.doProcessConfigurationClass(ConfigurationClassParser.java:302) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.processConfigurationClass(ConfigurationClassParser.java:267) ~[spring-context-6.2.2.jar:6.2.2]
-	... 50 more
-09 Dec 2025 10:27:39 -- INFO -- Root WebApplicationContext: initialization started
-09 Dec 2025 10:27:39 -- WARN -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanDefinitionStoreException: I/O failure while processing configuration class [org.openelisglobal.config.AppConfig]
-09 Dec 2025 10:27:39 -- ERROR -- Context initialization failed
-org.springframework.beans.factory.BeanDefinitionStoreException: I/O failure while processing configuration class [org.openelisglobal.config.AppConfig]
-	at org.springframework.context.annotation.ConfigurationClassParser.processConfigurationClass(ConfigurationClassParser.java:272) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.parse(ConfigurationClassParser.java:193) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.parse(ConfigurationClassParser.java:171) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassPostProcessor.processConfigBeanDefinitions(ConfigurationClassPostProcessor.java:418) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassPostProcessor.postProcessBeanDefinitionRegistry(ConfigurationClassPostProcessor.java:290) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanDefinitionRegistryPostProcessors(PostProcessorRegistrationDelegate.java:349) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(PostProcessorRegistrationDelegate.java:118) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.AbstractApplicationContext.invokeBeanFactoryPostProcessors(AbstractApplicationContext.java:791) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:609) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.web.context.ContextLoader.configureAndRefreshWebApplicationContext(ContextLoader.java:394) ~[spring-web-6.2.2.jar:6.2.2]
-	at org.springframework.web.context.ContextLoader.initWebApplicationContext(ContextLoader.java:274) [spring-web-6.2.2.jar:6.2.2]
-	at org.springframework.web.context.ContextLoaderListener.contextInitialized(ContextLoaderListener.java:126) [spring-web-6.2.2.jar:6.2.2]
-	at org.apache.catalina.core.StandardContext.listenerStart(StandardContext.java:4032) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardContext.startInternal(StandardContext.java:4462) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1201) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1191) [catalina.jar:10.1.50]
-	at java.util.concurrent.FutureTask.run(Unknown Source) [?:?]
-	at org.apache.tomcat.util.threads.InlineExecutorService.execute(InlineExecutorService.java:81) [tomcat-util.jar:10.1.50]
-	at java.util.concurrent.AbstractExecutorService.submit(Unknown Source) [?:?]
-	at org.apache.catalina.core.ContainerBase.startInternal(ContainerBase.java:747) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardHost.startInternal(StandardHost.java:783) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1201) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1191) [catalina.jar:10.1.50]
-	at java.util.concurrent.FutureTask.run(Unknown Source) [?:?]
-	at org.apache.tomcat.util.threads.InlineExecutorService.execute(InlineExecutorService.java:81) [tomcat-util.jar:10.1.50]
-	at java.util.concurrent.AbstractExecutorService.submit(Unknown Source) [?:?]
-	at org.apache.catalina.core.ContainerBase.startInternal(ContainerBase.java:747) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardEngine.startInternal(StandardEngine.java:201) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardService.startInternal(StandardService.java:410) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.core.StandardServer.startInternal(StandardServer.java:868) [catalina.jar:10.1.50]
-	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
-	at org.apache.catalina.startup.Catalina.start(Catalina.java:758) [catalina.jar:10.1.50]
-	at jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[?:?]
-	at java.lang.reflect.Method.invoke(Unknown Source) ~[?:?]
-	at org.apache.catalina.startup.Bootstrap.start(Bootstrap.java:342) [bootstrap.jar:10.1.50]
-	at org.apache.catalina.startup.Bootstrap.main(Bootstrap.java:473) [bootstrap.jar:10.1.50]
-Caused by: java.io.FileNotFoundException: /run/secrets/common.properties (No such file or directory)
-	at java.io.FileInputStream.open0(Native Method) ~[?:?]
-	at java.io.FileInputStream.open(Unknown Source) ~[?:?]
-	at java.io.FileInputStream.<init>(Unknown Source) ~[?:?]
-	at java.io.FileInputStream.<init>(Unknown Source) ~[?:?]
-	at sun.net.www.protocol.file.FileURLConnection.connect(Unknown Source) ~[?:?]
-	at sun.net.www.protocol.file.FileURLConnection.getInputStream(Unknown Source) ~[?:?]
-	at org.springframework.core.io.UrlResource.getInputStream(UrlResource.java:233) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.EncodedResource.getInputStream(EncodedResource.java:160) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.fillProperties(PropertiesLoaderUtils.java:100) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.fillProperties(PropertiesLoaderUtils.java:74) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.loadProperties(PropertiesLoaderUtils.java:60) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.ResourcePropertySource.<init>(ResourcePropertySource.java:67) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.DefaultPropertySourceFactory.createPropertySource(DefaultPropertySourceFactory.java:37) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertySourceProcessor.processPropertySource(PropertySourceProcessor.java:93) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.PropertySourceRegistry.processPropertySource(PropertySourceRegistry.java:75) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.doProcessConfigurationClass(ConfigurationClassParser.java:302) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.processConfigurationClass(ConfigurationClassParser.java:267) ~[spring-context-6.2.2.jar:6.2.2]
-	... 39 more
-09 Dec 2025 10:27:47 -- INFO -- Root WebApplicationContext: initialization started
-09 Dec 2025 10:27:47 -- WARN -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanDefinitionStoreException: I/O failure while processing configuration class [org.openelisglobal.config.AppConfig]
-09 Dec 2025 10:27:47 -- ERROR -- Context initialization failed
-org.springframework.beans.factory.BeanDefinitionStoreException: I/O failure while processing configuration class [org.openelisglobal.config.AppConfig]
-	at org.springframework.context.annotation.ConfigurationClassParser.processConfigurationClass(ConfigurationClassParser.java:272) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.parse(ConfigurationClassParser.java:193) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.parse(ConfigurationClassParser.java:171) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassPostProcessor.processConfigBeanDefinitions(ConfigurationClassPostProcessor.java:418) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassPostProcessor.postProcessBeanDefinitionRegistry(ConfigurationClassPostProcessor.java:290) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanDefinitionRegistryPostProcessors(PostProcessorRegistrationDelegate.java:349) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(PostProcessorRegistrationDelegate.java:118) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.AbstractApplicationContext.invokeBeanFactoryPostProcessors(AbstractApplicationContext.java:791) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:609) ~[spring-context-6.2.2.jar:6.2.2]
+Caused by: org.springframework.beans.factory.NoSuchBeanDefinitionException: No qualifying bean of type 'org.openelisglobal.odoo.client.OdooConnection' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.raiseNoMatchingBeanFound(DefaultListableBeanFactory.java:2144) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1594) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1519) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:913) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791) ~[spring-beans-6.2.2.jar:6.2.2]
+	... 45 more
+09 Dec 2025 11:43:06 -- INFO -- Root WebApplicationContext: initialization started
+09 Dec 2025 11:43:06 -- INFO -- Properties location [file:/run/secrets/extra.properties] not resolvable: /run/secrets/extra.properties (No such file or directory)
+09 Dec 2025 11:43:06 -- INFO -- Properties location [file:/var/lib/openelis-global/properties/SystemConfiguration.properties] not resolvable: /var/lib/openelis-global/properties/SystemConfiguration.properties (No such file or directory)
+09 Dec 2025 11:43:13 -- INFO -- Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+09 Dec 2025 11:43:14 -- INFO -- Finished Spring Data repository scanning in 311 ms. Found 3 JPA repository interfaces.
+09 Dec 2025 11:49:46 -- INFO -- persistence.xml should be located inside META-INF directory; cannot determine persistence unit root URL for class path resource [persistence/persistence.xml]
+09 Dec 2025 11:49:46 -- INFO -- HHH000204: Processing PersistenceUnitInfo [name: OpenELIS-Global-persistence-unit]
+09 Dec 2025 11:49:46 -- INFO -- HHH000412: Hibernate ORM core version 5.6.15.Final
+09 Dec 2025 11:49:48 -- INFO -- HCANN000001: Hibernate Commons Annotations {5.1.2.Final}
+09 Dec 2025 11:49:51 -- INFO -- HHH000400: Using dialect: org.hibernate.dialect.PostgreSQLDialect
+09 Dec 2025 11:49:53 -- INFO -- HSEARCH000034: Hibernate Search version 6.1.8.Final
+09 Dec 2025 11:49:53 -- INFO -- HV000001: Hibernate Validator 8.0.2.Final
+09 Dec 2025 11:50:00 -- WARN -- HSEARCH000075: Missing value for configuration property 'hibernate.search.backend.lucene_version': using LATEST (currently '8.11.1'). Context: default backend
+09 Dec 2025 11:50:01 -- INFO -- Initialized JPA EntityManagerFactory for persistence unit 'OpenELIS-Global-persistence-unit'
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching datasource
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching released
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching printed
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching section
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching dictionaryType
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching defaultPageSize
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching type
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching canceled
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching assigned
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching completed
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching month
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching day
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching value
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching agent
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching holder
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching idSeparator
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching human
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching revision
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching day
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching released
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching patientSearchPassword
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching reflex_rules
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageAggregationUserName
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageAggregationPassword
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageSendStatus
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching condenseNSF
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching headerRightImage
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching programs
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching headerLeftImage
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching new born
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching infant
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching young child
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching child
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching adult
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching firstNameCharset
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching lastNameCharset
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching userNameCharset
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching patientIdCharset
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching reportsDirectory
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching labDirectorSignature
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 11:50:03 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageAggregationUserName
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching released
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching environment
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching infant
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching userNameCharset
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching released
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching dictionaryType
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching canceled
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching headerLeftImage
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching completed
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching labDirectorSignature
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching month
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching programs
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching adult
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching reportsDirectory
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching type
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching assigned
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching new born
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching agent
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageAggregationPassword
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching from
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching url
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching reflex_rules
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching day
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching patientSearchPassword
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching lastNameCharset
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching firstNameCharset
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching condenseNSF
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageSendStatus
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching section
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching defaultPageSize
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching host
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching idSeparator
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching name
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching day
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching patientIdCharset
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching child
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching printed
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching young child
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching headerRightImage
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching revision
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching datasource
+09 Dec 2025 11:50:04 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching human
+09 Dec 2025 11:51:39 -- INFO -- HAPI FHIR version 6.6.2 - Rev 8d55781507
+09 Dec 2025 11:51:39 -- INFO -- Creating new FHIR context for FHIR version [R4]
+09 Dec 2025 11:51:40 -- INFO -- Unable to determine StAX implementation: java.xml/META-INF/MANIFEST.MF not found
+09 Dec 2025 11:51:41 -- INFO -- Hibernate is in classpath; If applicable, HQL parser will be used.
+09 Dec 2025 11:51:52 -- ERROR -- Class: TestProductMapping, Method: loadCsvFromFixedPath, Error: Failed to load CSV from fixed path /var/lib/openelis-global/odoo/odoo-test-product-mapping.csv: /var/lib/openelis-global/odoo/odoo-test-product-mapping.csv (No such file or directory)
+09 Dec 2025 11:51:52 -- ERROR -- Class: TestProductMapping, Method: init, Error: No CSV mapping file could be loaded from fixed path: /var/lib/openelis-global/odoo/odoo-test-product-mapping.csv
+09 Dec 2025 11:51:52 -- WARN -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'healthCheckController' defined in file [/usr/local/tomcat/webapps/OpenELIS-Global/WEB-INF/classes/org/openelisglobal/odoo/controller/HealthCheckController.class]: Unsatisfied dependency expressed through constructor parameter 0: No qualifying bean of type 'org.openelisglobal.odoo.client.OdooConnection' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
+09 Dec 2025 11:51:52 -- INFO -- Closing JPA EntityManagerFactory for persistence unit 'OpenELIS-Global-persistence-unit'
+09 Dec 2025 11:51:52 -- ERROR -- Context initialization failed
+org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'healthCheckController' defined in file [/usr/local/tomcat/webapps/OpenELIS-Global/WEB-INF/classes/org/openelisglobal/odoo/controller/HealthCheckController.class]: Unsatisfied dependency expressed through constructor parameter 0: No qualifying bean of type 'org.openelisglobal.odoo.client.OdooConnection' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1381) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1218) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:563) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:523) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:336) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:307) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:334) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.instantiateSingleton(DefaultListableBeanFactory.java:1122) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingleton(DefaultListableBeanFactory.java:1093) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1030) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:987) ~[spring-context-6.2.2.jar:6.2.2]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:627) ~[spring-context-6.2.2.jar:6.2.2]
 	at org.springframework.web.context.ContextLoader.configureAndRefreshWebApplicationContext(ContextLoader.java:394) ~[spring-web-6.2.2.jar:6.2.2]
 	at org.springframework.web.context.ContextLoader.initWebApplicationContext(ContextLoader.java:274) [spring-web-6.2.2.jar:6.2.2]
 	at org.springframework.web.context.ContextLoaderListener.contextInitialized(ContextLoaderListener.java:126) [spring-web-6.2.2.jar:6.2.2]
@@ -390,22 +344,363 @@ org.springframework.beans.factory.BeanDefinitionStoreException: I/O failure whil
 	at java.lang.reflect.Method.invoke(Unknown Source) ~[?:?]
 	at org.apache.catalina.startup.Bootstrap.start(Bootstrap.java:342) [bootstrap.jar:10.1.50]
 	at org.apache.catalina.startup.Bootstrap.main(Bootstrap.java:473) [bootstrap.jar:10.1.50]
-Caused by: java.io.FileNotFoundException: /run/secrets/common.properties (No such file or directory)
-	at java.io.FileInputStream.open0(Native Method) ~[?:?]
-	at java.io.FileInputStream.open(Unknown Source) ~[?:?]
-	at java.io.FileInputStream.<init>(Unknown Source) ~[?:?]
-	at java.io.FileInputStream.<init>(Unknown Source) ~[?:?]
-	at sun.net.www.protocol.file.FileURLConnection.connect(Unknown Source) ~[?:?]
-	at sun.net.www.protocol.file.FileURLConnection.getInputStream(Unknown Source) ~[?:?]
-	at org.springframework.core.io.UrlResource.getInputStream(UrlResource.java:233) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.EncodedResource.getInputStream(EncodedResource.java:160) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.fillProperties(PropertiesLoaderUtils.java:100) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.fillProperties(PropertiesLoaderUtils.java:74) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertiesLoaderUtils.loadProperties(PropertiesLoaderUtils.java:60) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.ResourcePropertySource.<init>(ResourcePropertySource.java:67) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.DefaultPropertySourceFactory.createPropertySource(DefaultPropertySourceFactory.java:37) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.core.io.support.PropertySourceProcessor.processPropertySource(PropertySourceProcessor.java:93) ~[spring-core-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.PropertySourceRegistry.processPropertySource(PropertySourceRegistry.java:75) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.doProcessConfigurationClass(ConfigurationClassParser.java:302) ~[spring-context-6.2.2.jar:6.2.2]
-	at org.springframework.context.annotation.ConfigurationClassParser.processConfigurationClass(ConfigurationClassParser.java:267) ~[spring-context-6.2.2.jar:6.2.2]
-	... 50 more
+Caused by: org.springframework.beans.factory.NoSuchBeanDefinitionException: No qualifying bean of type 'org.openelisglobal.odoo.client.OdooConnection' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.raiseNoMatchingBeanFound(DefaultListableBeanFactory.java:2144) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1594) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1519) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:913) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791) ~[spring-beans-6.2.2.jar:6.2.2]
+	... 56 more
+09 Dec 2025 12:18:57 -- INFO -- Root WebApplicationContext: initialization started
+09 Dec 2025 12:18:57 -- INFO -- Properties location [file:/run/secrets/extra.properties] not resolvable: /run/secrets/extra.properties (No such file or directory)
+09 Dec 2025 12:18:57 -- INFO -- Properties location [file:/var/lib/openelis-global/properties/SystemConfiguration.properties] not resolvable: /var/lib/openelis-global/properties/SystemConfiguration.properties (No such file or directory)
+09 Dec 2025 12:19:00 -- INFO -- Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+09 Dec 2025 12:19:00 -- INFO -- Finished Spring Data repository scanning in 214 ms. Found 3 JPA repository interfaces.
+09 Dec 2025 12:19:08 -- INFO -- persistence.xml should be located inside META-INF directory; cannot determine persistence unit root URL for class path resource [persistence/persistence.xml]
+09 Dec 2025 12:19:08 -- INFO -- HHH000204: Processing PersistenceUnitInfo [name: OpenELIS-Global-persistence-unit]
+09 Dec 2025 12:19:08 -- INFO -- HHH000412: Hibernate ORM core version 5.6.15.Final
+09 Dec 2025 12:19:09 -- INFO -- HCANN000001: Hibernate Commons Annotations {5.1.2.Final}
+09 Dec 2025 12:19:12 -- INFO -- HHH000400: Using dialect: org.hibernate.dialect.PostgreSQLDialect
+09 Dec 2025 12:19:13 -- INFO -- HSEARCH000034: Hibernate Search version 6.1.8.Final
+09 Dec 2025 12:19:13 -- INFO -- HV000001: Hibernate Validator 8.0.2.Final
+09 Dec 2025 12:19:19 -- WARN -- HSEARCH000075: Missing value for configuration property 'hibernate.search.backend.lucene_version': using LATEST (currently '8.11.1'). Context: default backend
+09 Dec 2025 12:19:19 -- INFO -- Initialized JPA EntityManagerFactory for persistence unit 'OpenELIS-Global-persistence-unit'
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching datasource
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching released
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching printed
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching section
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching dictionaryType
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching defaultPageSize
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching type
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching canceled
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching assigned
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching completed
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching month
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching day
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching value
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching agent
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching holder
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching idSeparator
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching human
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching revision
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching day
+09 Dec 2025 12:19:20 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching released
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching patientSearchPassword
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching reflex_rules
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageAggregationUserName
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageAggregationPassword
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageSendStatus
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching condenseNSF
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching headerRightImage
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching programs
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching headerLeftImage
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching new born
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching infant
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching young child
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching child
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching adult
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching firstNameCharset
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching lastNameCharset
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching userNameCharset
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching patientIdCharset
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching reportsDirectory
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching labDirectorSignature
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageAggregationUserName
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching released
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching environment
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching infant
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching userNameCharset
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching released
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching dictionaryType
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching canceled
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching headerLeftImage
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching completed
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching labDirectorSignature
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching month
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching programs
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching adult
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching reportsDirectory
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching type
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching assigned
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching new born
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching agent
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageAggregationPassword
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching from
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching url
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching reflex_rules
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching day
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching patientSearchPassword
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching lastNameCharset
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching firstNameCharset
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching condenseNSF
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageSendStatus
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching section
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching defaultPageSize
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching host
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching idSeparator
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching name
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching day
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching patientIdCharset
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching child
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching printed
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching young child
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching headerRightImage
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching revision
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching datasource
+09 Dec 2025 12:19:21 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching human
+09 Dec 2025 12:19:27 -- INFO -- HAPI FHIR version 6.6.2 - Rev 8d55781507
+09 Dec 2025 12:19:27 -- INFO -- Creating new FHIR context for FHIR version [R4]
+09 Dec 2025 12:19:29 -- INFO -- Unable to determine StAX implementation: java.xml/META-INF/MANIFEST.MF not found
+09 Dec 2025 12:19:30 -- INFO -- Hibernate is in classpath; If applicable, HQL parser will be used.
+09 Dec 2025 12:19:33 -- ERROR -- Class: TestProductMapping, Method: loadCsvFromFixedPath, Error: Failed to load CSV from fixed path /var/lib/openelis-global/odoo/odoo-test-product-mapping.csv: /var/lib/openelis-global/odoo/odoo-test-product-mapping.csv (No such file or directory)
+09 Dec 2025 12:19:33 -- ERROR -- Class: TestProductMapping, Method: init, Error: No CSV mapping file could be loaded from fixed path: /var/lib/openelis-global/odoo/odoo-test-product-mapping.csv
+09 Dec 2025 12:19:33 -- WARN -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'healthCheckController' defined in file [/usr/local/tomcat/webapps/api#OpenELIS-Global/WEB-INF/classes/org/openelisglobal/odoo/controller/HealthCheckController.class]: Unsatisfied dependency expressed through constructor parameter 0: No qualifying bean of type 'org.openelisglobal.odoo.client.OdooConnection' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
+09 Dec 2025 12:19:33 -- INFO -- Closing JPA EntityManagerFactory for persistence unit 'OpenELIS-Global-persistence-unit'
+09 Dec 2025 12:19:33 -- ERROR -- Context initialization failed
+org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'healthCheckController' defined in file [/usr/local/tomcat/webapps/api#OpenELIS-Global/WEB-INF/classes/org/openelisglobal/odoo/controller/HealthCheckController.class]: Unsatisfied dependency expressed through constructor parameter 0: No qualifying bean of type 'org.openelisglobal.odoo.client.OdooConnection' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1381) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1218) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:563) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:523) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:336) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:307) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:334) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.instantiateSingleton(DefaultListableBeanFactory.java:1122) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingleton(DefaultListableBeanFactory.java:1093) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1030) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:987) ~[spring-context-6.2.2.jar:6.2.2]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:627) ~[spring-context-6.2.2.jar:6.2.2]
+	at org.springframework.web.context.ContextLoader.configureAndRefreshWebApplicationContext(ContextLoader.java:394) ~[spring-web-6.2.2.jar:6.2.2]
+	at org.springframework.web.context.ContextLoader.initWebApplicationContext(ContextLoader.java:274) [spring-web-6.2.2.jar:6.2.2]
+	at org.springframework.web.context.ContextLoaderListener.contextInitialized(ContextLoaderListener.java:126) [spring-web-6.2.2.jar:6.2.2]
+	at org.apache.catalina.core.StandardContext.listenerStart(StandardContext.java:4032) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.StandardContext.startInternal(StandardContext.java:4462) [catalina.jar:10.1.50]
+	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1201) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1191) [catalina.jar:10.1.50]
+	at java.util.concurrent.FutureTask.run(Unknown Source) [?:?]
+	at org.apache.tomcat.util.threads.InlineExecutorService.execute(InlineExecutorService.java:81) [tomcat-util.jar:10.1.50]
+	at java.util.concurrent.AbstractExecutorService.submit(Unknown Source) [?:?]
+	at org.apache.catalina.core.ContainerBase.startInternal(ContainerBase.java:747) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.StandardHost.startInternal(StandardHost.java:783) [catalina.jar:10.1.50]
+	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1201) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1191) [catalina.jar:10.1.50]
+	at java.util.concurrent.FutureTask.run(Unknown Source) [?:?]
+	at org.apache.tomcat.util.threads.InlineExecutorService.execute(InlineExecutorService.java:81) [tomcat-util.jar:10.1.50]
+	at java.util.concurrent.AbstractExecutorService.submit(Unknown Source) [?:?]
+	at org.apache.catalina.core.ContainerBase.startInternal(ContainerBase.java:747) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.StandardEngine.startInternal(StandardEngine.java:201) [catalina.jar:10.1.50]
+	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.StandardService.startInternal(StandardService.java:410) [catalina.jar:10.1.50]
+	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.StandardServer.startInternal(StandardServer.java:868) [catalina.jar:10.1.50]
+	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
+	at org.apache.catalina.startup.Catalina.start(Catalina.java:758) [catalina.jar:10.1.50]
+	at jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[?:?]
+	at java.lang.reflect.Method.invoke(Unknown Source) ~[?:?]
+	at org.apache.catalina.startup.Bootstrap.start(Bootstrap.java:342) [bootstrap.jar:10.1.50]
+	at org.apache.catalina.startup.Bootstrap.main(Bootstrap.java:473) [bootstrap.jar:10.1.50]
+Caused by: org.springframework.beans.factory.NoSuchBeanDefinitionException: No qualifying bean of type 'org.openelisglobal.odoo.client.OdooConnection' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.raiseNoMatchingBeanFound(DefaultListableBeanFactory.java:2144) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1594) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1519) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:913) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791) ~[spring-beans-6.2.2.jar:6.2.2]
+	... 45 more
+09 Dec 2025 12:19:42 -- INFO -- Root WebApplicationContext: initialization started
+09 Dec 2025 12:19:42 -- INFO -- Properties location [file:/run/secrets/extra.properties] not resolvable: /run/secrets/extra.properties (No such file or directory)
+09 Dec 2025 12:19:42 -- INFO -- Properties location [file:/var/lib/openelis-global/properties/SystemConfiguration.properties] not resolvable: /var/lib/openelis-global/properties/SystemConfiguration.properties (No such file or directory)
+09 Dec 2025 12:19:44 -- INFO -- Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+09 Dec 2025 12:19:44 -- INFO -- Finished Spring Data repository scanning in 98 ms. Found 3 JPA repository interfaces.
+09 Dec 2025 12:19:48 -- INFO -- persistence.xml should be located inside META-INF directory; cannot determine persistence unit root URL for class path resource [persistence/persistence.xml]
+09 Dec 2025 12:19:48 -- INFO -- HHH000204: Processing PersistenceUnitInfo [name: OpenELIS-Global-persistence-unit]
+09 Dec 2025 12:19:48 -- INFO -- HHH000412: Hibernate ORM core version 5.6.15.Final
+09 Dec 2025 12:19:48 -- INFO -- HCANN000001: Hibernate Commons Annotations {5.1.2.Final}
+09 Dec 2025 12:19:51 -- INFO -- HHH000400: Using dialect: org.hibernate.dialect.PostgreSQLDialect
+09 Dec 2025 12:19:51 -- INFO -- HSEARCH000034: Hibernate Search version 6.1.8.Final
+09 Dec 2025 12:19:52 -- INFO -- HV000001: Hibernate Validator 8.0.2.Final
+09 Dec 2025 12:19:56 -- WARN -- HSEARCH000075: Missing value for configuration property 'hibernate.search.backend.lucene_version': using LATEST (currently '8.11.1'). Context: default backend
+09 Dec 2025 12:19:56 -- INFO -- Initialized JPA EntityManagerFactory for persistence unit 'OpenELIS-Global-persistence-unit'
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching datasource
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching released
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching printed
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching section
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching dictionaryType
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching defaultPageSize
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching type
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching canceled
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching assigned
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching completed
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching month
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching day
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching value
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching agent
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching holder
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching idSeparator
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching human
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching revision
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching day
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching released
+09 Dec 2025 12:19:57 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching patientSearchPassword
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching reflex_rules
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageAggregationUserName
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageAggregationPassword
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageSendStatus
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching condenseNSF
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching headerRightImage
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching programs
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching headerLeftImage
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching new born
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching infant
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching young child
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching child
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching adult
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching firstNameCharset
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching lastNameCharset
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching userNameCharset
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching patientIdCharset
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching reportsDirectory
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching labDirectorSignature
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageAggregationUserName
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching released
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching environment
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching infant
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching userNameCharset
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching released
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching dictionaryType
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching canceled
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching headerLeftImage
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching completed
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching labDirectorSignature
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching month
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching programs
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching adult
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching reportsDirectory
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching type
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching assigned
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching new born
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching agent
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageAggregationPassword
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching from
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching url
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching reflex_rules
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching day
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching patientSearchPassword
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching lastNameCharset
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching firstNameCharset
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching condenseNSF
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching testUsageSendStatus
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching section
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching complete
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching defaultPageSize
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching host
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching idSeparator
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching name
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching day
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching patientIdCharset
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching child
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching printed
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching port
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching young child
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching headerRightImage
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching revision
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching datasource
+09 Dec 2025 12:19:58 -- INFO -- Class: OEProperties, Method: setProperty, Info: no enum property could be found matching human
+09 Dec 2025 12:20:02 -- INFO -- HAPI FHIR version 6.6.2 - Rev 8d55781507
+09 Dec 2025 12:20:02 -- INFO -- Creating new FHIR context for FHIR version [R4]
+09 Dec 2025 12:20:03 -- INFO -- Unable to determine StAX implementation: java.xml/META-INF/MANIFEST.MF not found
+09 Dec 2025 12:20:03 -- INFO -- Hibernate is in classpath; If applicable, HQL parser will be used.
+09 Dec 2025 12:20:04 -- ERROR -- Class: TestProductMapping, Method: loadCsvFromFixedPath, Error: Failed to load CSV from fixed path /var/lib/openelis-global/odoo/odoo-test-product-mapping.csv: /var/lib/openelis-global/odoo/odoo-test-product-mapping.csv (No such file or directory)
+09 Dec 2025 12:20:04 -- ERROR -- Class: TestProductMapping, Method: init, Error: No CSV mapping file could be loaded from fixed path: /var/lib/openelis-global/odoo/odoo-test-product-mapping.csv
+09 Dec 2025 12:20:04 -- WARN -- Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'healthCheckController' defined in file [/usr/local/tomcat/webapps/OpenELIS-Global/WEB-INF/classes/org/openelisglobal/odoo/controller/HealthCheckController.class]: Unsatisfied dependency expressed through constructor parameter 0: No qualifying bean of type 'org.openelisglobal.odoo.client.OdooConnection' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
+09 Dec 2025 12:20:04 -- INFO -- Closing JPA EntityManagerFactory for persistence unit 'OpenELIS-Global-persistence-unit'
+09 Dec 2025 12:20:04 -- ERROR -- Context initialization failed
+org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'healthCheckController' defined in file [/usr/local/tomcat/webapps/OpenELIS-Global/WEB-INF/classes/org/openelisglobal/odoo/controller/HealthCheckController.class]: Unsatisfied dependency expressed through constructor parameter 0: No qualifying bean of type 'org.openelisglobal.odoo.client.OdooConnection' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1381) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1218) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:563) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:523) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:336) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:307) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:334) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.instantiateSingleton(DefaultListableBeanFactory.java:1122) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingleton(DefaultListableBeanFactory.java:1093) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1030) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:987) ~[spring-context-6.2.2.jar:6.2.2]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:627) ~[spring-context-6.2.2.jar:6.2.2]
+	at org.springframework.web.context.ContextLoader.configureAndRefreshWebApplicationContext(ContextLoader.java:394) ~[spring-web-6.2.2.jar:6.2.2]
+	at org.springframework.web.context.ContextLoader.initWebApplicationContext(ContextLoader.java:274) [spring-web-6.2.2.jar:6.2.2]
+	at org.springframework.web.context.ContextLoaderListener.contextInitialized(ContextLoaderListener.java:126) [spring-web-6.2.2.jar:6.2.2]
+	at org.apache.catalina.core.StandardContext.listenerStart(StandardContext.java:4032) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.StandardContext.startInternal(StandardContext.java:4462) [catalina.jar:10.1.50]
+	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.ContainerBase.addChildInternal(ContainerBase.java:597) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.ContainerBase.addChild(ContainerBase.java:569) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.StandardHost.addChild(StandardHost.java:665) [catalina.jar:10.1.50]
+	at org.apache.catalina.startup.HostConfig.deployWAR(HostConfig.java:962) [catalina.jar:10.1.50]
+	at org.apache.catalina.startup.HostConfig$DeployWar.run(HostConfig.java:1900) [catalina.jar:10.1.50]
+	at java.util.concurrent.Executors$RunnableAdapter.call(Unknown Source) [?:?]
+	at java.util.concurrent.FutureTask.run(Unknown Source) [?:?]
+	at org.apache.tomcat.util.threads.InlineExecutorService.execute(InlineExecutorService.java:81) [tomcat-util.jar:10.1.50]
+	at java.util.concurrent.AbstractExecutorService.submit(Unknown Source) [?:?]
+	at org.apache.catalina.startup.HostConfig.deployWARs(HostConfig.java:766) [catalina.jar:10.1.50]
+	at org.apache.catalina.startup.HostConfig.deployApps(HostConfig.java:417) [catalina.jar:10.1.50]
+	at org.apache.catalina.startup.HostConfig.start(HostConfig.java:1618) [catalina.jar:10.1.50]
+	at org.apache.catalina.startup.HostConfig.lifecycleEvent(HostConfig.java:300) [catalina.jar:10.1.50]
+	at org.apache.catalina.util.LifecycleBase.fireLifecycleEvent(LifecycleBase.java:109) [catalina.jar:10.1.50]
+	at org.apache.catalina.util.LifecycleBase.setStateInternal(LifecycleBase.java:389) [catalina.jar:10.1.50]
+	at org.apache.catalina.util.LifecycleBase.setState(LifecycleBase.java:336) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.ContainerBase.startInternal(ContainerBase.java:774) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.StandardHost.startInternal(StandardHost.java:783) [catalina.jar:10.1.50]
+	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1201) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.ContainerBase$StartChild.call(ContainerBase.java:1191) [catalina.jar:10.1.50]
+	at java.util.concurrent.FutureTask.run(Unknown Source) [?:?]
+	at org.apache.tomcat.util.threads.InlineExecutorService.execute(InlineExecutorService.java:81) [tomcat-util.jar:10.1.50]
+	at java.util.concurrent.AbstractExecutorService.submit(Unknown Source) [?:?]
+	at org.apache.catalina.core.ContainerBase.startInternal(ContainerBase.java:747) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.StandardEngine.startInternal(StandardEngine.java:201) [catalina.jar:10.1.50]
+	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.StandardService.startInternal(StandardService.java:410) [catalina.jar:10.1.50]
+	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
+	at org.apache.catalina.core.StandardServer.startInternal(StandardServer.java:868) [catalina.jar:10.1.50]
+	at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164) [catalina.jar:10.1.50]
+	at org.apache.catalina.startup.Catalina.start(Catalina.java:758) [catalina.jar:10.1.50]
+	at jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[?:?]
+	at java.lang.reflect.Method.invoke(Unknown Source) ~[?:?]
+	at org.apache.catalina.startup.Bootstrap.start(Bootstrap.java:342) [bootstrap.jar:10.1.50]
+	at org.apache.catalina.startup.Bootstrap.main(Bootstrap.java:473) [bootstrap.jar:10.1.50]
+Caused by: org.springframework.beans.factory.NoSuchBeanDefinitionException: No qualifying bean of type 'org.openelisglobal.odoo.client.OdooConnection' available: expected at least 1 bean which qualifies as autowire candidate. Dependency annotations: {}
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.raiseNoMatchingBeanFound(DefaultListableBeanFactory.java:2144) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1594) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1519) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:913) ~[spring-beans-6.2.2.jar:6.2.2]
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791) ~[spring-beans-6.2.2.jar:6.2.2]
+	... 56 more
