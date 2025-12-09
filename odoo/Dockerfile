@@ -25,6 +25,10 @@ COPY odoo.conf /etc/odoo/odoo.conf
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Copy admin password update script
+COPY update-admin.sh /entrypoint.sh.update-admin.sh
+RUN chmod +x /entrypoint.sh.update-admin.sh
+
 # Set permissions
 RUN chown -R odoo:odoo /mnt/extra-addons
 
