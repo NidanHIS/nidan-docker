@@ -22,26 +22,57 @@ This repository contains the containerized architecture for **NidanEHR**, orches
 *   `keycloak/`: Realm imports and themes.
 *   `dockerc-compose.yml`: Main orchestration file.
 
-## Getting Started
+## Build & Deployment Instructions
 
-### 1. Build the Distribution
-This will compile the Java modules for OpenMRS and build all containers.
+### 1. OpenMRS 3.0 Frontend (SPA)
+The frontend is built using `npx openmrs assemble` to create a custom distribution of micro-frontends.
+
+**Option A: Manual Build (Recommended for Development/Debugging)**
+Run this if you want to see the build process output or "own" the build artifact on your host machine.
 ```bash
-docker-compose build
+docker run --rm -it \
+  -v $(pwd)/openmrs/frontend:/app \
+  -w /app \
+  node:20-alpine \
+  /bin/sh -c "npm install -g openmrs@next && cp spa-build-config.json spa-assemble-config.json && npx openmrs assemble --manifest --mode config --config spa-assemble-config.json --target ./spa"
 ```
-*Note: The first build of openmrs-backend may take 5-10 minutes to download Maven dependencies.*
+*   This creates a `./openmrs/frontend/spa` directory with `index.html` and assets.
 
-### 2. Run the Stack
+**Option B: Docker Compose Build**
+Standard deploy. Note: This can take 5-10 minutes on the first run as it downloads ~50 modules.
+```bash
+docker-compose build openmrs-frontend
+```
+
+### 2. OpenMRS Backend (API)
+Compiles the custom distro using Maven and layers it into Tomcat.
+```bash
+docker-compose build openmrs-backend
+```
+*   **Source**: `openmrs/distro/pom.xml` defines the modules.
+*   **Verification**: Check logs with `docker-compose logs -f openmrs-backend`.
+
+### 3. Odoo 19
+Builds the Odoo image with custom addons.
+```bash
+docker-compose build odoo
+```
+*   Add custom modules to `odoo/addons/`.
+
+### 4. Nginx Gateway
+Rebuild the proxy if you change `nginx.conf` or the dashboard `index.html`.
+```bash
+docker-compose build gateway
+```
+
+---
+
+## Running the Stack
+Start all services in detached mode:
 ```bash
 docker-compose up -d
 ```
+*   **Access**: [http://localhost](http://localhost) (Service Dashboard)
+*   **OpenMRS**: [http://localhost/openmrs](http://localhost/openmrs)
+*   **Odoo**: [http://localhost:8069](http://localhost:8069)
 
-### 3. Access
-Navigate to [http://localhost](http://localhost).
-You will be redirected to Keycloak for login.
-*   **Default Admin**: `admin` / `admin`
-
-## Development
-To add a new OpenMRS module:
-1.  Add the dependency to `openmrs/distro/pom.xml`.
-2.  Rebuild: `docker-compose build openmrs-backend && docker-compose up -d openmrs-backend`.

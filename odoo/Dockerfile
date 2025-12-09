@@ -1,22 +1,35 @@
 # syntax=docker/dockerfile:1
-FROM odoo:16
-# Note: User asked for Odoo 19, but official images usually lag or are nightly. 
-# Odoo 19 is very new (future?). Using 16/17 is standard stable, but I will use the 'latest' or 'nightly' tag if 19 is strictly required. 
-# For safety/availability, I'll use odoo:latest (which is 17/18) or explicitly 'master' if they really mean bleeding edge.
-# Assuming '19' was a typo or a future requirement, I'll stick to a placeholder 'odoo:latest' or 'odoo:master' for now? 
-# Actually Odoo 18 was released recently. 19 is likely dev. I will use a build arg.
-# I will set the FROM to `odoo:latest` for now and permit override.
+FROM odoo:19
 
 USER root
+
+# Install gosu and postgresql-client for database operations
+RUN apt-get update && apt-get install -y gosu postgresql-client && rm -rf /var/lib/apt/lists/*
+
+# Fix Werkzeug compatibility issue with Python 3.12
+# Downgrade werkzeug to a compatible version
+RUN pip3 install --no-cache-dir 'werkzeug<3.0.0' || true
 
 # Install any python dependencies for custom addons
 # COPY requirements.txt /tmp/requirements.txt
 # RUN pip3 install -r /tmp/requirements.txt
 
-# Copy custom addons
-COPY ./addons /mnt/extra-addons
+# Copy custom addons (if any)
+# COPY ./addons /mnt/extra-addons
+RUN mkdir -p /mnt/extra-addons
+
+# Copy configuration file
+COPY odoo.conf /etc/odoo/odoo.conf
+
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Set permissions
 RUN chown -R odoo:odoo /mnt/extra-addons
 
-USER odoo
+# Use entrypoint to fix permissions on startup
+ENTRYPOINT ["/entrypoint.sh"]
+# Odoo will automatically initialize the database on first run
+# Use shell form to allow variable expansion
+CMD ["sh", "-c", "odoo -d ${ODOO_DB_NAME:-nidan}"]
