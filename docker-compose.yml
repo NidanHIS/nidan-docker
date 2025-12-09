@@ -266,6 +266,8 @@ services:
       - ./openelis/volume/analyzer:/var/lib/openelis-global/analyzer
       - ./openelis/volume/odoo:/var/lib/openelis-global/odoo
       - openelis-lucene-index:/var/lib/lucene_index
+      - ./openelis/volume/properties/common.properties:/run/secrets/common.properties:ro
+      - ./openelis/volume/certs:/etc/openelis-global:ro
 
   # OpenELIS FHIR
   openelis-fhir:
@@ -284,6 +286,8 @@ services:
       FHIR_SERVER_ADRESS: "http://openelis-fhir:8080/fhir/"
     networks:
       - nidan-network
+    volumes:
+      - ./openelis/volume/properties/hapi_application.yaml:/bitnami/tomcat/conf/hapi_application.yaml:ro
 
   # OpenELIS Frontend
   openelis-frontend:
