@@ -12,6 +12,10 @@ volumes:
   orthanc-data:
   orthanc-db-data:
   keycloak-db-data:
+  openelis-db-data:
+  openelis-lucene-index:
+  certbot-etc:
+  certbot-www:
   
 services:
   # ============================================================================
@@ -23,12 +27,20 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      - GATEWAY_DOMAIN=${GATEWAY_DOMAIN:-localhost}
+      - OPENELIS_DOMAIN=${OPENELIS_DOMAIN}
     networks:
       - nidan-network
     depends_on:
       - openmrs-frontend
       - odoo
       - keycloak
+      - openelis
+      - nidan-certbot
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
 
   # ============================================================================
   # OPENMRS
@@ -137,6 +149,8 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
     volumes:
       - ./keycloak/imports:/opt/keycloak/data/import
+      - ./openelis/keycloak:/opt/keycloak/data/import/openelis
+      - certbot-etc:/etc/letsencrypt:ro
     networks:
       - nidan-network
     depends_on:
@@ -163,10 +177,19 @@ services:
     container_name: nidan-orthanc
     environment:
       ORTHANC_DB_HOST: ${ORTHANC_DB_HOST}
+      ORTHANC__AUTHENTICATION_ENABLED: "true"
+      ORTHANC__REMOTE_ACCESS_ALLOWED: "true"
+      ORTHANC__REGISTERED_USERS__${ORTHANC_USERNAME:-nidan}: ${ORTHANC_PASSWORD:-nidan}
+      DICOM_WEB_PLUGIN_ENABLED: "true"
+      ORTHANC__DICOM_WEB__PUBLIC_ROOT: "/orthanc-container/dicom-web/"
+      ORTHANC__ORTHANC_EXPLORER_2__UI_OPTIONS__ENABLE_OPEN_IN_OHIF_VIEWER_3: "true"
+      ORTHANC__ORTHANC_EXPLORER_2__UI_OPTIONS__OHIF_VIEWER_3_PUBLIC_ROOT: "/orthanc-container/ohif/"
     networks:
       - nidan-network
     depends_on:
       - orthanc-db
+    volumes:
+      - certbot-etc:/etc/letsencrypt:ro
 
   orthanc-db:
     image: postgres:15
@@ -183,7 +206,104 @@ services:
   # ============================================================================
   # OPENELIS (Placeholder)
   # ============================================================================
-  # openelis:
-  #   build: ./openelis
-  #   networks:
-  #     - nidan-network
+  nidan-certbot:
+    image: certbot/certbot:latest
+    container_name: nidan-certbot
+    entrypoint: ["/bin/sh","-c"]
+    command: >
+      trap exit TERM;
+      while :; do
+        certbot renew --webroot -w /var/www/certbot --agree-tos --noninteractive --keep-until-expiring;
+        sleep 60d;
+      done
+    environment:
+      - CERTBOT_EMAIL=${CERTBOT_EMAIL}
+      - CERTBOT_DOMAINS=${CERTBOT_DOMAINS}
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    networks:
+      - nidan-network
+
+  openelis-db:
+    image: postgres:15
+    container_name: nidan-openelis-db
+    environment:
+      POSTGRES_DB: ${OPENELIS_DB_NAME:-clinlims}
+      POSTGRES_USER: ${OPENELIS_DB_USER:-clinlims}
+      POSTGRES_PASSWORD: ${OPENELIS_DB_PASSWORD:-changeme}
+    volumes:
+      - openelis-db-data:/var/lib/postgresql/data
+    networks:
+      - nidan-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${OPENELIS_DB_USER:-clinlims} -d ${OPENELIS_DB_NAME:-clinlims}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # OpenELIS backend (Tomcat)
+  openelis:
+    build: ./openelis
+    image: itechuw/openelis-global-2:develop
+    platform: linux/amd64
+    container_name: nidan-openelis
+    depends_on:
+      - openelis-db
+    environment:
+      - DEFAULT_PW=${OPENELIS_DEFAULT_ADMIN_PASSWORD:-adminADMIN!}
+      - TZ=${OPENELIS_TZ:-UTC}
+      - CATALINA_OPTS=-Ddatasource.url=jdbc:postgresql://openelis-db:5432/${OPENELIS_DB_NAME:-clinlims} -Ddatasource.username=${OPENELIS_DB_USER:-clinlims} -Ddatasource.password=${OPENELIS_DB_PASSWORD:-changeme}
+    networks:
+      - nidan-network
+    volumes:
+      - ./openelis/volume/properties:/var/lib/openelis-global/properties
+      - ./openelis/volume/configuration:/var/lib/openelis-global/configuration
+      - ./openelis/volume/plugins:/var/lib/openelis-global/plugins
+      - ./openelis/volume/ocl:/var/lib/openelis-global/ocl
+      - ./openelis/volume/logs/oeLogs:/var/lib/openelis-global/logs
+      - ./openelis/volume/logs/tomcatLogs:/usr/local/tomcat/logs
+      - ./openelis/volume/analyzer:/var/lib/openelis-global/analyzer
+      - ./openelis/volume/odoo:/var/lib/openelis-global/odoo
+      - openelis-lucene-index:/var/lib/lucene_index
+
+  # OpenELIS FHIR
+  openelis-fhir:
+    image: itechuw/openelis-global-2-fhir:develop
+    platform: linux/amd64
+    container_name: nidan-openelis-fhir
+    depends_on:
+      - openelis-db
+    environment:
+      TZ: ${OPENELIS_TZ:-UTC}
+      JAVA_OPTS: "-Djavax.net.ssl.trustStore=${SSL_TRUSTSTORE_PATH} -Djavax.net.ssl.trustStorePassword=${SSL_TRUSTSTORE_PASSWORD} -Djavax.net.ssl.trustStoreType=pkcs12 -Djavax.net.ssl.keyStore=${SSL_KEYSTORE_PATH} -Djavax.net.ssl.keyStorePassword=${SSL_KEYSTORE_PASSWORD} -Djavax.net.ssl.keyStoreType=pkcs12"
+      CATALINA_OPTS: "-Dhapi.ssl.truststorepath=${SSL_TRUSTSTORE_PATH} -Dhapi.ssl.truststorepassword=${SSL_TRUSTSTORE_PASSWORD} -Dhapi.ssl.keystorepath=${SSL_KEYSTORE_PATH} -Dhapi.ssl.keystorepassword=${SSL_KEYSTORE_PASSWORD}"
+      FHIR_DATASOURCE_URL: "jdbc:postgresql://openelis-db:5432/${OPENELIS_DB_NAME:-clinlims}?currentSchema=clinlims"
+      FHIR_DATASOURCE_USERNAME: "${OPENELIS_DB_USER:-clinlims}"
+      FHIR_DATASOURCE_PASSWORD: "${OPENELIS_DB_PASSWORD:-changeme}"
+      FHIR_SERVER_ADRESS: "http://openelis-fhir:8080/fhir/"
+    networks:
+      - nidan-network
+
+  # OpenELIS Frontend
+  openelis-frontend:
+    image: itechuw/openelis-global-2-frontend:3.2.0.2
+    platform: linux/amd64
+    container_name: nidan-openelis-frontend
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    networks:
+      - nidan-network
+
+  # OHIF Viewer
+  ohif:
+    image: ohif/app:latest
+    container_name: nidan-ohif
+    environment:
+      - PUBLIC_URL=/ohif/
+      - REACT_APP_CONFIG_FILE=/usr/share/nginx/html/app-config.js
+    volumes:
+      - ./ohif/app-config.js:/usr/share/nginx/html/app-config.js:ro
+    networks:
+      - nidan-network
+
