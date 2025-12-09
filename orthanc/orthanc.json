@@ -8,6 +8,10 @@
         "Username": "orthanc",
         "Password": "orthanc_password"
     },
+    "HttpServerRoot": "/orthanc-container",
     "RemoteAccessAllowed": true,
-    "AuthenticationEnabled": false
+    "AuthenticationEnabled": true,
+    "RegisteredUsers": {
+        "nidan": "nidan"
+    }
 }
