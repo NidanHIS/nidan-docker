@@ -58142,3 +58142,125 @@
 09-Dec-2025 12:20:05.035 WARNING [main] org.apache.catalina.loader.WebappClassLoaderBase.clearReferencesJdbc The web application [OpenELIS-Global] registered the JDBC driver [org.postgresql.Driver] but failed to unregister it when the web application was stopped. To prevent a memory leak, the JDBC Driver has been forcibly unregistered.
 09-Dec-2025 12:20:05.040 INFO [main] org.apache.catalina.startup.HostConfig.deployWAR Deployment of web application archive [/usr/local/tomcat/webapps/OpenELIS-Global.war] has finished in [31,027] ms
 09-Dec-2025 12:20:05.055 INFO [main] org.apache.catalina.startup.Catalina.start Server startup in [85931] milliseconds
+09-Dec-2025 16:31:46.466 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Server version name:   Apache Tomcat/9.0.65
+09-Dec-2025 16:31:46.476 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Server built:          Jul 14 2022 12:28:53 UTC
+09-Dec-2025 16:31:46.477 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Server version number: 9.0.65.0
+09-Dec-2025 16:31:46.477 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log OS Name:               Linux
+09-Dec-2025 16:31:46.477 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log OS Version:            6.10.14-linuxkit
+09-Dec-2025 16:31:46.477 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Architecture:          amd64
+09-Dec-2025 16:31:46.477 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Java Home:             /usr/local/openjdk-11
+09-Dec-2025 16:31:46.477 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log JVM Version:           11.0.16+8
+09-Dec-2025 16:31:46.477 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log JVM Vendor:            Oracle Corporation
+09-Dec-2025 16:31:46.477 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log CATALINA_BASE:         /usr/local/tomcat
+09-Dec-2025 16:31:46.477 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log CATALINA_HOME:         /usr/local/tomcat
+09-Dec-2025 16:31:46.519 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: --add-opens=java.base/java.lang=ALL-UNNAMED
+09-Dec-2025 16:31:46.520 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: --add-opens=java.base/java.io=ALL-UNNAMED
+09-Dec-2025 16:31:46.521 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: --add-opens=java.base/java.util=ALL-UNNAMED
+09-Dec-2025 16:31:46.522 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+09-Dec-2025 16:31:46.522 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: --add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED
+09-Dec-2025 16:31:46.522 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.util.logging.config.file=/usr/local/tomcat/conf/logging.properties
+09-Dec-2025 16:31:46.522 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager
+09-Dec-2025 16:31:46.523 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djdk.tls.ephemeralDHKeySize=2048
+09-Dec-2025 16:31:46.523 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.protocol.handler.pkgs=org.apache.catalina.webresources
+09-Dec-2025 16:31:46.523 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dorg.apache.catalina.security.SecurityListener.UMASK=0027
+09-Dec-2025 16:31:46.523 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Ddatasource.url=jdbc:postgresql://openelis-db:5432/clinlims
+09-Dec-2025 16:31:46.523 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Ddatasource.username=clinlims
+09-Dec-2025 16:31:46.523 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Ddatasource.password=changeme
+09-Dec-2025 16:31:46.523 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dignore.endorsed.dirs=
+09-Dec-2025 16:31:46.523 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dcatalina.base=/usr/local/tomcat
+09-Dec-2025 16:31:46.524 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dcatalina.home=/usr/local/tomcat
+09-Dec-2025 16:31:46.524 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.io.tmpdir=/usr/local/tomcat/temp
+09-Dec-2025 16:31:46.544 INFO [main] org.apache.catalina.core.AprLifecycleListener.lifecycleEvent Loaded Apache Tomcat Native library [1.2.35] using APR version [1.7.0].
+09-Dec-2025 16:31:46.545 INFO [main] org.apache.catalina.core.AprLifecycleListener.lifecycleEvent APR capabilities: IPv6 [true], sendfile [true], accept filters [false], random [true], UDS [true].
+09-Dec-2025 16:31:46.546 INFO [main] org.apache.catalina.core.AprLifecycleListener.lifecycleEvent APR/OpenSSL configuration: useAprConnector [false], useOpenSSL [true]
+09-Dec-2025 16:31:46.568 INFO [main] org.apache.catalina.core.AprLifecycleListener.initializeSSL OpenSSL successfully initialized [OpenSSL 1.1.1n  15 Mar 2022]
+09-Dec-2025 16:31:47.679 INFO [main] org.apache.coyote.AbstractProtocol.init Initializing ProtocolHandler ["http-nio-8080"]
+09-Dec-2025 16:31:47.774 INFO [main] org.apache.catalina.startup.Catalina.load Server initialization in [1802] milliseconds
+09-Dec-2025 16:31:48.012 INFO [main] org.apache.catalina.core.StandardService.startInternal Starting service [Catalina]
+09-Dec-2025 16:31:48.012 INFO [main] org.apache.catalina.core.StandardEngine.startInternal Starting Servlet engine: [Apache Tomcat/9.0.65]
+09-Dec-2025 16:31:48.054 INFO [main] org.apache.coyote.AbstractProtocol.start Starting ProtocolHandler ["http-nio-8080"]
+09-Dec-2025 16:31:48.173 INFO [main] org.apache.catalina.startup.Catalina.start Server startup in [397] milliseconds
+09-Dec-2025 17:29:27.151 INFO [Thread-2] org.apache.coyote.AbstractProtocol.pause Pausing ProtocolHandler ["http-nio-8080"]
+09-Dec-2025 17:29:27.230 INFO [Thread-2] org.apache.catalina.core.StandardService.stopInternal Stopping service [Catalina]
+09-Dec-2025 17:29:27.266 INFO [Thread-2] org.apache.coyote.AbstractProtocol.stop Stopping ProtocolHandler ["http-nio-8080"]
+09-Dec-2025 17:29:27.453 INFO [Thread-2] org.apache.coyote.AbstractProtocol.destroy Destroying ProtocolHandler ["http-nio-8080"]
+09-Dec-2025 17:29:42.834 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Server version name:   Apache Tomcat/9.0.65
+09-Dec-2025 17:29:42.850 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Server built:          Jul 14 2022 12:28:53 UTC
+09-Dec-2025 17:29:42.850 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Server version number: 9.0.65.0
+09-Dec-2025 17:29:42.850 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log OS Name:               Linux
+09-Dec-2025 17:29:42.850 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log OS Version:            6.10.14-linuxkit
+09-Dec-2025 17:29:42.850 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Architecture:          amd64
+09-Dec-2025 17:29:42.850 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Java Home:             /usr/local/openjdk-11
+09-Dec-2025 17:29:42.850 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log JVM Version:           11.0.16+8
+09-Dec-2025 17:29:42.850 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log JVM Vendor:            Oracle Corporation
+09-Dec-2025 17:29:42.850 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log CATALINA_BASE:         /usr/local/tomcat
+09-Dec-2025 17:29:42.851 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log CATALINA_HOME:         /usr/local/tomcat
+09-Dec-2025 17:29:42.917 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: --add-opens=java.base/java.lang=ALL-UNNAMED
+09-Dec-2025 17:29:42.917 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: --add-opens=java.base/java.io=ALL-UNNAMED
+09-Dec-2025 17:29:42.918 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: --add-opens=java.base/java.util=ALL-UNNAMED
+09-Dec-2025 17:29:42.918 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+09-Dec-2025 17:29:42.918 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: --add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED
+09-Dec-2025 17:29:42.918 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.util.logging.config.file=/usr/local/tomcat/conf/logging.properties
+09-Dec-2025 17:29:42.919 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager
+09-Dec-2025 17:29:42.920 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djdk.tls.ephemeralDHKeySize=2048
+09-Dec-2025 17:29:42.920 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.protocol.handler.pkgs=org.apache.catalina.webresources
+09-Dec-2025 17:29:42.921 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dorg.apache.catalina.security.SecurityListener.UMASK=0027
+09-Dec-2025 17:29:42.921 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Ddatasource.url=jdbc:postgresql://openelis-db:5432/clinlims
+09-Dec-2025 17:29:42.921 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Ddatasource.username=clinlims
+09-Dec-2025 17:29:42.921 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Ddatasource.password=changeme
+09-Dec-2025 17:29:42.921 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dignore.endorsed.dirs=
+09-Dec-2025 17:29:42.921 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dcatalina.base=/usr/local/tomcat
+09-Dec-2025 17:29:42.921 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dcatalina.home=/usr/local/tomcat
+09-Dec-2025 17:29:42.921 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.io.tmpdir=/usr/local/tomcat/temp
+09-Dec-2025 17:29:42.948 INFO [main] org.apache.catalina.core.AprLifecycleListener.lifecycleEvent Loaded Apache Tomcat Native library [1.2.35] using APR version [1.7.0].
+09-Dec-2025 17:29:42.949 INFO [main] org.apache.catalina.core.AprLifecycleListener.lifecycleEvent APR capabilities: IPv6 [true], sendfile [true], accept filters [false], random [true], UDS [true].
+09-Dec-2025 17:29:42.949 INFO [main] org.apache.catalina.core.AprLifecycleListener.lifecycleEvent APR/OpenSSL configuration: useAprConnector [false], useOpenSSL [true]
+09-Dec-2025 17:29:42.982 INFO [main] org.apache.catalina.core.AprLifecycleListener.initializeSSL OpenSSL successfully initialized [OpenSSL 1.1.1n  15 Mar 2022]
+09-Dec-2025 17:29:44.535 INFO [main] org.apache.coyote.AbstractProtocol.init Initializing ProtocolHandler ["http-nio-8080"]
+09-Dec-2025 17:29:44.670 INFO [main] org.apache.catalina.startup.Catalina.load Server initialization in [2465] milliseconds
+09-Dec-2025 17:29:44.987 INFO [main] org.apache.catalina.core.StandardService.startInternal Starting service [Catalina]
+09-Dec-2025 17:29:44.988 INFO [main] org.apache.catalina.core.StandardEngine.startInternal Starting Servlet engine: [Apache Tomcat/9.0.65]
+09-Dec-2025 17:29:45.101 INFO [main] org.apache.coyote.AbstractProtocol.start Starting ProtocolHandler ["http-nio-8080"]
+09-Dec-2025 17:29:45.198 INFO [main] org.apache.catalina.startup.Catalina.start Server startup in [526] milliseconds
+09-Dec-2025 18:27:58.604 INFO [Thread-2] org.apache.coyote.AbstractProtocol.pause Pausing ProtocolHandler ["http-nio-8080"]
+09-Dec-2025 18:27:58.725 INFO [Thread-2] org.apache.catalina.core.StandardService.stopInternal Stopping service [Catalina]
+09-Dec-2025 18:27:58.749 INFO [Thread-2] org.apache.coyote.AbstractProtocol.stop Stopping ProtocolHandler ["http-nio-8080"]
+09-Dec-2025 18:27:58.817 INFO [Thread-2] org.apache.coyote.AbstractProtocol.destroy Destroying ProtocolHandler ["http-nio-8080"]
+09-Dec-2025 18:28:13.006 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Server version name:   Apache Tomcat/9.0.65
+09-Dec-2025 18:28:13.017 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Server built:          Jul 14 2022 12:28:53 UTC
+09-Dec-2025 18:28:13.017 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Server version number: 9.0.65.0
+09-Dec-2025 18:28:13.017 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log OS Name:               Linux
+09-Dec-2025 18:28:13.019 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log OS Version:            6.10.14-linuxkit
+09-Dec-2025 18:28:13.021 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Architecture:          amd64
+09-Dec-2025 18:28:13.021 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Java Home:             /usr/local/openjdk-11
+09-Dec-2025 18:28:13.022 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log JVM Version:           11.0.16+8
+09-Dec-2025 18:28:13.023 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log JVM Vendor:            Oracle Corporation
+09-Dec-2025 18:28:13.024 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log CATALINA_BASE:         /usr/local/tomcat
+09-Dec-2025 18:28:13.024 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log CATALINA_HOME:         /usr/local/tomcat
+09-Dec-2025 18:28:13.055 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: --add-opens=java.base/java.lang=ALL-UNNAMED
+09-Dec-2025 18:28:13.057 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: --add-opens=java.base/java.io=ALL-UNNAMED
+09-Dec-2025 18:28:13.058 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: --add-opens=java.base/java.util=ALL-UNNAMED
+09-Dec-2025 18:28:13.058 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+09-Dec-2025 18:28:13.058 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: --add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED
+09-Dec-2025 18:28:13.059 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.util.logging.config.file=/usr/local/tomcat/conf/logging.properties
+09-Dec-2025 18:28:13.060 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager
+09-Dec-2025 18:28:13.062 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djdk.tls.ephemeralDHKeySize=2048
+09-Dec-2025 18:28:13.063 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.protocol.handler.pkgs=org.apache.catalina.webresources
+09-Dec-2025 18:28:13.063 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dorg.apache.catalina.security.SecurityListener.UMASK=0027
+09-Dec-2025 18:28:13.063 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Ddatasource.url=jdbc:postgresql://openelis-db:5432/clinlims
+09-Dec-2025 18:28:13.063 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Ddatasource.username=clinlims
+09-Dec-2025 18:28:13.063 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Ddatasource.password=changeme
+09-Dec-2025 18:28:13.063 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dignore.endorsed.dirs=
+09-Dec-2025 18:28:13.064 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dcatalina.base=/usr/local/tomcat
+09-Dec-2025 18:28:13.064 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Dcatalina.home=/usr/local/tomcat
+09-Dec-2025 18:28:13.064 INFO [main] org.apache.catalina.startup.VersionLoggerListener.log Command line argument: -Djava.io.tmpdir=/usr/local/tomcat/temp
+09-Dec-2025 18:28:13.075 INFO [main] org.apache.catalina.core.AprLifecycleListener.lifecycleEvent Loaded Apache Tomcat Native library [1.2.35] using APR version [1.7.0].
+09-Dec-2025 18:28:13.077 INFO [main] org.apache.catalina.core.AprLifecycleListener.lifecycleEvent APR capabilities: IPv6 [true], sendfile [true], accept filters [false], random [true], UDS [true].
+09-Dec-2025 18:28:13.077 INFO [main] org.apache.catalina.core.AprLifecycleListener.lifecycleEvent APR/OpenSSL configuration: useAprConnector [false], useOpenSSL [true]
+09-Dec-2025 18:28:13.094 INFO [main] org.apache.catalina.core.AprLifecycleListener.initializeSSL OpenSSL successfully initialized [OpenSSL 1.1.1n  15 Mar 2022]
+09-Dec-2025 18:28:14.185 INFO [main] org.apache.coyote.AbstractProtocol.init Initializing ProtocolHandler ["http-nio-8080"]
+09-Dec-2025 18:28:14.236 INFO [main] org.apache.catalina.startup.Catalina.load Server initialization in [1651] milliseconds
+09-Dec-2025 18:28:14.422 INFO [main] org.apache.catalina.core.StandardService.startInternal Starting service [Catalina]
+09-Dec-2025 18:28:14.422 INFO [main] org.apache.catalina.core.StandardEngine.startInternal Starting Servlet engine: [Apache Tomcat/9.0.65]
+09-Dec-2025 18:28:14.453 INFO [main] org.apache.coyote.AbstractProtocol.start Starting ProtocolHandler ["http-nio-8080"]
+09-Dec-2025 18:28:14.501 INFO [main] org.apache.catalina.startup.Catalina.start Server startup in [263] milliseconds
