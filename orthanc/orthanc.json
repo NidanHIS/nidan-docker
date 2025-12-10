@@ -2,16 +2,18 @@
     "Name": "Nidan Orthanc",
     "PostgreSQL": {
         "Enable": true,
-        "Host": "orthanc-db",
+        "Host": "${ORTHANC_DB_HOST:-orthanc-db}",
         "Port": 5432,
-        "Database": "orthanc",
-        "Username": "orthanc",
-        "Password": "orthanc_password"
+        "Database": "${ORTHANC_DB_NAME:-orthanc}",
+        "Username": "${ORTHANC_DB_USER:-orthanc}",
+        "Password": "${ORTHANC_DB_PASSWORD:-orthanc}"
     },
-    "HttpServerRoot": "/orthanc-container",
+    "Plugins": [
+        "/usr/share/orthanc/plugins-available/libOrthancExplorer2.so"
+    ],
     "RemoteAccessAllowed": true,
     "AuthenticationEnabled": true,
     "RegisteredUsers": {
-        "nidan": "nidan"
+        "${ORTHANC_USERNAME:-nidan}": "${ORTHANC_PASSWORD:-nidan}"
     }
 }

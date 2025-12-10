@@ -101,6 +101,7 @@ services:
     build: ./odoo
     image: nidan/odoo:19
     container_name: nidan-odoo
+    command: sh -c "odoo -d \${ODOO_DB_NAME:-nidan} -i base"
     ports:
       - "8069:8069"
     environment:
@@ -190,6 +191,11 @@ services:
     container_name: nidan-orthanc
     environment:
       ORTHANC_DB_HOST: ${ORTHANC_DB_HOST}
+      ORTHANC_DB_NAME: ${ORTHANC_DB_NAME}
+      ORTHANC_DB_USER: ${ORTHANC_DB_USER}
+      ORTHANC_DB_PASSWORD: ${ORTHANC_DB_PASSWORD}
+      ORTHANC_USERNAME: ${ORTHANC_USERNAME:-nidan}
+      ORTHANC_PASSWORD: ${ORTHANC_PASSWORD:-nidan}
       ORTHANC__AUTHENTICATION_ENABLED: "true"
       ORTHANC__REMOTE_ACCESS_ALLOWED: "true"
       ORTHANC__REGISTERED_USERS__${ORTHANC_USERNAME:-nidan}: ${ORTHANC_PASSWORD:-nidan}
