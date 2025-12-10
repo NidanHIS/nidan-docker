@@ -1,40 +1,40 @@
 # syntax=docker/dockerfile:1
 
-# Stage 1: Build the Distro Artifacts using Maven
-FROM maven:3.9-eclipse-temurin-17 AS builder
+### Dev Stage
+FROM openmrs/openmrs-core:2.8.x-dev-amazoncorretto-21 AS dev
+WORKDIR /openmrs_distro
 
-WORKDIR /build
-COPY distro/pom.xml .
-# Download dependencies first (cache layer)
-# Note: We might need to run a dummy verify or package to actually download jars
-RUN mvn dependency:go-offline
+ARG MVN_ARGS_SETTINGS="-s /usr/share/maven/ref/settings-docker.xml -U -P distro"
+ARG MVN_ARGS="install"
 
-# Perform the package to trigger the copy-dependencies execution
-RUN mvn package -DskipTests
+# Copy build files
+COPY pom.xml ./
+COPY distro ./distro/
 
-# Stage 2: Runtime Base (Tomcat)
-FROM tomcat:9.0-jdk17-temurin
+ARG CACHE_BUST
+# Build the distro, but only deploy from the amd64 build
+RUN --mount=type=secret,id=m2settings,target=/usr/share/maven/ref/settings-docker.xml if [[ "$MVN_ARGS" != "deploy" || "$(arch)" = "x86_64" ]]; then mvn $MVN_ARGS_SETTINGS $MVN_ARGS; else mvn $MVN_ARGS_SETTINGS install; fi
 
-# Environment Variables
-ENV OPENMRS_HOME=/data/openmrs
-ENV JAVA_OPTS="-Xmx2g -Xms512m"
+RUN cp /openmrs_distro/distro/target/sdk-distro/web/openmrs_core/openmrs.war /openmrs/distribution/openmrs_core/
 
-# Create OpenMRS Home directory
-RUN mkdir -p ${OPENMRS_HOME}/modules && \
-    mkdir -p ${OPENMRS_HOME}/configuration
+RUN cp /openmrs_distro/distro/target/sdk-distro/web/openmrs-distro.properties /openmrs/distribution/
+RUN cp -R /openmrs_distro/distro/target/sdk-distro/web/openmrs_modules /openmrs/distribution/openmrs_modules/
+RUN cp -R /openmrs_distro/distro/target/sdk-distro/web/openmrs_owas /openmrs/distribution/openmrs_owas/
+RUN cp -R /openmrs_distro/distro/target/sdk-distro/web/openmrs_config /openmrs/distribution/openmrs_config/
 
-# Copy WAR from builder
-COPY --from=builder /build/target/distro/openmrs.war /usr/local/tomcat/webapps/openmrs.war
+# Clean up after copying needed artifacts
+RUN mvn $MVN_ARGS_SETTINGS clean
 
-# Copy Modules from builder
-COPY --from=builder /build/target/distro/modules/ /root/temp-modules/
+### Run Stage
+# Replace '2.7.x' with the exact version of openmrs-core built for production (if available)
+FROM openmrs/openmrs-core:2.8.x-amazoncorretto-21
 
-# Create a startup script to copy modules to OPENMRS_HOME on first run
-# This ensures that if you map a volume to ${OPENMRS_HOME}, we populate it with the baked-in modules
-COPY endpoint.sh /usr/local/bin/endpoint.sh
-RUN chmod +x /usr/local/bin/endpoint.sh
+# Do not copy the war if using the correct openmrs-core image version
+COPY --from=dev /openmrs/distribution/openmrs_core/openmrs.war /openmrs/distribution/openmrs_core/
 
-EXPOSE 8080
-
-ENTRYPOINT ["/usr/local/bin/endpoint.sh"]
-CMD ["catalina.sh", "run"]
+#Copy custom modules
+COPY custom_modules/ /openmrs/distribution/openmrs_modules/
+COPY --from=dev /openmrs/distribution/openmrs-distro.properties /openmrs/distribution/
+COPY --from=dev /openmrs/distribution/openmrs_modules /openmrs/distribution/openmrs_modules
+COPY --from=dev /openmrs/distribution/openmrs_owas /openmrs/distribution/openmrs_owas
+COPY --from=dev  /openmrs/distribution/openmrs_config /openmrs/distribution/openmrs_config

@@ -30,7 +30,14 @@ RUN ls -la ./spa
 
 # The 'spa' directory now contains index.html, importmap.json, and all assets
 
+
 FROM nginx:alpine
+
+# Install envsubst (via gettext)
+RUN apk update && \
+    apk upgrade && \
+    apk add --no-cache gettext
+
 # Remove default nginx static assets
 RUN rm -rf /usr/share/nginx/html/*
 
@@ -39,3 +46,9 @@ COPY --from=builder /app/spa /usr/share/nginx/html
 COPY config-core_demo.json /usr/share/nginx/html/config-core_demo.json
 # Custom nginx config for SPA fallback usually goes here
 COPY nginx-spa.conf /etc/nginx/conf.d/default.conf
+
+COPY startup.sh /usr/local/bin/startup.sh
+RUN chmod +x /usr/local/bin/startup.sh
+
+# Use the startup script to handle env substitutions
+CMD ["/usr/local/bin/startup.sh"]
