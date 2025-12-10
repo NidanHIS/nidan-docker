@@ -1,5 +1,3 @@
-version: "3.9"
-
 networks:
   nidan-network:
     driver: bridge
@@ -16,7 +14,8 @@ volumes:
   openelis-lucene-index:
   certbot-etc:
   certbot-www:
-  
+
+
 services:
   # ============================================================================
   # PROXY / GATEWAY
@@ -46,23 +45,37 @@ services:
   # OPENMRS
   # ============================================================================
   openmrs-backend:
-    build: ./openmrs
-    image: nidan/openmrs-backend:3.0
+    # build: ./openmrs
+    image: openmrs/openmrs-reference-application-3-backend:${TAG:-qa}
     container_name: nidan-openmrs-backend
     environment:
       - DB_DATABASE=${OPENMRS_DB_NAME}
       - DB_USERNAME=${OPENMRS_DB_USER}
       - DB_PASSWORD=${OPENMRS_DB_PASSWORD}
       - DB_HOST=${OPENMRS_DB_HOST}
+      - OMRS_DB_HOSTNAME=${OPENMRS_DB_HOST}
+      - OMRS_DB_NAME=${OPENMRS_DB_NAME}
+      - OMRS_DB_USERNAME=${OPENMRS_DB_USER}
+      - OMRS_DB_PASSWORD=${OPENMRS_DB_PASSWORD}
+      - OMRS_DB_PORT=3306
     networks:
       - nidan-network
     depends_on:
       - openmrs-db
+    volumes:
+      - ./openmrs/runtime/openmrs-runtime.properties:/openmrs/openmrs-runtime.properties:ro
+      - ./openmrs/runtime/openmrs-runtime.properties:/usr/local/tomcat/openmrs-runtime.properties:ro
 
   openmrs-frontend:
-    build: ./openmrs/frontend
-    image: nidan/openmrs-frontend:3.0
+    # build: ./openmrs/frontend
+    image: openmrs/openmrs-reference-application-3-frontend:${TAG:-qa}
     container_name: nidan-openmrs-frontend
+    environment:
+      - SPA_PATH=/openmrs/spa
+      - API_URL=/openmrs
+      - SPA_CONFIG_URLS=
+    volumes:
+      - ./openmrs/frontend/nginx-override.conf:/etc/nginx/nginx.conf:ro
     networks:
       - nidan-network
     depends_on:
@@ -127,7 +140,7 @@ services:
     networks:
       - nidan-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${ODOO_POSTGRES_USER:-odoo} -d ${ODOO_POSTGRES_DB:-postgres}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${ODOO_POSTGRES_USER:-odoo} -d ${ODOO_POSTGRES_DB:-postgres}" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -209,13 +222,7 @@ services:
   nidan-certbot:
     image: certbot/certbot:latest
     container_name: nidan-certbot
-    entrypoint: ["/bin/sh","-c"]
-    command: >
-      trap exit TERM;
-      while :; do
-        certbot renew --webroot -w /var/www/certbot --agree-tos --noninteractive --keep-until-expiring;
-        sleep 60d;
-      done
+    entrypoint: "/bin/sh -c 'trap \"exit 0\" TERM; while :; do certbot renew --webroot -w /var/www/certbot --agree-tos --noninteractive --keep-until-expiring; sleep 12h & wait $${!}; done;'"
     environment:
       - CERTBOT_EMAIL=${CERTBOT_EMAIL}
       - CERTBOT_DOMAINS=${CERTBOT_DOMAINS}
@@ -237,7 +244,7 @@ services:
     networks:
       - nidan-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${OPENELIS_DB_USER:-clinlims} -d ${OPENELIS_DB_NAME:-clinlims}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${OPENELIS_DB_USER:-clinlims} -d ${OPENELIS_DB_NAME:-clinlims}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -310,4 +317,3 @@ services:
       - ./ohif/app-config.js:/usr/share/nginx/html/app-config.js:ro
     networks:
       - nidan-network
-

@@ -12,18 +12,18 @@ WORKDIR /app
 RUN mkdir -p spa
 
 # Perform the O3 Assembly
-COPY spa-build-config.json spa-assemble-config.json
+# Perform the O3 Assembly
+COPY spa-build-config.json spa-assemble-config.json ./
+# Make sure custom index and root-config are available
+COPY index.html root-config.js ./
 
 # We use the openmrs CLI to assemble the frontend based on the config
 # This will download and assemble all the microfrontends specified in the config
 RUN npx --legacy-peer-deps openmrs@next assemble --manifest --mode config --config spa-assemble-config.json --target ./spa
 
-# The assemble command should create importmap.json and routes.registry.json
-# But we need to ensure index.html exists - check if it was created
-RUN if [ ! -f ./spa/index.html ]; then \
-        echo "index.html not found, creating from template"; \
-        cp index.html ./spa/index.html 2>/dev/null || echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>OpenMRS</title></head><body><div id="root"></div></body></html>' > ./spa/index.html; \
-    fi
+# Overwrite the default index.html with our custom one if strictly needed,
+# or ensure it's placed where we want it.
+RUN cp index.html ./spa/index.html && cp root-config.js ./spa/root-config.js
 
 # Debug: Check if index.html exists
 RUN ls -la ./spa

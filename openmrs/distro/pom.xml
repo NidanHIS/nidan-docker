@@ -41,10 +41,10 @@
         <formentryapp.version>1.4.0</formentryapp.version>
         <htmlformentry.version>5.1.0</htmlformentry.version>
         <htmlformentryui.version>2.4.0</htmlformentryui.version>
-        <namephonetics.version>1.9.0</namephonetics.version>
+        <namephonetics.version>1.19.0</namephonetics.version>
         <providermanagement.version>2.13.0</providermanagement.version>
         <registrationapp.version>1.23.0</registrationapp.version>
-        <registrationcore.version>1.14.0</registrationcore.version>
+        <registrationcore.version>1.13.0</registrationcore.version>
         <uiframework.version>3.19.0</uiframework.version>
         <uicommons.version>2.12.0</uicommons.version>
         <!-- Using compatible versions for 2.6.x Core -->
@@ -184,7 +184,7 @@
         </dependency>
         <!-- Core Reference Application Modules -->
         <!-- Note: Some modules may need version adjustments. Uncomment and verify versions as needed -->
-        <!--
+        
         <dependency>
             <groupId>org.openmrs.module</groupId>
             <artifactId>allergyui-omod</artifactId>
@@ -255,7 +255,6 @@
             <artifactId>uicommons-omod</artifactId>
             <version>${uicommons.version}</version>
         </dependency>
-        -->
     </dependencies>
 
     <build>
