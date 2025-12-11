@@ -6,6 +6,5 @@ set -e
 envsubst < /etc/orthanc/orthanc.json.template > /tmp/orthanc.json
 mv /tmp/orthanc.json /etc/orthanc/orthanc.json
 
-# Start Orthanc (pass through to original entrypoint/CMD)
-exec "$@"
-
+# Call the original orthancteam/orthanc entrypoint which handles plugin activation
+exec /docker-entrypoint.sh "$@"

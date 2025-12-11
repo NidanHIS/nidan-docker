@@ -1,0 +1,2 @@
+# This file ensures the worklists directory is tracked by git
+# DICOM worklist files (.wl) should be placed in this directory

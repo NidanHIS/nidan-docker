@@ -48,6 +48,7 @@ services:
   openmrs-backend:
     build: ./openmrs
     # image: openmrs/openmrs-reference-application-3-backend:${TAG:-qa}
+    image: openmrs-backend
     container_name: nidan-openmrs-backend
     environment:
       OMRS_CONFIG_MODULE_WEB_ADMIN: "true"
@@ -191,29 +192,66 @@ services:
   # ORTHANC
   # ============================================================================
   orthanc:
-    build: ./orthanc
-    image: nidan/orthanc:latest
+    image: orthancteam/orthanc:latest
     container_name: nidan-orthanc
+    ports:
+      - "8042:8042" # HTTP/REST API
+      - "4242:4242" # DICOM
     environment:
-      ORTHANC_DB_HOST: ${ORTHANC_DB_HOST}
-      ORTHANC_DB_NAME: ${ORTHANC_DB_NAME}
-      ORTHANC_DB_USER: ${ORTHANC_DB_USER}
-      ORTHANC_DB_PASSWORD: ${ORTHANC_DB_PASSWORD}
-      ORTHANC_USERNAME: ${ORTHANC_USERNAME:-nidan}
-      ORTHANC_PASSWORD: ${ORTHANC_PASSWORD:-nidan}
-      ORTHANC__AUTHENTICATION_ENABLED: "true"
-      ORTHANC__REMOTE_ACCESS_ALLOWED: "true"
-      ORTHANC__REGISTERED_USERS__${ORTHANC_USERNAME:-nidan}: ${ORTHANC_PASSWORD:-nidan}
+      # Enable plugins via orthancteam/orthanc environment variables
       DICOM_WEB_PLUGIN_ENABLED: "true"
-      ORTHANC__DICOM_WEB__PUBLIC_ROOT: "/orthanc-container/dicom-web/"
+      WORKLISTS_PLUGIN_ENABLED: "true"
+      POSTGRESQL_PLUGIN_ENABLED: "true"
+      OHIF_PLUGIN_ENABLED: "true"
+      ORTHANC_EXPLORER_2_ENABLED: "true"
+      # Verbose startup for debugging
+      VERBOSE_STARTUP: "true"
+      # Orthanc core settings
+      ORTHANC__NAME: "Nidan Orthanc"
+      ORTHANC__DICOM_SERVER_ENABLED: "true"
+      ORTHANC__DICOM_PORT: "4242"
+      ORTHANC__DICOM_AET: "NIDAN_ORTHANC"
+      ORTHANC__HTTP_PORT: "8042"
+      ORTHANC__REMOTE_ACCESS_ALLOWED: "true"
+      ORTHANC__AUTHENTICATION_ENABLED: "true"
+      ORTHANC__REGISTERED_USERS: |
+        {"${ORTHANC_USERNAME:-nidan}": "${ORTHANC_PASSWORD:-nidan}"}
+      # PostgreSQL database
+      ORTHANC__POSTGRESQL__ENABLE_INDEX: "true"
+      ORTHANC__POSTGRESQL__ENABLE_STORAGE: "true"
+      ORTHANC__POSTGRESQL__HOST: "${ORTHANC_DB_HOST:-orthanc-db}"
+      ORTHANC__POSTGRESQL__PORT: "5432"
+      ORTHANC__POSTGRESQL__DATABASE: "${ORTHANC_DB_NAME:-orthanc}"
+      ORTHANC__POSTGRESQL__USERNAME: "${ORTHANC_DB_USER:-orthanc}"
+      ORTHANC__POSTGRESQL__PASSWORD: "${ORTHANC_DB_PASSWORD:-orthanc}"
+      # Modality Worklist settings
+      ORTHANC__WORKLISTS__ENABLE: "true"
+      ORTHANC__WORKLISTS__DATABASE: "/var/lib/orthanc/worklists"
+      ORTHANC__WORKLISTS__FILTER_ISSUER_AET: "false"
+      ORTHANC__WORKLISTS__LIMIT_ANSWERS: "0"
+      # DICOMweb settings
+      ORTHANC__DICOM_WEB__ENABLE: "true"
+      ORTHANC__DICOM_WEB__ROOT: "/dicom-web/"
+      ORTHANC__DICOM_WEB__ENABLE_WADO: "true"
+      ORTHANC__DICOM_WEB__WADO_ROOT: "/wado"
+      ORTHANC__DICOM_WEB__STUDIES_METADATA: "Full"
+      ORTHANC__DICOM_WEB__SERIES_METADATA: "Full"
+      # OHIF viewer settings  
+      ORTHANC__OHIF__DATA_SOURCE: "dicom-web"
+      ORTHANC__OHIF__ROUTER_BASENAME: "/ohif/"
+      # Orthanc Explorer 2 settings
+      ORTHANC__ORTHANC_EXPLORER_2__ENABLE: "true"
+      ORTHANC__ORTHANC_EXPLORER_2__IS_DEFAULT_ORTHANC_UI: "true"
       ORTHANC__ORTHANC_EXPLORER_2__UI_OPTIONS__ENABLE_OPEN_IN_OHIF_VIEWER_3: "true"
-      ORTHANC__ORTHANC_EXPLORER_2__UI_OPTIONS__OHIF_VIEWER_3_PUBLIC_ROOT: "/orthanc-container/ohif/"
+      ORTHANC__ORTHANC_EXPLORER_2__UI_OPTIONS__OHIF_VIEWER_3_PUBLIC_ROOT: "/ohif/"
     networks:
       - nidan-network
     depends_on:
       - orthanc-db
     volumes:
       - certbot-etc:/etc/letsencrypt:ro
+      # Worklist directory for MWL plugin - external services write .wl files here
+      - ./orthanc/worklists:/var/lib/orthanc/worklists
 
   orthanc-db:
     image: postgres:15
