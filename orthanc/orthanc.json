@@ -1,19 +1,37 @@
 {
     "Name": "Nidan Orthanc",
-    "PostgreSQL": {
+    "DicomServerEnabled": true,
+    "DicomPort": 4242,
+    "DicomAet": "NIDAN_ORTHANC",
+    "HttpServerEnabled": true,
+    "HttpPort": 8042,
+    "Worklists": {
         "Enable": true,
-        "Host": "${ORTHANC_DB_HOST:-orthanc-db}",
-        "Port": 5432,
-        "Database": "${ORTHANC_DB_NAME:-orthanc}",
-        "Username": "${ORTHANC_DB_USER:-orthanc}",
-        "Password": "${ORTHANC_DB_PASSWORD:-orthanc}"
+        "Database": "/var/lib/orthanc/worklists",
+        "FilterIssuerAet": false,
+        "LimitAnswers": 0
     },
-    "Plugins": [
-        "/usr/share/orthanc/plugins-available/libOrthancExplorer2.so"
-    ],
+    "DicomWeb": {
+        "Enable": true,
+        "Root": "/dicom-web/",
+        "EnableWado": true,
+        "WadoRoot": "/wado",
+        "Ssl": false,
+        "StudiesMetadata": "Full",
+        "SeriesMetadata": "Full"
+    },
+    "Ohif": {
+        "DataSource": "dicom-web",
+        "RouterBasename": "/ohif/"
+    },
+    "OrthancExplorer2": {
+        "Enable": true,
+        "IsDefaultOrthancUI": true,
+        "UiOptions": {
+            "EnableOpenInOhifViewer3": true,
+            "OhifViewer3PublicRoot": "/ohif/"
+        }
+    },
     "RemoteAccessAllowed": true,
-    "AuthenticationEnabled": true,
-    "RegisteredUsers": {
-        "${ORTHANC_USERNAME:-nidan}": "${ORTHANC_PASSWORD:-nidan}"
-    }
+    "AuthenticationEnabled": true
 }
