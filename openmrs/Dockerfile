@@ -26,15 +26,14 @@ RUN cp -R /openmrs_distro/distro/target/sdk-distro/web/openmrs_config /openmrs/d
 RUN mvn $MVN_ARGS_SETTINGS clean
 
 ### Run Stage
-# Replace '2.7.x' with the exact version of openmrs-core built for production (if available)
 FROM openmrs/openmrs-core:2.8.x-amazoncorretto-21
 
-# Do not copy the war if using the correct openmrs-core image version
+# Copy built artifacts from dev stage
 COPY --from=dev /openmrs/distribution/openmrs_core/openmrs.war /openmrs/distribution/openmrs_core/
-
-#Copy custom modules
-COPY custom_modules/ /openmrs/distribution/openmrs_modules/
 COPY --from=dev /openmrs/distribution/openmrs-distro.properties /openmrs/distribution/
 COPY --from=dev /openmrs/distribution/openmrs_modules /openmrs/distribution/openmrs_modules
 COPY --from=dev /openmrs/distribution/openmrs_owas /openmrs/distribution/openmrs_owas
-COPY --from=dev  /openmrs/distribution/openmrs_config /openmrs/distribution/openmrs_config
+COPY --from=dev /openmrs/distribution/openmrs_config /openmrs/distribution/openmrs_config
+
+# Copy custom modules AFTER the main modules (to add additional modules, not replace)
+COPY custom_modules/ /openmrs/distribution/openmrs_modules/
