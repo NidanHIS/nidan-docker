@@ -5,6 +5,8 @@
     "DicomAet": "NIDAN_ORTHANC",
     "HttpServerEnabled": true,
     "HttpPort": 8042,
+    "RemoteAccessAllowed": true,
+    "AuthenticationEnabled": true,
     "Worklists": {
         "Enable": true,
         "Database": "/var/lib/orthanc/worklists",
@@ -31,7 +33,5 @@
             "EnableOpenInOhifViewer3": true,
             "OhifViewer3PublicRoot": "/ohif/"
         }
-    },
-    "RemoteAccessAllowed": true,
-    "AuthenticationEnabled": true
+    }
 }
