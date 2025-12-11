@@ -1,7 +1,5 @@
 #!/bin/sh
 set -e
-set -x
-echo "Starting frontend container..."
 
 # if we are using the $IMPORTMAP_URL environment variable, we have to make this useful,
 # so we change "importmap.json" into "$IMPORTMAP_URL" allowing it to be changed by envsubst
@@ -53,14 +51,11 @@ SPA_DEFAULT_LOCALE=${SPA_DEFAULT_LOCALE:-en_GB}
 # Substitute environment variables in the html file
 # This allows us to override parts of the compiled file at runtime
 if [ -f "/usr/share/nginx/html/index.html" ]; then
-  echo "Injecting config into index.html..."
-  envsubst '${IMPORTMAP_URL} ${SPA_PATH} ${API_URL} ${SPA_CONFIG_URLS} ${SPA_DEFAULT_LOCALE}' < "/usr/share/nginx/html/index.html" > "/usr/share/nginx/html/index.html.tmp" && mv "/usr/share/nginx/html/index.html.tmp" "/usr/share/nginx/html/index.html"
+  envsubst '${IMPORTMAP_URL} ${SPA_PATH} ${API_URL} ${SPA_CONFIG_URLS} ${SPA_DEFAULT_LOCALE}' < "/usr/share/nginx/html/index.html" | sponge "/usr/share/nginx/html/index.html"
 fi
 
 if [ -f "/usr/share/nginx/html/service-worker.js" ]; then
-  echo "Injecting config into service-worker.js..."
-  envsubst '${IMPORTMAP_URL} ${SPA_PATH} ${API_URL}' < "/usr/share/nginx/html/service-worker.js" > "/usr/share/nginx/html/service-worker.js.tmp" && mv "/usr/share/nginx/html/service-worker.js.tmp" "/usr/share/nginx/html/service-worker.js"
+  envsubst '${IMPORTMAP_URL} ${SPA_PATH} ${API_URL}' < "/usr/share/nginx/html/service-worker.js" | sponge "/usr/share/nginx/html/service-worker.js"
 fi
 
-echo "Starting nginx..."
 exec nginx -g "daemon off;"
