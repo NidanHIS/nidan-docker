@@ -333,18 +333,6 @@ services:
     networks:
       - nidan-network
 
-  # OHIF Viewer
-  ohif:
-    image: ohif/app:latest
-    container_name: nidan-ohif
-    environment:
-      - PUBLIC_URL=/ohif/
-      - REACT_APP_CONFIG_FILE=/usr/share/nginx/html/app-config.js
-    volumes:
-      - ./ohif/app-config.js:/usr/share/nginx/html/app-config.js:ro
-    networks:
-      - nidan-network
-
   # ============================================================================
   # NIDAN INTEGRATION MIDDLEWARE (Kafka + Postgres + CIS/OIS)
   # ============================================================================
