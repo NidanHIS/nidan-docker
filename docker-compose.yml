@@ -107,17 +107,17 @@ services:
 
 
   openmrs-frontend:
-    image: openmrs/openmrs-reference-application-3-frontend:${TAG:-qa}
-    container_name: nidan-openmrs-frontend
-    volumes:
-      # Override the frontend's nginx config
-      - ./conf/default.conf:/etc/nginx/conf.d/default.conf:ro
-    networks:
-      - nidan-network
-    depends_on:
-      - openmrs-backend
-
-
+      build: ./openmrs/frontend
+      image: nidan/openmrs-frontend:latest
+      container_name: nidan-openmrs-frontend
+      environment:
+        SPA_PATH: /openmrs/spa
+        API_URL: /openmrs
+        SPA_CONFIG_URLS: ""
+      networks:
+        - nidan-network
+      depends_on:
+        - openmrs-backend
 
 
   openmrs-db:
