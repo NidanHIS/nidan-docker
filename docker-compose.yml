@@ -21,6 +21,30 @@ services:
   # ============================================================================
   # PROXY / GATEWAY
   # ============================================================================
+  # gateway:
+  #   build: ./proxy
+  #   image: nidan/gateway:latest
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   environment:
+  #     - GATEWAY_DOMAIN=${GATEWAY_DOMAIN:-localhost}
+  #     - OPENELIS_DOMAIN=${OPENELIS_DOMAIN}
+  #   networks:
+  #     - nidan-network
+  #   depends_on:
+  #     - openmrs-frontend
+  #     - odoo
+  #     - keycloak
+  #     - openelis
+  #     - nidan-certbot
+  #   volumes:
+  #     - certbot-etc:/etc/letsencrypt
+  #     - certbot-www:/var/www/certbot
+
+
+
+
   gateway:
     build: ./proxy
     image: nidan/gateway:latest
@@ -31,24 +55,33 @@ services:
       - GATEWAY_DOMAIN=${GATEWAY_DOMAIN:-localhost}
       - OPENELIS_DOMAIN=${OPENELIS_DOMAIN}
     networks:
-      - nidan-network
+    - nidan-network
     depends_on:
-      - openmrs-frontend
-      - odoo
-      - keycloak
-      - openelis
-      - nidan-certbot
+      openelis:
+        condition: service_started  # Wait for OpenELIS to start
+      openmrs-frontend:
+        condition: service_started
+      odoo:
+        condition: service_started
+      keycloak:
+        condition: service_started
+      nidan-certbot:
+        condition: service_started
     volumes:
       - certbot-etc:/etc/letsencrypt
       - certbot-www:/var/www/certbot
+    restart: unless-stopped  # Auto-restart if it fails during startup
+
+
+  
 
   # ============================================================================
   # OPENMRS
   # ============================================================================
   openmrs-backend:
     build: ./openmrs
-    # image: openmrs/openmrs-reference-application-3-backend:${TAG:-qa}
-    image: openmrs-backend
+    image: openmrs/openmrs-reference-application-3-backend:${TAG:-qa}
+    # image: openmrs-backend
     container_name: nidan-openmrs-backend
     environment:
       OMRS_CONFIG_MODULE_WEB_ADMIN: "true"
@@ -62,22 +95,30 @@ services:
       - nidan-network
     depends_on:
       - openmrs-db
+    # volumes:
+    #   - openmrs-data:/openmrs/data
+    #   - ./openmrs/runtime/openmrs-runtime.properties:/openmrs/openmrs-runtime.properties
     volumes:
-      - openmrs-data:/openmrs/data
-      - ./openmrs/runtime/openmrs-runtime.properties:/openmrs/openmrs-runtime.properties
+    - openmrs-data:/openmrs/data
+    - ./openmrs/runtime/openmrs-runtime.properties:/usr/local/tomcat/.OpenMRS/openmrs-runtime.properties
+    - ./modules:/usr/local/tomcat/.OpenMRS/modules:ro
+    - ./modules:/openmrs/data/modules
+
+
 
   openmrs-frontend:
-    build: ./openmrs/frontend
-    image: openmrs-frontend
+    image: openmrs/openmrs-reference-application-3-frontend:${TAG:-qa}
     container_name: nidan-openmrs-frontend
-    environment:
-      - SPA_PATH=/openmrs/spa
-      - API_URL=/openmrs
-      - SPA_CONFIG_URLS=
+    volumes:
+      # Override the frontend's nginx config
+      - ./conf/default.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - nidan-network
     depends_on:
       - openmrs-backend
+
+
+
 
   openmrs-db:
     image: mysql:8.0
@@ -276,7 +317,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # OpenELIS backend (Tomcat)
+  #OpenELIS backend (Tomcat)
   openelis:
     build: ./openelis
     image: itechuw/openelis-global-2:develop
@@ -349,63 +390,63 @@ services:
       - nidan-network
 
   # Zookeeper for Kafka (Confluent images)
-  nidan-zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
-    container_name: nidan-zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    networks:
-      - nidan-network
+  # nidan-zookeeper:
+  #   image: confluentinc/cp-zookeeper:7.5.0
+  #   container_name: nidan-zookeeper
+  #   environment:
+  #     ZOOKEEPER_CLIENT_PORT: 2181
+  #     ZOOKEEPER_TICK_TIME: 2000
+  #   networks:
+  #     - nidan-network
 
-  nidan-kafka:
-    image: confluentinc/cp-kafka:7.5.0
-    container_name: nidan-kafka
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: "nidan-zookeeper:2181"
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://nidan-kafka:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_MIN_INSYNC_REPLICAS: 1
-    depends_on:
-      - nidan-zookeeper
-    networks:
-      - nidan-network
+  # nidan-kafka:
+  #   image: confluentinc/cp-kafka:7.5.0
+  #   container_name: nidan-kafka
+  #   environment:
+  #     KAFKA_BROKER_ID: 1
+  #     KAFKA_ZOOKEEPER_CONNECT: "nidan-zookeeper:2181"
+  #     KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+  #     KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://nidan-kafka:9092
+  #     KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  #     KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+  #     KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+  #     KAFKA_MIN_INSYNC_REPLICAS: 1
+  #   depends_on:
+  #     - nidan-zookeeper
+  #   networks:
+  #     - nidan-network
 
-  nidan-cis:
-    build:
-      context: ../nidan-middleware/integration
-      dockerfile: Dockerfile.cis
-    image: nidan/cis:latest
-    container_name: nidan-cis
-    environment:
-      - INTEGRATION_DB_URL=jdbc:postgresql://nidan-integration-db:5432/nidan_integration
-      - INTEGRATION_DB_USER=nidan
-      - INTEGRATION_DB_PASSWORD=nidan
-      - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:9092
-    depends_on:
-      - nidan-integration-db
-      - nidan-kafka
-    networks:
-      - nidan-network
+  # nidan-cis:
+  #   build:
+  #     context: ../nidan-middleware/integration
+  #     dockerfile: Dockerfile.cis
+  #   image: nidan/cis:latest
+  #   container_name: nidan-cis
+  #   environment:
+  #     - INTEGRATION_DB_URL=jdbc:postgresql://nidan-integration-db:5432/nidan_integration
+  #     - INTEGRATION_DB_USER=nidan
+  #     - INTEGRATION_DB_PASSWORD=nidan
+  #     - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:9092
+  #   depends_on:
+  #     - nidan-integration-db
+  #     - nidan-kafka
+  #   networks:
+  #     - nidan-network
 
-  nidan-ois:
-    build:
-      context: ../nidan-middleware/integration
-      dockerfile: Dockerfile.ois
-    image: nidan/ois:latest
-    container_name: nidan-ois
-    environment:
-      - INTEGRATION_DB_URL=jdbc:postgresql://nidan-integration-db:5432/nidan_integration
-      - INTEGRATION_DB_USER=nidan
-      - INTEGRATION_DB_PASSWORD=nidan
-      - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:9092
-      - OIS_WEBHOOK_SECRET=change-me
-    depends_on:
-      - nidan-integration-db
-      - nidan-kafka
-    networks:
-      - nidan-network
+  # nidan-ois:
+  #   build:
+  #     context: ../nidan-middleware/integration
+  #     dockerfile: Dockerfile.ois
+  #   image: nidan/ois:latest
+  #   container_name: nidan-ois
+  #   environment:
+  #     - INTEGRATION_DB_URL=jdbc:postgresql://nidan-integration-db:5432/nidan_integration
+  #     - INTEGRATION_DB_USER=nidan
+  #     - INTEGRATION_DB_PASSWORD=nidan
+  #     - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:9092
+  #     - OIS_WEBHOOK_SECRET=change-me
+  #   depends_on:
+  #     - nidan-integration-db
+  #     - nidan-kafka
+  #   networks:
+  #     - nidan-network
