@@ -10,3 +10,11 @@ ohif/
 # OpenELIS logs
 openelis/volume/logs/
 
+# Middleware build artifacts (JAR files)
+middleware/*/target/
+middleware/*/target/**
+*.jar
+# But keep the target directories themselves
+!middleware/*/target/
+!middleware/*/target/.gitkeep
+
