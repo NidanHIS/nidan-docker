@@ -390,7 +390,7 @@ services:
     image: postgres:15
     container_name: nidan-integration-db
     environment:
-      POSTGRES_DB: nidan_integration
+      POSTGRES_DB: ${INTEGRATION_DB_NAME:-nidan_integration}
       POSTGRES_USER: ${INTEGRATION_DB_USER:-nidan}
       POSTGRES_PASSWORD: ${INTEGRATION_DB_PASSWORD:-nidan}
     volumes:
@@ -398,7 +398,7 @@ services:
     networks:
       - nidan-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${INTEGRATION_DB_USER:-nidan} -d nidan_integration"]
+      test: ["CMD-SHELL", "pg_isready -U ${INTEGRATION_DB_USER:-nidan} -d ${INTEGRATION_DB_NAME:-nidan_integration}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -408,8 +408,8 @@ services:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: nidan-zookeeper
     environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT:-2181}
+      ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME:-2000}
     networks:
       - nidan-network
 
@@ -417,14 +417,14 @@ services:
     image: confluentinc/cp-kafka:7.5.0
     container_name: nidan-kafka
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: "nidan-zookeeper:2181"
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://nidan-kafka:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID:-1}
+      KAFKA_ZOOKEEPER_CONNECT: "${KAFKA_ZOOKEEPER_CONNECT:-nidan-zookeeper:2181}"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:${KAFKA_PORT:-9092}"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://nidan-kafka:${KAFKA_PORT:-9092}"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR:-1}
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: ${KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR:-1}
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: ${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR:-1}
+      KAFKA_MIN_INSYNC_REPLICAS: ${KAFKA_MIN_INSYNC_REPLICAS:-1}
     depends_on:
       - nidan-zookeeper
     networks:
@@ -437,26 +437,26 @@ services:
     image: nidan/cis:latest
     container_name: nidan-cis
     ports:
-      - "8081:8081"
+      - "${CIS_PORT:-8081}:${CIS_PORT:-8081}"
     environment:
       # Database
-      - INTEGRATION_DB_URL=jdbc:postgresql://nidan-integration-db:5432/nidan_integration
+      - INTEGRATION_DB_URL=jdbc:postgresql://${INTEGRATION_DB_HOST:-nidan-integration-db}:${INTEGRATION_DB_PORT:-5432}/${INTEGRATION_DB_NAME:-nidan_integration}
       - INTEGRATION_DB_USER=${INTEGRATION_DB_USER:-nidan}
       - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_PASSWORD:-nidan}
       # Kafka
-      - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:9092
+      - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:${KAFKA_PORT:-9092}
       - CIS_KAFKA_GROUP_ID=${CIS_KAFKA_GROUP_ID:-nidan-cis}
       # OpenMRS
-      - OPENMRS_ENABLED=true
-      - OPENMRS_BASE_URL=http://openmrs-backend:8080/openmrs
+      - OPENMRS_ENABLED=${OPENMRS_ENABLED:-true}
+      - OPENMRS_BASE_URL=${OPENMRS_BASE_URL:-http://openmrs-backend:8080/openmrs}
       - OPENMRS_USERNAME=${OPENMRS_USERNAME:-admin}
       - OPENMRS_PASSWORD=${OPENMRS_PASSWORD:-Admin123}
       - OPENMRS_IDENTIFIER_TYPE_UUID=${OPENMRS_IDENTIFIER_TYPE_UUID:-05a29f94-c0ed-11e2-94be-8c13b969e334}
       - OPENMRS_DEFAULT_LOCATION_UUID=${OPENMRS_DEFAULT_LOCATION_UUID:-44c3efb0-2583-4c80-a79e-1f756a03c0a1}
       - OPENMRS_FHIR_EXTENSION_URL=${OPENMRS_FHIR_EXTENSION_URL:-http://fhir.openmrs.org/ext/patient/identifier#location}
       # Orthanc
-      - ORTHANC_ENABLED=true
-      - ORTHANC_BASE_URL=http://orthanc:8042
+      - ORTHANC_ENABLED=${ORTHANC_ENABLED:-true}
+      - ORTHANC_BASE_URL=${ORTHANC_BASE_URL:-http://orthanc:8042}
       - ORTHANC_USERNAME=${ORTHANC_USERNAME:-orthanc}
       - ORTHANC_PASSWORD=${ORTHANC_PASSWORD:-orthanc}
       - ORTHANC_DICOM_UID_ROOT=${ORTHANC_DICOM_UID_ROOT:-1.2.840.10008}
@@ -466,8 +466,8 @@ services:
       - OPENELIS_USERNAME=${OPENELIS_USERNAME:-admin}
       - OPENELIS_PASSWORD=${OPENELIS_PASSWORD:-adminADMIN!}
       # Integration
-      - INTEGRATION_SOURCE_SYSTEM=CIS
-      - INTEGRATION_SKIP_SOURCE_SYSTEMS=OPENMRS
+      - INTEGRATION_SOURCE_SYSTEM=${INTEGRATION_SOURCE_SYSTEM:-CIS}
+      - INTEGRATION_SKIP_SOURCE_SYSTEMS=${INTEGRATION_SKIP_SOURCE_SYSTEMS:-OPENMRS}
       - RADIOLOGY_ACCESSION_PREFIX=${RADIOLOGY_ACCESSION_PREFIX:-RAD-}
       - RADIOLOGY_PROCEDURE_CODE_PREFIX=${RADIOLOGY_PROCEDURE_CODE_PREFIX:-RAD-}
     depends_on:
@@ -482,7 +482,7 @@ services:
     networks:
       - nidan-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${CIS_PORT:-8081}/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -495,25 +495,25 @@ services:
     image: nidan/ois:latest
     container_name: nidan-ois
     ports:
-      - "8082:8082"
+      - "${OIS_PORT:-8082}:${OIS_PORT:-8082}"
     environment:
       # Database
-      - INTEGRATION_DB_URL=jdbc:postgresql://nidan-integration-db:5432/nidan_integration
+      - INTEGRATION_DB_URL=jdbc:postgresql://${INTEGRATION_DB_HOST:-nidan-integration-db}:${INTEGRATION_DB_PORT:-5432}/${INTEGRATION_DB_NAME:-nidan_integration}
       - INTEGRATION_DB_USER=${INTEGRATION_DB_USER:-nidan}
       - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_PASSWORD:-nidan}
       # Kafka
-      - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:9092
+      - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:${KAFKA_PORT:-9092}
       - OIS_KAFKA_GROUP_ID=${OIS_KAFKA_GROUP_ID:-nidan-ois}
       # Odoo
-      - ODOO_BASE_URL=http://odoo:8069
+      - ODOO_BASE_URL=${ODOO_BASE_URL:-http://odoo:8069}
       - ODOO_DATABASE=${ODOO_DB_NAME:-nidan}
       - ODOO_USERNAME=${ODOO_USERNAME:-admin}
       - ODOO_PASSWORD=${ODOO_PASSWORD:-admin}
       - ODOO_POS_ORDER_REF_PREFIX=${ODOO_POS_ORDER_REF_PREFIX:-RAD-}
       - ODOO_POS_DEFAULT_RADIOLOGY_PRODUCT_ID=${ODOO_POS_DEFAULT_RADIOLOGY_PRODUCT_ID:-1}
       # Integration
-      - OIS_WEBHOOK_SECRET=${OIS_WEBHOOK_SECRET:-change-me}
-      - SKIP_SOURCE_SYSTEMS_FOR_ODOO=ODOO
+      - OIS_WEBHOOK_SECRET=${OIS_WEBHOOK_SECRET:-change-me-secret-key}
+      - SKIP_SOURCE_SYSTEMS_FOR_ODOO=${SKIP_SOURCE_SYSTEMS_FOR_ODOO:-ODOO}
     depends_on:
       nidan-integration-db:
         condition: service_healthy
@@ -524,7 +524,7 @@ services:
     networks:
       - nidan-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${OIS_PORT:-8082}/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 5

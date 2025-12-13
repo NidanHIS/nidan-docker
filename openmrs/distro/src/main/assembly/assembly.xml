@@ -15,6 +15,10 @@
     <fileSet>
       <outputDirectory>..</outputDirectory>
       <directory>${project.build.directory}</directory>
+      <excludes>
+        <exclude>*.zip</exclude>
+        <exclude>archive-tmp/**</exclude>
+      </excludes>
     </fileSet>
   </fileSets>
 </assembly>
