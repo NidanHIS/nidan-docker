@@ -61,10 +61,17 @@ services:
     networks:
       - nidan-network
     depends_on:
-      - openmrs-db
+      openmrs-db:
+        condition: service_healthy
     volumes:
       - openmrs-data:/openmrs/data
       - ./openmrs/runtime/openmrs-runtime.properties:/openmrs/openmrs-runtime.properties
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/openmrs/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   openmrs-frontend:
     build: ./openmrs/frontend
@@ -77,12 +84,18 @@ services:
     networks:
       - nidan-network
     depends_on:
-      - openmrs-backend
+      openmrs-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/index.html"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   openmrs-db:
     image: mysql:8.0
     container_name: nidan-openmrs-db
-    command: "mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci"
+    command: "mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --sql-mode=''"
     healthcheck:
       test: "mysql --user=${OPENMRS_DB_USER:-openmrs} --password=${OPENMRS_DB_PASSWORD:-openmrs} --execute \"SHOW DATABASES;\""
       interval: 3s
@@ -132,6 +145,12 @@ services:
     depends_on:
       odoo-db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8069/web/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   odoo-db:
     image: postgres:15
@@ -178,6 +197,12 @@ services:
       - nidan-network
     depends_on:
       - keycloak-db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/auth/realms/master"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   keycloak-db:
     image: postgres:15
@@ -230,6 +255,12 @@ services:
       - ./orthanc/orthanc.json:/etc/orthanc/orthanc.json:ro
       # Worklist directory for MWL plugin
       - ./orthanc/worklists:/var/lib/orthanc/worklists
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8042/system"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   orthanc-db:
     image: postgres:15
@@ -283,7 +314,8 @@ services:
     platform: linux/amd64
     container_name: nidan-openelis
     depends_on:
-      - openelis-db
+      openelis-db:
+        condition: service_healthy
     environment:
       - DEFAULT_PW=${OPENELIS_DEFAULT_ADMIN_PASSWORD:-adminADMIN!}
       - TZ=${OPENELIS_TZ:-UTC}
@@ -302,6 +334,12 @@ services:
       - openelis-lucene-index:/var/lib/lucene_index
       - ./openelis/volume/properties/common.properties:/run/secrets/common.properties:ro
       - ./openelis/volume/certs:/etc/openelis-global:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/OpenELIS-Global/loginPage"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
 
   # OpenELIS FHIR
   openelis-fhir:
@@ -309,7 +347,8 @@ services:
     platform: linux/amd64
     container_name: nidan-openelis-fhir
     depends_on:
-      - openelis-db
+      openelis-db:
+        condition: service_healthy
     environment:
       TZ: ${OPENELIS_TZ:-UTC}
       JAVA_OPTS: "-Djavax.net.ssl.trustStore=${SSL_TRUSTSTORE_PATH} -Djavax.net.ssl.trustStorePassword=${SSL_TRUSTSTORE_PASSWORD} -Djavax.net.ssl.trustStoreType=pkcs12 -Djavax.net.ssl.keyStore=${SSL_KEYSTORE_PATH} -Djavax.net.ssl.keyStorePassword=${SSL_KEYSTORE_PASSWORD} -Djavax.net.ssl.keyStoreType=pkcs12"
@@ -322,6 +361,12 @@ services:
       - nidan-network
     volumes:
       - ./openelis/volume/properties/hapi_application.yaml:/bitnami/tomcat/conf/hapi_application.yaml:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/fhir/metadata"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
 
   # OpenELIS Frontend
   openelis-frontend:
@@ -332,6 +377,11 @@ services:
       - CHOKIDAR_USEPOLLING=true
     networks:
       - nidan-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # ============================================================================
   # NIDAN INTEGRATION MIDDLEWARE (Kafka + Postgres + CIS/OIS)
@@ -341,12 +391,17 @@ services:
     container_name: nidan-integration-db
     environment:
       POSTGRES_DB: nidan_integration
-      POSTGRES_USER: nidan
-      POSTGRES_PASSWORD: nidan
+      POSTGRES_USER: ${INTEGRATION_DB_USER:-nidan}
+      POSTGRES_PASSWORD: ${INTEGRATION_DB_PASSWORD:-nidan}
     volumes:
       - nidan-integration-db-data:/var/lib/postgresql/data
     networks:
       - nidan-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${INTEGRATION_DB_USER:-nidan} -d nidan_integration"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # Zookeeper for Kafka (Confluent images)
   nidan-zookeeper:
@@ -377,35 +432,100 @@ services:
 
   nidan-cis:
     build:
-      context: ../nidan-middleware/integration
+      context: ./middleware
       dockerfile: Dockerfile.cis
     image: nidan/cis:latest
     container_name: nidan-cis
+    ports:
+      - "8081:8081"
     environment:
+      # Database
       - INTEGRATION_DB_URL=jdbc:postgresql://nidan-integration-db:5432/nidan_integration
-      - INTEGRATION_DB_USER=nidan
-      - INTEGRATION_DB_PASSWORD=nidan
+      - INTEGRATION_DB_USER=${INTEGRATION_DB_USER:-nidan}
+      - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_PASSWORD:-nidan}
+      # Kafka
       - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:9092
+      - CIS_KAFKA_GROUP_ID=${CIS_KAFKA_GROUP_ID:-nidan-cis}
+      # OpenMRS
+      - OPENMRS_ENABLED=true
+      - OPENMRS_BASE_URL=http://openmrs-backend:8080/openmrs
+      - OPENMRS_USERNAME=${OPENMRS_USERNAME:-admin}
+      - OPENMRS_PASSWORD=${OPENMRS_PASSWORD:-Admin123}
+      - OPENMRS_IDENTIFIER_TYPE_UUID=${OPENMRS_IDENTIFIER_TYPE_UUID:-05a29f94-c0ed-11e2-94be-8c13b969e334}
+      - OPENMRS_DEFAULT_LOCATION_UUID=${OPENMRS_DEFAULT_LOCATION_UUID:-44c3efb0-2583-4c80-a79e-1f756a03c0a1}
+      - OPENMRS_FHIR_EXTENSION_URL=${OPENMRS_FHIR_EXTENSION_URL:-http://fhir.openmrs.org/ext/patient/identifier#location}
+      # Orthanc
+      - ORTHANC_ENABLED=true
+      - ORTHANC_BASE_URL=http://orthanc:8042
+      - ORTHANC_USERNAME=${ORTHANC_USERNAME:-orthanc}
+      - ORTHANC_PASSWORD=${ORTHANC_PASSWORD:-orthanc}
+      - ORTHANC_DICOM_UID_ROOT=${ORTHANC_DICOM_UID_ROOT:-1.2.840.10008}
+      # OpenELIS
+      - OPENELIS_ENABLED=${OPENELIS_ENABLED:-false}
+      - OPENELIS_BASE_URL=${OPENELIS_BASE_URL:-http://openelis-fhir:8080/fhir}
+      - OPENELIS_USERNAME=${OPENELIS_USERNAME:-admin}
+      - OPENELIS_PASSWORD=${OPENELIS_PASSWORD:-adminADMIN!}
+      # Integration
+      - INTEGRATION_SOURCE_SYSTEM=CIS
+      - INTEGRATION_SKIP_SOURCE_SYSTEMS=OPENMRS
+      - RADIOLOGY_ACCESSION_PREFIX=${RADIOLOGY_ACCESSION_PREFIX:-RAD-}
+      - RADIOLOGY_PROCEDURE_CODE_PREFIX=${RADIOLOGY_PROCEDURE_CODE_PREFIX:-RAD-}
     depends_on:
-      - nidan-integration-db
-      - nidan-kafka
+      nidan-integration-db:
+        condition: service_healthy
+      nidan-kafka:
+        condition: service_started
+      openmrs-backend:
+        condition: service_healthy
+      orthanc:
+        condition: service_healthy
     networks:
       - nidan-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   nidan-ois:
     build:
-      context: ../nidan-middleware/integration
+      context: ./middleware
       dockerfile: Dockerfile.ois
     image: nidan/ois:latest
     container_name: nidan-ois
+    ports:
+      - "8082:8082"
     environment:
+      # Database
       - INTEGRATION_DB_URL=jdbc:postgresql://nidan-integration-db:5432/nidan_integration
-      - INTEGRATION_DB_USER=nidan
-      - INTEGRATION_DB_PASSWORD=nidan
+      - INTEGRATION_DB_USER=${INTEGRATION_DB_USER:-nidan}
+      - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_PASSWORD:-nidan}
+      # Kafka
       - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:9092
-      - OIS_WEBHOOK_SECRET=change-me
+      - OIS_KAFKA_GROUP_ID=${OIS_KAFKA_GROUP_ID:-nidan-ois}
+      # Odoo
+      - ODOO_BASE_URL=http://odoo:8069
+      - ODOO_DATABASE=${ODOO_DB_NAME:-nidan}
+      - ODOO_USERNAME=${ODOO_USERNAME:-admin}
+      - ODOO_PASSWORD=${ODOO_PASSWORD:-admin}
+      - ODOO_POS_ORDER_REF_PREFIX=${ODOO_POS_ORDER_REF_PREFIX:-RAD-}
+      - ODOO_POS_DEFAULT_RADIOLOGY_PRODUCT_ID=${ODOO_POS_DEFAULT_RADIOLOGY_PRODUCT_ID:-1}
+      # Integration
+      - OIS_WEBHOOK_SECRET=${OIS_WEBHOOK_SECRET:-change-me}
+      - SKIP_SOURCE_SYSTEMS_FOR_ODOO=ODOO
     depends_on:
-      - nidan-integration-db
-      - nidan-kafka
+      nidan-integration-db:
+        condition: service_healthy
+      nidan-kafka:
+        condition: service_started
+      odoo:
+        condition: service_healthy
     networks:
       - nidan-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s

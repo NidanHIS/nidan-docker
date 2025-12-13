@@ -1,3 +1,12 @@
+# Environment variables
+.env
+
+# Legacy backup (archived old Bahmni-based configuration)
+_backup_legacy/
+
+# OHIF configuration (OHIF is now integrated into Orthanc via plugin)
+ohif/
+
 # OpenELIS logs
 openelis/volume/logs/
 

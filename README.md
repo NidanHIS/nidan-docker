@@ -10,8 +10,10 @@ This repository contains the containerized architecture for **NidanEHR**, orches
 | **OpenMRS Frontend** | `openmrs-frontend` | `/openmrs` | O3 SPA Assets (static) |
 | **OpenMRS Backend** | `openmrs-backend` | `/openmrs/ws` | Java API (Tomcat) |
 | **Odoo 19** | `odoo` | `/odoo` | ERP System |
-| **OpenELIS** | `openelis` | `/openelis` | Lab System |
-| **Orthanc** | `orthanc` | `/orthanc` | PACS Server |
+| **OpenELIS Backend** | `openelis` | `/openelis` | Lab System Backend |
+| **OpenELIS FHIR** | `openelis-fhir` | `/openelis-fhir` | Lab System FHIR API |
+| **OpenELIS Frontend** | `openelis-frontend` | `/openelis-frontend` | Lab System Frontend |
+| **Orthanc** | `orthanc` | `/orthanc-container` | PACS Server with OHIF Viewer |
 | **Keycloak** | `keycloak` | `/auth` | Identity Management |
 
 ## Directory Structure
@@ -20,9 +22,17 @@ This repository contains the containerized architecture for **NidanEHR**, orches
 *   `odoo/`: Odoo Docker context with custom `addons/`.
 *   `proxy/`: Nginx configuration for the main gateway.
 *   `keycloak/`: Realm imports and themes.
-*   `dockerc-compose.yml`: Main orchestration file.
+*   `_backup_legacy/`: Archived legacy Bahmni-based configuration (can be removed).
+*   `docker-compose.yml`: Main orchestration file.
 
 ## Build & Deployment Instructions
+
+### Prerequisites
+1. Copy `.env.example` to `.env` and customize the environment variables for your deployment:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your specific values
+   ```
 
 ### 1. OpenMRS 3.0 Frontend (SPA)
 The frontend is built using `npx openmrs assemble` to create a custom distribution of micro-frontends.
@@ -63,6 +73,28 @@ docker-compose build odoo
 Rebuild the proxy if you change `nginx.conf` or the dashboard `index.html`.
 ```bash
 docker-compose build gateway
+```
+
+### 5. Orthanc (PACS Server)
+Orthanc uses the official Orthanc Docker image with custom configuration and OHIF plugin.
+```bash
+# No build needed - uses pre-built image
+# Configuration is in orthanc/orthanc.json
+# OHIF viewer is integrated via Orthanc plugin
+```
+
+### 6. OpenELIS (Lab System)
+OpenELIS uses pre-built images from I-TECH. Configuration is managed through environment variables and volume mounts.
+```bash
+# No build needed - uses pre-built images
+# Configuration files are in openelis/volume/
+```
+
+### 8. Keycloak (Identity Management)
+Keycloak uses the official Quay.io image with realm imports.
+```bash
+# No build needed - uses pre-built image
+# Realm configuration is in keycloak/imports/
 ```
 
 ---

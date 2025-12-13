@@ -53,9 +53,6 @@
     <emrapi.version>2.3.0</emrapi.version>
     <event.version>4.0.0-SNAPSHOT</event.version>
     <bedmanagement.version>6.2.0-SNAPSHOT</bedmanagement.version>
-    <!-- Stock Management and Billing -->
-    <stockmanagement.version>3.0.0-SNAPSHOT</stockmanagement.version>
-    <billing.version>1.3.3-SNAPSHOT</billing.version>
     <!-- Content Packages -->
     <reference-content.version>1.5.0-SNAPSHOT</reference-content.version>
     <reference-demo-content.version>1.7.0-SNAPSHOT</reference-demo-content.version>
@@ -227,18 +224,6 @@
       <version>${bedmanagement.version}</version>
       <scope>provided</scope>
     </dependency>
-    <!-- <dependency>
-      <groupId>org.openmrs.module</groupId>
-      <artifactId>stockmanagement-omod</artifactId>
-      <version>${stockmanagement.version}</version>
-      <scope>provided</scope>
-    </dependency> -->
-    <!-- <dependency>
-      <groupId>org.openmrs.module</groupId>
-      <artifactId>billing-omod</artifactId>
-      <version>${billing.version}</version>
-      <scope>provided</scope>
-    </dependency> -->
   </dependencies>
 
   <build>
