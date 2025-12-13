@@ -33,14 +33,25 @@ services:
     networks:
       - nidan-network
     depends_on:
-      - openmrs-frontend
-      - odoo
-      - keycloak
-      - openelis
-      - nidan-certbot
+      openmrs-frontend:
+        condition: service_healthy
+      odoo:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      openelis:
+        condition: service_started
+      nidan-certbot:
+        condition: service_started
     volumes:
       - certbot-etc:/etc/letsencrypt
       - certbot-www:/var/www/certbot
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # ============================================================================
   # OPENMRS
@@ -477,8 +488,9 @@ services:
         condition: service_started
       openmrs-backend:
         condition: service_healthy
+      # Orthanc dependency made optional - CIS can start without it if radiology is disabled
       orthanc:
-        condition: service_healthy
+        condition: service_started
     networks:
       - nidan-network
     healthcheck:
