@@ -59,7 +59,7 @@ services:
   openmrs-backend:
     build: ./openmrs
     # image: openmrs/openmrs-reference-application-3-backend:${TAG:-qa}
-    image: openmrs-backend
+    image: dipakthapa/openmrs-backend:latest
     container_name: nidan-openmrs-backend
     environment:
       OMRS_CONFIG_MODULE_WEB_ADMIN: "true"
@@ -86,7 +86,7 @@ services:
 
   openmrs-frontend:
     build: ./openmrs/frontend
-    image: openmrs-frontend
+    image: dipakthapa/openmrs-frontend:latest
     container_name: nidan-openmrs-frontend
     environment:
       - SPA_PATH=/openmrs/spa
@@ -445,7 +445,7 @@ services:
     build:
       context: ./middleware
       dockerfile: Dockerfile.cis
-    image: nidan/cis:latest
+    image: dipakthapa/cis:latest
     container_name: nidan-cis
     ports:
       - "${CIS_PORT:-8081}:${CIS_PORT:-8081}"
@@ -504,7 +504,7 @@ services:
     build:
       context: ./middleware
       dockerfile: Dockerfile.ois
-    image: nidan/ois:latest
+    image: dipakthapa/ois:latest
     container_name: nidan-ois
     ports:
       - "${OIS_PORT:-8082}:${OIS_PORT:-8082}"
