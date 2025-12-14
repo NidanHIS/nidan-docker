@@ -52,6 +52,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    restart: unless-stopped  # Auto-restart if it fails during startup
+
 
   # ============================================================================
   # OPENMRS
@@ -94,9 +96,9 @@ services:
       - SPA_CONFIG_URLS=
     networks:
       - nidan-network
-    depends_on:
-      openmrs-backend:
-        condition: service_healthy
+    # depends_on:
+    #   openmrs-backend:
+    #     condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/index.html"]
       interval: 30s
@@ -104,7 +106,7 @@ services:
       retries: 3
 
   openmrs-db:
-    image: mysql:8.0
+    image: mariadb:10.11.7
     container_name: nidan-openmrs-db
     command: "mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --sql-mode=''"
     healthcheck:

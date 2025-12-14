@@ -1,0 +1,9 @@
+# JAR files
+*.jar
+
+# Target directories (Maven build output)
+target/
+**/target/
+middleware/ois/.DS_Store
+middleware/cis/.DS_Store
+

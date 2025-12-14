@@ -10,10 +10,15 @@ This repository contains the containerized architecture for **NidanEHR**, orches
 | **OpenMRS Frontend** | `openmrs-frontend` | `/openmrs` | O3 SPA Assets (static) |
 | **OpenMRS Backend** | `openmrs-backend` | `/openmrs/ws` | Java API (Tomcat) |
 | **Odoo 19** | `odoo` | `/odoo` | ERP System |
+<<<<<<< HEAD
 | **OpenELIS Backend** | `openelis` | `/openelis` | Lab System Backend |
 | **OpenELIS FHIR** | `openelis-fhir` | `/openelis-fhir` | Lab System FHIR API |
 | **OpenELIS Frontend** | `openelis-frontend` | `/openelis-frontend` | Lab System Frontend |
 | **Orthanc** | `orthanc` | `/orthanc-container` | PACS Server with OHIF Viewer |
+=======
+| **OpenELIS** | `openelis` | `/openelis` | Lab System |
+| **Orthanc** | `orthanc` | `/orthanc` | PACS Server |
+>>>>>>> d65b9a77747e9fb8624f53874d13cfc02acc0c7c
 | **Keycloak** | `keycloak` | `/auth` | Identity Management |
 
 ## Directory Structure
@@ -22,6 +27,7 @@ This repository contains the containerized architecture for **NidanEHR**, orches
 *   `odoo/`: Odoo Docker context with custom `addons/`.
 *   `proxy/`: Nginx configuration for the main gateway.
 *   `keycloak/`: Realm imports and themes.
+<<<<<<< HEAD
 *   `_backup_legacy/`: Archived legacy Bahmni-based configuration (can be removed).
 *   `docker-compose.yml`: Main orchestration file.
 
@@ -34,6 +40,12 @@ This repository contains the containerized architecture for **NidanEHR**, orches
    # Edit .env with your specific values
    ```
 
+=======
+*   `dockerc-compose.yml`: Main orchestration file.
+
+## Build & Deployment Instructions
+
+>>>>>>> d65b9a77747e9fb8624f53874d13cfc02acc0c7c
 ### 1. OpenMRS 3.0 Frontend (SPA)
 The frontend is built using `npx openmrs assemble` to create a custom distribution of micro-frontends.
 
@@ -75,6 +87,7 @@ Rebuild the proxy if you change `nginx.conf` or the dashboard `index.html`.
 docker-compose build gateway
 ```
 
+<<<<<<< HEAD
 ### 5. Orthanc (PACS Server)
 Orthanc uses the official Orthanc Docker image with custom configuration and OHIF plugin.
 ```bash
@@ -97,6 +110,8 @@ Keycloak uses the official Quay.io image with realm imports.
 # Realm configuration is in keycloak/imports/
 ```
 
+=======
+>>>>>>> d65b9a77747e9fb8624f53874d13cfc02acc0c7c
 ---
 
 ## Running the Stack
