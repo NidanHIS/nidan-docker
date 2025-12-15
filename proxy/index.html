@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NidanEHR Services</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #f4f6f8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 40px 20px;
+        }
+
+        .brand-logo {
+            max-width: 300px;
+            margin-bottom: 40px;
+            height: auto;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px 20px;
+            text-align: center;
+            text-decoration: none;
+            color: #333;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .desc {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+
+        /* Footer Styling */
+        footer {
+            width: 100%;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #e0e0e0;
+            padding: 30px 20px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-top: auto;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .footer-text {
+            font-size: 0.85rem;
+            color: #b0b0b0;
+            margin: 0;
+            letter-spacing: 0.5px;
+        }
+
+        .footer-logo-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .footer-logo {
+            height: 35px;
+            opacity: 0.95;
+            transition: opacity 0.3s;
+        }
+
+        .footer-logo:hover {
+            opacity: 1;
+        }
+
+        .footer-copyright {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        /* Mobile adjustment */
+        @media (max-width: 600px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="main-content">
+        <!-- Nidan Logo -->
+        <img src="nidan-logo.png" alt="NidanEHR" class="brand-logo">
+
+        <div class="grid">
+            <!-- OpenMRS -->
+            <a href="/openmrs/spa/index.html" target="_blank" class="card">
+                <div class="icon">🏥</div>
+                <div class="title">OpenMRS 3.0</div>
+                <div class="desc">Electronic Medical Record</div>
+            </a>
+
+            <!-- OpenELIS -->
+            <a href="/openelis/" target="_blank" class="card">
+                <div class="icon">🔬</div>
+                <div class="title">OpenELIS</div>
+                <div class="desc">Laboratory Information System</div>
+            </a>
+
+            <!-- Odoo -->
+            <a href="http://localhost:8069" target="_blank" class="card">
+                <div class="icon">📊</div>
+                <div class="title">Odoo 19</div>
+                <div class="desc">ERP & Inventory</div>
+            </a>
+
+            <!-- Orthanc (Explorer 2) -->
+            <a href="/orthanc-container/ui/app/index.html#/" target="_blank" class="card">
+                <div class="icon">🦴</div>
+                <div class="title">Orthanc</div>
+                <div class="desc">PACS & Imaging (Explorer 2)</div>
+            </a>
+
+            <!-- Keycloak -->
+            <a href="/auth/" target="_blank" class="card">
+                <div class="icon">🔐</div>
+                <div class="title">Keycloak</div>
+                <div class="desc">Identity Management</div>
+            </a>
+
+            <!-- Superset -->
+            <a href="/superset/" target="_blank" class="card">
+                <div class="icon">📈</div>
+                <div class="title">Apache Superset</div>
+                <div class="desc">Analytics & Business Intelligence</div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <p class="footer-text">Powered by</p>
+            <div class="footer-logo-container">
+                <img src="trigonal-logo.png" alt="Trigonal Technology" class="footer-logo">
+            </div>
+            <p class="footer-copyright">© 2025 NidanEHR. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+
+</html>

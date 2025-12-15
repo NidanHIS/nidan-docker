@@ -1,0 +1,37 @@
+{
+    "Name": "Nidan Orthanc",
+    "DicomServerEnabled": true,
+    "DicomPort": 4242,
+    "DicomAet": "NIDAN_ORTHANC",
+    "HttpServerEnabled": true,
+    "HttpPort": 8042,
+    "RemoteAccessAllowed": true,
+    "AuthenticationEnabled": true,
+    "Worklists": {
+        "Enable": true,
+        "Database": "/var/lib/orthanc/worklists",
+        "FilterIssuerAet": false,
+        "LimitAnswers": 0
+    },
+    "DicomWeb": {
+        "Enable": true,
+        "Root": "/dicom-web/",
+        "EnableWado": true,
+        "WadoRoot": "/wado",
+        "Ssl": false,
+        "StudiesMetadata": "Full",
+        "SeriesMetadata": "Full"
+    },
+    "Ohif": {
+        "DataSource": "dicom-web",
+        "RouterBasename": "/ohif/"
+    },
+    "OrthancExplorer2": {
+        "Enable": true,
+        "IsDefaultOrthancUI": true,
+        "UiOptions": {
+            "EnableOpenInOhifViewer3": true,
+            "OhifViewer3PublicRoot": "/ohif/"
+        }
+    }
+}

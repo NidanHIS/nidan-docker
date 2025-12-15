@@ -1,0 +1,15 @@
+# Ignore everything except target directories with JARs
+*
+
+# But include target directories
+!cis/
+!ois/
+cis/*
+!cis/target/
+cis/target/*
+!cis/target/*.jar
+ois/*
+!ois/target/
+ois/target/*
+!ois/target/*.jar
+
