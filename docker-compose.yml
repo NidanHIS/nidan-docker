@@ -59,7 +59,7 @@ services:
   # OPENMRS
   # ============================================================================
   openmrs-backend:
-    build: ./openmrs
+    # build: ./openmrs
     # image: openmrs/openmrs-reference-application-3-backend:${TAG:-qa}
     image: dipakthapa/openmrs-backend:latest
     container_name: nidan-openmrs-backend
@@ -87,7 +87,7 @@ services:
       start_period: 60s
 
   openmrs-frontend:
-    build: ./openmrs/frontend
+    # build: ./openmrs/frontend
     image: dipakthapa/openmrs-frontend:latest
     container_name: nidan-openmrs-frontend
     environment:
@@ -444,9 +444,9 @@ services:
       - nidan-network
 
   nidan-cis:
-    build:
-      context: ./middleware
-      dockerfile: Dockerfile.cis
+    # build:
+    #   context: ./middleware
+    #   dockerfile: Dockerfile.cis
     image: dipakthapa/cis:latest
     container_name: nidan-cis
     ports:
@@ -503,9 +503,9 @@ services:
       start_period: 60s
 
   nidan-ois:
-    build:
-      context: ./middleware
-      dockerfile: Dockerfile.ois
+    # build:
+    #   context: ./middleware
+    #   dockerfile: Dockerfile.ois
     image: dipakthapa/ois:latest
     container_name: nidan-ois
     ports:
