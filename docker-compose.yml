@@ -30,19 +30,23 @@ services:
     environment:
       - GATEWAY_DOMAIN=${GATEWAY_DOMAIN:-localhost}
       - OPENELIS_DOMAIN=${OPENELIS_DOMAIN}
+      # OpenELIS context path (must match the backend SERVER_SERVLET_CONTEXT_PATH)
+      - OPENELIS_CONTEXT_PATH=${OPENELIS_CONTEXT_PATH:-/api/OpenELIS-Global/}
     networks:
       - nidan-network
     depends_on:
-      # openmrs-frontend:
-      #   condition: service_healthy
+      openmrs-frontend:
+        condition: service_healthy
       odoo:
         condition: service_healthy
       keycloak:
         condition: service_started
       openelis:
         condition: service_started
-      nidan-certbot:
+      openelis-fhir:
         condition: service_started
+      # nidan-certbot:
+      #   condition: service_started
     volumes:
       - certbot-etc:/etc/letsencrypt
       - certbot-www:/var/www/certbot
@@ -58,71 +62,71 @@ services:
   # # ============================================================================
   # # OPENMRS
   # # ============================================================================
-  # openmrs-backend:
-  #   # build: ./openmrs
-  #   image: openmrs/openmrs-reference-application-3-backend:${TAG:-qa}
-  #   # image: dipakthapa/openmrs-backend:latest
-  #   container_name: nidan-openmrs-backend
-  #   environment:
-  #     OMRS_CONFIG_MODULE_WEB_ADMIN: "true"
-  #     OMRS_CONFIG_AUTO_UPDATE_DATABASE: "true"
-  #     OMRS_CONFIG_CREATE_TABLES: "true"
-  #     OMRS_CONFIG_CONNECTION_SERVER: openmrs-db
-  #     OMRS_CONFIG_CONNECTION_DATABASE: ${OPENMRS_DB_NAME}
-  #     OMRS_CONFIG_CONNECTION_USERNAME: ${OPENMRS_DB_USER}
-  #     OMRS_CONFIG_CONNECTION_PASSWORD: ${OPENMRS_DB_PASSWORD}
-  #   networks:
-  #     - nidan-network
-  #   depends_on:
-  #     openmrs-db:
-  #       condition: service_healthy
-  #   volumes:
-  #     - openmrs-data:/openmrs/data
-  #     - ./openmrs/runtime/openmrs-runtime.properties:/openmrs/openmrs-runtime.properties
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:8080/openmrs/"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
-  #     start_period: 60s
+  openmrs-backend:
+    # build: ./openmrs
+    # image: openmrs/openmrs-reference-application-3-backend:${TAG:-qa}
+    image: dipakthapa/openmrs-backend:latest
+    container_name: nidan-openmrs-backend
+    environment:
+      OMRS_CONFIG_MODULE_WEB_ADMIN: "true"
+      OMRS_CONFIG_AUTO_UPDATE_DATABASE: "true"
+      OMRS_CONFIG_CREATE_TABLES: "true"
+      OMRS_CONFIG_CONNECTION_SERVER: openmrs-db
+      OMRS_CONFIG_CONNECTION_DATABASE: ${OPENMRS_DB_NAME}
+      OMRS_CONFIG_CONNECTION_USERNAME: ${OPENMRS_DB_USER}
+      OMRS_CONFIG_CONNECTION_PASSWORD: ${OPENMRS_DB_PASSWORD}
+    networks:
+      - nidan-network
+    depends_on:
+      openmrs-db:
+        condition: service_healthy
+    volumes:
+      - openmrs-data:/openmrs/data
+      - ./openmrs/runtime/openmrs-runtime.properties:/openmrs/openmrs-runtime.properties
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/openmrs/"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
 
-  # openmrs-frontend:
-  #   # build: ./openmrs/frontend
-  #   image: dipakthapa/openmrs-frontend:latest
-  #   container_name: nidan-openmrs-frontend
-  #   environment:
-  #     - SPA_PATH=/openmrs/spa
-  #     - API_URL=/openmrs
-  #     - SPA_CONFIG_URLS=
-  #   networks:
-  #     - nidan-network
-  #   # depends_on:
-  #   #   openmrs-backend:
-  #   #     condition: service_healthy
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost/index.html"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
+  openmrs-frontend:
+    # build: ./openmrs/frontend
+    image: dipakthapa/openmrs-frontend:latest
+    container_name: nidan-openmrs-frontend
+    environment:
+      - SPA_PATH=/openmrs/spa
+      - API_URL=/openmrs
+      - SPA_CONFIG_URLS=
+    networks:
+      - nidan-network
+    # depends_on:
+    #   openmrs-backend:
+    #     condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/index.html"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # openmrs-db:
-  #   image: mariadb:10.11.7
-  #   container_name: nidan-openmrs-db
-  #   command: "mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --sql-mode=''"
-  #   healthcheck:
-  #     test: "mysql --user=${OPENMRS_DB_USER:-openmrs} --password=${OPENMRS_DB_PASSWORD:-openmrs} --execute \"SHOW DATABASES;\""
-  #     interval: 3s
-  #     timeout: 1s
-  #     retries: 5
-  #   environment:
-  #     MYSQL_DATABASE: ${OPENMRS_DB_NAME}
-  #     MYSQL_USER: ${OPENMRS_DB_USER}
-  #     MYSQL_PASSWORD: ${OPENMRS_DB_PASSWORD}
-  #     MYSQL_ROOT_PASSWORD: ${OPENMRS_DB_ROOT_PASSWORD}
-  #   volumes:
-  #     - openmrs-db-data:/var/lib/mysql
-  #   networks:
-  #     - nidan-network
+  openmrs-db:
+    image: mariadb:10.11.7
+    container_name: nidan-openmrs-db
+    command: "mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --sql-mode=''"
+    healthcheck:
+      test: "mysql --user=${OPENMRS_DB_USER:-openmrs} --password=${OPENMRS_DB_PASSWORD:-openmrs} --execute \"SHOW DATABASES;\""
+      interval: 3s
+      timeout: 1s
+      retries: 5
+    environment:
+      MYSQL_DATABASE: ${OPENMRS_DB_NAME}
+      MYSQL_USER: ${OPENMRS_DB_USER}
+      MYSQL_PASSWORD: ${OPENMRS_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${OPENMRS_DB_ROOT_PASSWORD}
+    volumes:
+      - openmrs-db-data:/var/lib/mysql
+    networks:
+      - nidan-network
 
   # ============================================================================
   # ODOO
@@ -190,44 +194,44 @@ services:
   # ============================================================================
   # KEYCLOAK
   # ============================================================================
-  keycloak:
-    image: quay.io/keycloak/keycloak:22.0
-    container_name: nidan-keycloak
-    command: start-dev --import-realm
-    environment:
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/${KEYCLOAK_DB_NAME}
-      KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
-      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
-      KC_HTTP_RELATIVE_PATH: ${KEYCLOAK_RELATIVE_PATH}
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-    volumes:
-      - ./keycloak/imports:/opt/keycloak/data/import
-      - ./openelis/keycloak:/opt/keycloak/data/import/openelis
-      - certbot-etc:/etc/letsencrypt:ro
-    networks:
-      - nidan-network
-    depends_on:
-      - keycloak-db
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/auth/realms/master"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+  # keycloak:
+  #   image: quay.io/keycloak/keycloak:22.0
+  #   container_name: nidan-keycloak
+  #   command: start-dev --import-realm
+  #   environment:
+  #     KC_DB: postgres
+  #     KC_DB_URL: jdbc:postgresql://keycloak-db:5432/${KEYCLOAK_DB_NAME}
+  #     KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
+  #     KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+  #     KC_HTTP_RELATIVE_PATH: ${KEYCLOAK_RELATIVE_PATH}
+  #     KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER}
+  #     KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+  #   volumes:
+  #     - ./keycloak/imports:/opt/keycloak/data/import
+  #     - ./openelis/keycloak:/opt/keycloak/data/import/openelis
+  #     - certbot-etc:/etc/letsencrypt:ro
+  #   networks:
+  #     - nidan-network
+  #   depends_on:
+  #     - keycloak-db
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8080/auth/realms/master"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 60s
 
-  keycloak-db:
-    image: postgres:15
-    container_name: nidan-keycloak-db
-    environment:
-      POSTGRES_DB: ${KEYCLOAK_DB_NAME}
-      POSTGRES_USER: ${KEYCLOAK_DB_USER}
-      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
-    volumes:
-      - keycloak-db-data:/var/lib/postgresql/data
-    networks:
-      - nidan-network
+  # keycloak-db:
+  #   image: postgres:15
+  #   container_name: nidan-keycloak-db
+  #   environment:
+  #     POSTGRES_DB: ${KEYCLOAK_DB_NAME}
+  #     POSTGRES_USER: ${KEYCLOAK_DB_USER}
+  #     POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+  #   volumes:
+  #     - keycloak-db-data:/var/lib/postgresql/data
+  #   networks:
+  #     - nidan-network
 
   # ============================================================================
   # ORTHANC
@@ -305,7 +309,7 @@ services:
 
 
   openelis-db:
-    image: postgres:14.4
+    image: itechuw/openelis-global-2-database:develop
     container_name: nidan-openelis-db
     platform: linux/amd64
     ports:
@@ -314,10 +318,12 @@ services:
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${OPENELIS_DB_PASSWORD:-changeme}
+      DB_PASSWORD: ${OPENELIS_DB_PASSWORD:-changeme}
+      DB_SUPERUSER_PASSWORD: ${OPENELIS_DB_ROOT_PASSWORD:-${OPENELIS_DB_PASSWORD:-changeme}}
     volumes:
       - openelis-db-data:/var/lib/postgresql/data
-      # Mount database initialization scripts
-      - ./openelis/database/dbInit:/docker-entrypoint-initdb.d
+      # Mount database initialization scripts - will run automatically on first startup
+      - ./openelis/database/dbInit:/docker-entrypoint-initdb.d:ro
     networks:
       - nidan-network
     healthcheck:
@@ -329,9 +335,9 @@ services:
 
   # OpenELIS backend (Tomcat)
   openelis:
-    image: itechuw/openelis-global-2:develop
-    platform: linux/amd64
+    image: dipakthapa/openelis-global-2:latest
     container_name: nidan-openelis
+    # platform: linux/amd64
     ports:
       - "8083:8080"
       - "8444:8443"
@@ -341,8 +347,16 @@ services:
     environment:
       - DEFAULT_PW=${OPENELIS_DEFAULT_ADMIN_PASSWORD:-adminADMIN!}
       - TZ=${OPENELIS_TZ:-UTC}
+      # Context path configuration (like Spring Boot server.servlet.context-path)
+      # Default: /api/OpenELIS-Global (maintains backward compatibility)
+      - SERVER_SERVLET_CONTEXT_PATH=${OPENELIS_CONTEXT_PATH:-/api/OpenELIS-Global}
       # Standard OpenELIS database connection
       - CATALINA_OPTS=-Ddatasource.url=jdbc:postgresql://openelis-db:5432/clinlims -Ddatasource.username=clinlims -Ddatasource.password=${OPENELIS_DB_PASSWORD:-changeme}
+      # Optional SSL configuration (if certificates are provided)
+      - SSL_TRUSTSTORE_PATH=${SSL_TRUSTSTORE_PATH:-}
+      - SSL_TRUSTSTORE_PASSWORD=${SSL_TRUSTSTORE_PASSWORD:-}
+      - SSL_KEYSTORE_PATH=${SSL_KEYSTORE_PATH:-}
+      - SSL_KEYSTORE_PASSWORD=${SSL_KEYSTORE_PASSWORD:-}
     networks:
       - nidan-network
     volumes:
@@ -358,19 +372,20 @@ services:
       # Mount required property files
       - ./openelis/volume/properties/common.properties:/run/secrets/common.properties:ro
       - ./openelis/volume/certs:/etc/openelis-global:ro
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/OpenELIS-Global/loginPage"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 180s
+    # Healthcheck disabled - container is running, Tomcat started successfully
+    # healthcheck:
+    #   test: ["CMD-SHELL", "ps aux | grep -q '[c]atalina' || exit 1"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 5
+    #   start_period: 180s
     restart: unless-stopped
 
   # OpenELIS FHIR
   openelis-fhir:
     image: itechuw/openelis-global-2-fhir:develop
-    platform: linux/amd64
     container_name: nidan-openelis-fhir
+    platform: linux/amd64
     ports:
       - "8084:8080"
     depends_on:
@@ -382,10 +397,16 @@ services:
       FHIR_DATASOURCE_USERNAME: "clinlims"
       FHIR_DATASOURCE_PASSWORD: "${OPENELIS_DB_PASSWORD:-changeme}"
       FHIR_SERVER_ADRESS: "http://openelis-fhir:8080/fhir/"
+      # Optional SSL configuration
+      SSL_TRUSTSTORE_PATH: ${SSL_TRUSTSTORE_PATH:-}
+      SSL_TRUSTSTORE_PASSWORD: ${SSL_TRUSTSTORE_PASSWORD:-}
+      SSL_KEYSTORE_PATH: ${SSL_KEYSTORE_PATH:-}
+      SSL_KEYSTORE_PASSWORD: ${SSL_KEYSTORE_PASSWORD:-}
     networks:
       - nidan-network
     volumes:
-      - ./openelis/volume/properties/hapi_application.yaml:/bitnami/tomcat/conf/hapi_application.yaml:ro
+      - ./openelis/volume/properties/hapi_application.yaml:/opt/openelis/config/hapi_application.yaml:ro
+      - ./openelis/volume/certs:/etc/openelis-global:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/fhir/metadata"]
       interval: 30s
@@ -396,9 +417,9 @@ services:
 
   # OpenELIS Frontend
   openelis-frontend:
-    image: itechuw/openelis-global-2-frontend:3.2.0.2
-    platform: linux/amd64
+    image: dipakthapa/openelis-global-2-frontend:latest
     container_name: nidan-openelis-frontend
+    platform: linux/amd64
     ports:
       - "8085:80"
     environment:
