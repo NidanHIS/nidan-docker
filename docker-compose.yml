@@ -35,8 +35,8 @@ services:
     networks:
       - nidan-network
     depends_on:
-      openmrs-frontend:
-        condition: service_healthy
+      # openmrs-frontend:
+      #   condition: service_healthy
       odoo:
         condition: service_healthy
       keycloak:
@@ -45,8 +45,8 @@ services:
         condition: service_started
       openelis-fhir:
         condition: service_started
-      # nidan-certbot:
-      #   condition: service_started
+      nidan-certbot:
+        condition: service_started
     volumes:
       - certbot-etc:/etc/letsencrypt
       - certbot-www:/var/www/certbot
@@ -100,9 +100,9 @@ services:
       - SPA_CONFIG_URLS=
     networks:
       - nidan-network
-    # depends_on:
-    #   openmrs-backend:
-    #     condition: service_healthy
+    depends_on:
+      openmrs-backend:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/index.html"]
       interval: 30s
@@ -194,44 +194,44 @@ services:
   # ============================================================================
   # KEYCLOAK
   # ============================================================================
-  # keycloak:
-  #   image: quay.io/keycloak/keycloak:22.0
-  #   container_name: nidan-keycloak
-  #   command: start-dev --import-realm
-  #   environment:
-  #     KC_DB: postgres
-  #     KC_DB_URL: jdbc:postgresql://keycloak-db:5432/${KEYCLOAK_DB_NAME}
-  #     KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
-  #     KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
-  #     KC_HTTP_RELATIVE_PATH: ${KEYCLOAK_RELATIVE_PATH}
-  #     KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER}
-  #     KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-  #   volumes:
-  #     - ./keycloak/imports:/opt/keycloak/data/import
-  #     - ./openelis/keycloak:/opt/keycloak/data/import/openelis
-  #     - certbot-etc:/etc/letsencrypt:ro
-  #   networks:
-  #     - nidan-network
-  #   depends_on:
-  #     - keycloak-db
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:8080/auth/realms/master"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
-  #     start_period: 60s
+  keycloak:
+    image: quay.io/keycloak/keycloak:22.0
+    container_name: nidan-keycloak
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/${KEYCLOAK_DB_NAME}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_HTTP_RELATIVE_PATH: ${KEYCLOAK_RELATIVE_PATH}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    volumes:
+      - ./keycloak/imports:/opt/keycloak/data/import
+      - ./openelis/keycloak:/opt/keycloak/data/import/openelis
+      - certbot-etc:/etc/letsencrypt:ro
+    networks:
+      - nidan-network
+    depends_on:
+      - keycloak-db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/auth/realms/master"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
-  # keycloak-db:
-  #   image: postgres:15
-  #   container_name: nidan-keycloak-db
-  #   environment:
-  #     POSTGRES_DB: ${KEYCLOAK_DB_NAME}
-  #     POSTGRES_USER: ${KEYCLOAK_DB_USER}
-  #     POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
-  #   volumes:
-  #     - keycloak-db-data:/var/lib/postgresql/data
-  #   networks:
-  #     - nidan-network
+  keycloak-db:
+    image: postgres:15
+    container_name: nidan-keycloak-db
+    environment:
+      POSTGRES_DB: ${KEYCLOAK_DB_NAME}
+      POSTGRES_USER: ${KEYCLOAK_DB_USER}
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+    networks:
+      - nidan-network
 
   # ============================================================================
   # ORTHANC
@@ -334,10 +334,14 @@ services:
     restart: unless-stopped
 
   # OpenELIS backend (Tomcat)
+
+
+
+
+# OpenELIS backend (Tomcat) - FIXED with HTTP enabled
   openelis:
     image: dipakthapa/openelis-global-2:latest
     container_name: nidan-openelis
-    # platform: linux/amd64
     ports:
       - "8083:8080"
       - "8444:8443"
@@ -347,19 +351,17 @@ services:
     environment:
       - DEFAULT_PW=${OPENELIS_DEFAULT_ADMIN_PASSWORD:-adminADMIN!}
       - TZ=${OPENELIS_TZ:-UTC}
-      # Context path configuration (like Spring Boot server.servlet.context-path)
-      # Default: /api/OpenELIS-Global (maintains backward compatibility)
-      - SERVER_SERVLET_CONTEXT_PATH=${OPENELIS_CONTEXT_PATH:-/api/OpenELIS-Global}
-      # Standard OpenELIS database connection
+      # Database connection
       - CATALINA_OPTS=-Ddatasource.url=jdbc:postgresql://openelis-db:5432/clinlims -Ddatasource.username=clinlims -Ddatasource.password=${OPENELIS_DB_PASSWORD:-changeme}
-      # Optional SSL configuration (if certificates are provided)
-      - SSL_TRUSTSTORE_PATH=${SSL_TRUSTSTORE_PATH:-}
-      - SSL_TRUSTSTORE_PASSWORD=${SSL_TRUSTSTORE_PASSWORD:-}
-      - SSL_KEYSTORE_PATH=${SSL_KEYSTORE_PATH:-}
-      - SSL_KEYSTORE_PASSWORD=${SSL_KEYSTORE_PASSWORD:-}
+      # Disable Odoo integration
+      - ODOO_ENABLED=false
+      - ORG_OPENELISGLOBAL_ODOO_ENABLED=false
+      - OPENELIS_ENABLE_HTTPS=false
     networks:
       - nidan-network
     volumes:
+      # IMPORTANT: Mount the fixed server.xml that enables HTTP on port 8080
+      - ./openelis/tomcat/server.xml:/usr/local/tomcat/conf/server.xml:ro
       - ./openelis/volume/properties:/var/lib/openelis-global/properties
       - ./openelis/volume/configuration:/var/lib/openelis-global/configuration
       - ./openelis/volume/plugins:/var/lib/openelis-global/plugins
@@ -369,17 +371,20 @@ services:
       - ./openelis/volume/analyzer:/var/lib/openelis-global/analyzer
       - ./openelis/volume/odoo:/var/lib/openelis-global/odoo
       - openelis-lucene-index:/var/lib/lucene_index
-      # Mount required property files
       - ./openelis/volume/properties/common.properties:/run/secrets/common.properties:ro
       - ./openelis/volume/certs:/etc/openelis-global:ro
-    # Healthcheck disabled - container is running, Tomcat started successfully
-    # healthcheck:
-    #   test: ["CMD-SHELL", "ps aux | grep -q '[c]atalina' || exit 1"]
-    #   interval: 30s
-    #   timeout: 10s
-    #   retries: 5
-    #   start_period: 180s
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/OpenELIS-Global/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
     restart: unless-stopped
+
+
+
+
+
 
   # OpenELIS FHIR
   openelis-fhir:
@@ -424,15 +429,9 @@ services:
       - "8085:80"
     environment:
       - CHOKIDAR_USEPOLLING=true
+      - REACT_APP_SERVER_BASE=/api/OpenELIS-Global  # This tells frontend where backend is
     networks:
       - nidan-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
-
 
 
 
