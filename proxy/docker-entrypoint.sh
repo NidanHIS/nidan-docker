@@ -17,7 +17,9 @@ if [ ! -f "${LIVE_DIR}/fullchain.pem" ] || [ ! -f "${LIVE_DIR}/privkey.pem" ]; t
 fi
 
 # Template the nginx configuration with environment variables
-envsubst '${GATEWAY_DOMAIN}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+# Set default OpenELIS context path if not provided
+export OPENELIS_CONTEXT_PATH="${OPENELIS_CONTEXT_PATH:-/api/OpenELIS-Global/}"
+envsubst '${GATEWAY_DOMAIN} ${OPENELIS_CONTEXT_PATH}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
 
 # Execute the original entrypoint
 exec "$@"

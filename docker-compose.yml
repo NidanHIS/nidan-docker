@@ -30,16 +30,20 @@ services:
     environment:
       - GATEWAY_DOMAIN=${GATEWAY_DOMAIN:-localhost}
       - OPENELIS_DOMAIN=${OPENELIS_DOMAIN}
+      # OpenELIS context path (must match the backend SERVER_SERVLET_CONTEXT_PATH)
+      - OPENELIS_CONTEXT_PATH=${OPENELIS_CONTEXT_PATH:-/api/OpenELIS-Global/}
     networks:
       - nidan-network
     depends_on:
-      openmrs-frontend:
-        condition: service_healthy
+      # openmrs-frontend:
+      #   condition: service_healthy
       odoo:
         condition: service_healthy
       keycloak:
         condition: service_started
       openelis:
+        condition: service_started
+      openelis-fhir:
         condition: service_started
       nidan-certbot:
         condition: service_started
@@ -55,9 +59,9 @@ services:
     restart: unless-stopped  # Auto-restart if it fails during startup
 
 
-  # ============================================================================
-  # OPENMRS
-  # ============================================================================
+  # # ============================================================================
+  # # OPENMRS
+  # # ============================================================================
   openmrs-backend:
     # build: ./openmrs
     # image: openmrs/openmrs-reference-application-3-backend:${TAG:-qa}
@@ -83,8 +87,8 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8080/openmrs/"]
       interval: 30s
       timeout: 10s
-      retries: 5
-      start_period: 60s
+      retries: 10
+      start_period: 120s
 
   openmrs-frontend:
     # build: ./openmrs/frontend
@@ -96,9 +100,9 @@ services:
       - SPA_CONFIG_URLS=
     networks:
       - nidan-network
-    # depends_on:
-    #   openmrs-backend:
-    #     condition: service_healthy
+    depends_on:
+      openmrs-backend:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/index.html"]
       interval: 30s
@@ -303,39 +307,61 @@ services:
     networks:
       - nidan-network
 
+
   openelis-db:
-    image: postgres:15
+    image: itechuw/openelis-global-2-database:develop
     container_name: nidan-openelis-db
+    platform: linux/amd64
+    ports:
+      - "15432:5432"
     environment:
-      POSTGRES_DB: ${OPENELIS_DB_NAME:-clinlims}
-      POSTGRES_USER: ${OPENELIS_DB_USER:-clinlims}
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${OPENELIS_DB_PASSWORD:-changeme}
+      DB_PASSWORD: ${OPENELIS_DB_PASSWORD:-changeme}
+      DB_SUPERUSER_PASSWORD: ${OPENELIS_DB_ROOT_PASSWORD:-${OPENELIS_DB_PASSWORD:-changeme}}
     volumes:
       - openelis-db-data:/var/lib/postgresql/data
+      # Mount database initialization scripts - will run automatically on first startup
+      - ./openelis/database/dbInit:/docker-entrypoint-initdb.d:ro
     networks:
       - nidan-network
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${OPENELIS_DB_USER:-clinlims} -d ${OPENELIS_DB_NAME:-clinlims}" ]
+      test: [ "CMD-SHELL", "pg_isready -U clinlims -d clinlims" ]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   # OpenELIS backend (Tomcat)
+
+
+
+
+# OpenELIS backend (Tomcat) - FIXED with HTTP enabled
   openelis:
-    build: ./openelis
-    image: itechuw/openelis-global-2:develop
-    platform: linux/amd64
+    image: dipakthapa/openelis-global-2:latest
     container_name: nidan-openelis
+    ports:
+      - "8083:8080"
+      - "8444:8443"
     depends_on:
       openelis-db:
         condition: service_healthy
     environment:
       - DEFAULT_PW=${OPENELIS_DEFAULT_ADMIN_PASSWORD:-adminADMIN!}
       - TZ=${OPENELIS_TZ:-UTC}
-      - CATALINA_OPTS=-Ddatasource.url=jdbc:postgresql://openelis-db:5432/${OPENELIS_DB_NAME:-clinlims} -Ddatasource.username=${OPENELIS_DB_USER:-clinlims} -Ddatasource.password=${OPENELIS_DB_PASSWORD:-changeme}
+      # Database connection
+      - CATALINA_OPTS=-Ddatasource.url=jdbc:postgresql://openelis-db:5432/clinlims -Ddatasource.username=clinlims -Ddatasource.password=${OPENELIS_DB_PASSWORD:-changeme}
+      # Disable Odoo integration
+      - ODOO_ENABLED=false
+      - ORG_OPENELISGLOBAL_ODOO_ENABLED=false
+      - OPENELIS_ENABLE_HTTPS=false
     networks:
       - nidan-network
     volumes:
+      # IMPORTANT: Mount the fixed server.xml that enables HTTP on port 8080
+      - ./openelis/tomcat/server.xml:/usr/local/tomcat/conf/server.xml:ro
       - ./openelis/volume/properties:/var/lib/openelis-global/properties
       - ./openelis/volume/configuration:/var/lib/openelis-global/configuration
       - ./openelis/volume/plugins:/var/lib/openelis-global/plugins
@@ -348,53 +374,67 @@ services:
       - ./openelis/volume/properties/common.properties:/run/secrets/common.properties:ro
       - ./openelis/volume/certs:/etc/openelis-global:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/OpenELIS-Global/loginPage"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/OpenELIS-Global/ || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
-      start_period: 120s
+      retries: 10
+      start_period: 180s
+    restart: unless-stopped
+
+
+
+
+
 
   # OpenELIS FHIR
   openelis-fhir:
     image: itechuw/openelis-global-2-fhir:develop
-    platform: linux/amd64
     container_name: nidan-openelis-fhir
+    platform: linux/amd64
+    ports:
+      - "8084:8080"
     depends_on:
       openelis-db:
         condition: service_healthy
     environment:
       TZ: ${OPENELIS_TZ:-UTC}
-      JAVA_OPTS: "-Djavax.net.ssl.trustStore=${SSL_TRUSTSTORE_PATH} -Djavax.net.ssl.trustStorePassword=${SSL_TRUSTSTORE_PASSWORD} -Djavax.net.ssl.trustStoreType=pkcs12 -Djavax.net.ssl.keyStore=${SSL_KEYSTORE_PATH} -Djavax.net.ssl.keyStorePassword=${SSL_KEYSTORE_PASSWORD} -Djavax.net.ssl.keyStoreType=pkcs12"
-      CATALINA_OPTS: "-Dhapi.ssl.truststorepath=${SSL_TRUSTSTORE_PATH} -Dhapi.ssl.truststorepassword=${SSL_TRUSTSTORE_PASSWORD} -Dhapi.ssl.keystorepath=${SSL_KEYSTORE_PATH} -Dhapi.ssl.keystorepassword=${SSL_KEYSTORE_PASSWORD}"
-      FHIR_DATASOURCE_URL: "jdbc:postgresql://openelis-db:5432/${OPENELIS_DB_NAME:-clinlims}?currentSchema=clinlims"
-      FHIR_DATASOURCE_USERNAME: "${OPENELIS_DB_USER:-clinlims}"
+      FHIR_DATASOURCE_URL: "jdbc:postgresql://openelis-db:5432/clinlims?currentSchema=clinlims"
+      FHIR_DATASOURCE_USERNAME: "clinlims"
       FHIR_DATASOURCE_PASSWORD: "${OPENELIS_DB_PASSWORD:-changeme}"
       FHIR_SERVER_ADRESS: "http://openelis-fhir:8080/fhir/"
+      # Optional SSL configuration
+      SSL_TRUSTSTORE_PATH: ${SSL_TRUSTSTORE_PATH:-}
+      SSL_TRUSTSTORE_PASSWORD: ${SSL_TRUSTSTORE_PASSWORD:-}
+      SSL_KEYSTORE_PATH: ${SSL_KEYSTORE_PATH:-}
+      SSL_KEYSTORE_PASSWORD: ${SSL_KEYSTORE_PASSWORD:-}
     networks:
       - nidan-network
     volumes:
-      - ./openelis/volume/properties/hapi_application.yaml:/bitnami/tomcat/conf/hapi_application.yaml:ro
+      - ./openelis/volume/properties/hapi_application.yaml:/opt/openelis/config/hapi_application.yaml:ro
+      - ./openelis/volume/certs:/etc/openelis-global:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/fhir/metadata"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 120s
+    restart: unless-stopped
 
   # OpenELIS Frontend
   openelis-frontend:
-    image: itechuw/openelis-global-2-frontend:3.2.0.2
-    platform: linux/amd64
+    image: dipakthapa/openelis-global-2-frontend:latest
     container_name: nidan-openelis-frontend
+    platform: linux/amd64
+    ports:
+      - "8085:80"
     environment:
       - CHOKIDAR_USEPOLLING=true
+      - REACT_APP_SERVER_BASE=/api/OpenELIS-Global  # This tells frontend where backend is
     networks:
       - nidan-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+
+
+
 
   # ============================================================================
   # NIDAN INTEGRATION MIDDLEWARE (Kafka + Postgres + CIS/OIS)
@@ -483,16 +523,16 @@ services:
       - INTEGRATION_SKIP_SOURCE_SYSTEMS=${INTEGRATION_SKIP_SOURCE_SYSTEMS:-OPENMRS}
       - RADIOLOGY_ACCESSION_PREFIX=${RADIOLOGY_ACCESSION_PREFIX:-RAD-}
       - RADIOLOGY_PROCEDURE_CODE_PREFIX=${RADIOLOGY_PROCEDURE_CODE_PREFIX:-RAD-}
-    depends_on:
-      nidan-integration-db:
-        condition: service_healthy
-      nidan-kafka:
-        condition: service_started
-      openmrs-backend:
-        condition: service_healthy
-      # Orthanc dependency made optional - CIS can start without it if radiology is disabled
-      orthanc:
-        condition: service_started
+    # depends_on:
+    #   nidan-integration-db:
+    #     condition: service_healthy
+    #   nidan-kafka:
+    #     condition: service_started
+    #   openmrs-backend:
+    #     condition: service_healthy
+    #   # Orthanc dependency made optional - CIS can start without it if radiology is disabled
+    #   orthanc:
+    #     condition: service_started
     networks:
       - nidan-network
     healthcheck:

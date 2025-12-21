@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Server port="-1" shutdown="SHUTDOWN">
+    <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
+    <Listener className="org.apache.catalina.core.AprLifecycleListener" SSLEngine="on" />
+    <Listener className="org.apache.catalina.core.JreMemoryLeakPreventionListener" />
+    <Listener className="org.apache.catalina.mbeans.GlobalResourcesLifecycleListener" />
+    <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
+
+    <GlobalNamingResources>
+        <Resource name="UserDatabase" auth="Container"
+                  type="org.apache.catalina.UserDatabase"
+                  description="User database that can be updated and saved"
+                  factory="org.apache.catalina.users.MemoryUserDatabaseFactory"
+                  pathname="conf/tomcat-users.xml" />
+    </GlobalNamingResources>
+
+    <Service name="Catalina">
+
+        <!-- HTTP Connector -->
+        <Connector port="8080" protocol="HTTP/1.1"
+                   connectionTimeout="20000"
+                   redirectPort="8443" />
+
+        <Engine name="Catalina" defaultHost="localhost">
+
+            <!-- Add this valve to respect X-Forwarded-* headers from Nginx -->
+            <Valve className="org.apache.catalina.valves.RemoteIpValve"
+                   remoteIpHeader="x-forwarded-for"
+                   protocolHeader="x-forwarded-proto"
+                   portHeader="x-forwarded-port"
+                   proxiesHeader="x-forwarded-by"
+            />
+
+            <Realm className="org.apache.catalina.realm.LockOutRealm">
+                <Realm className="org.apache.catalina.realm.UserDatabaseRealm"
+                       resourceName="UserDatabase" />
+            </Realm>
+
+            <Host name="localhost" appBase="webapps"
+                  unpackWARs="true" autoDeploy="true">
+
+                <!-- OpenELIS Global app -->
+                <Context docBase="OpenELIS-Global" path="/OpenELIS-Global" logEffectiveWebXml="true">
+                    <Resources cacheMaxSize="102400" />
+                    <Resource auth="Container"
+                              driverClassName="org.postgresql.Driver"
+                              maxTotal="20"
+                              maxIdle="10"
+                              maxWaitMillis="-1"
+                              name="jdbc/LimsDS"
+                              type="javax.sql.DataSource"
+                              url="${datasource.url}"
+                              username="${datasource.username}"
+                              password="${datasource.password}" />
+                </Context>
+
+                <Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"
+                       prefix="localhost_access_log" suffix=".txt"
+                       pattern="%h %l %u %t &quot;%r&quot; %s %b" />
+            </Host>
+        </Engine>
+    </Service>
+</Server>
