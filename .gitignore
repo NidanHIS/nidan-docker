@@ -18,3 +18,5 @@ middleware/*/target/**
 !middleware/*/target/
 !middleware/*/target/.gitkeep
 
+**/.DS_Store
+

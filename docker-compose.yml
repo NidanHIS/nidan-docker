@@ -82,7 +82,7 @@ services:
         condition: service_healthy
     volumes:
       - openmrs-data:/openmrs/data
-      - ./openmrs/runtime/openmrs-runtime.properties:/openmrs/openmrs-runtime.properties
+      #- ./openmrs/runtime/openmrs-runtime.properties:/openmrs/openmrs-runtime.properties
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/openmrs/"]
       interval: 30s
@@ -125,6 +125,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${OPENMRS_DB_ROOT_PASSWORD}
     volumes:
       - openmrs-db-data:/var/lib/mysql
+      - ./openmrs/database/dbInit:/docker-entrypoint-initdb.d:ro
     networks:
       - nidan-network
 
