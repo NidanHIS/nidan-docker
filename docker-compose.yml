@@ -35,8 +35,8 @@ services:
     networks:
       - nidan-network
     depends_on:
-      # openmrs-frontend:
-      #   condition: service_healthy
+      openmrs-frontend:
+        condition: service_healthy
       odoo:
         condition: service_healthy
       keycloak:
@@ -63,7 +63,7 @@ services:
   # # OPENMRS
   # # ============================================================================
   openmrs-backend:
-    # build: ./openmrs
+    build: ./openmrs
     # image: openmrs/openmrs-reference-application-3-backend:${TAG:-qa}
     image: dipakthapa/openmrs-backend:latest
     container_name: nidan-openmrs-backend
@@ -91,7 +91,7 @@ services:
       start_period: 120s
 
   openmrs-frontend:
-    # build: ./openmrs/frontend
+    build: ./openmrs/frontend
     image: dipakthapa/openmrs-frontend:latest
     container_name: nidan-openmrs-frontend
     environment:
@@ -523,16 +523,16 @@ services:
       - INTEGRATION_SKIP_SOURCE_SYSTEMS=${INTEGRATION_SKIP_SOURCE_SYSTEMS:-OPENMRS}
       - RADIOLOGY_ACCESSION_PREFIX=${RADIOLOGY_ACCESSION_PREFIX:-RAD-}
       - RADIOLOGY_PROCEDURE_CODE_PREFIX=${RADIOLOGY_PROCEDURE_CODE_PREFIX:-RAD-}
-    # depends_on:
-    #   nidan-integration-db:
-    #     condition: service_healthy
-    #   nidan-kafka:
-    #     condition: service_started
-    #   openmrs-backend:
-    #     condition: service_healthy
-    #   # Orthanc dependency made optional - CIS can start without it if radiology is disabled
-    #   orthanc:
-    #     condition: service_started
+    depends_on:
+      nidan-integration-db:
+        condition: service_healthy
+      nidan-kafka:
+        condition: service_started
+      openmrs-backend:
+        condition: service_healthy
+      # Orthanc dependency made optional - CIS can start without it if radiology is disabled
+      orthanc:
+        condition: service_started
     networks:
       - nidan-network
     healthcheck:
