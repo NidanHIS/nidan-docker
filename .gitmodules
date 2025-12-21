@@ -1,0 +1,3 @@
+[submodule "odoo/odoo_19_addons"]
+	path = odoo/odoo_19_addons
+	url = https://github.com/Trigonal-Technology/odoo_19_addons
