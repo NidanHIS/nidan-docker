@@ -157,7 +157,7 @@ services:
     volumes:
       - odoo-data:/var/lib/odoo
       # Mount custom addons (including nidan_connector) for dev
-      - ${ODOO_EXTRA_ADDONS_HOST_PATH:-../odoo_19_addons}:/mnt/extra-addons
+      - ./odoo/odoo_19_addons/odoo_19_addons:/mnt/extra-addons
     networks:
       - nidan-network
     depends_on:
