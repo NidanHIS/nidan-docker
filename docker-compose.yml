@@ -65,7 +65,7 @@ services:
   openmrs-backend:
     build: ./openmrs
     # image: openmrs/openmrs-reference-application-3-backend:${TAG:-qa}
-    image: dipakthapa/openmrs-backend:latest
+    # image: dipakthapa/openmrs-backend:latest
     container_name: nidan-openmrs-backend
     environment:
       OMRS_CONFIG_MODULE_WEB_ADMIN: "true"
@@ -82,6 +82,7 @@ services:
         condition: service_healthy
     volumes:
       - openmrs-data:/openmrs/data
+      # - ./openmrs/custom_modules:/openmrs/data/modules
       #- ./openmrs/runtime/openmrs-runtime.properties:/openmrs/openmrs-runtime.properties
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/openmrs/"]
@@ -92,7 +93,7 @@ services:
 
   openmrs-frontend:
     build: ./openmrs/frontend
-    image: dipakthapa/openmrs-frontend:latest
+    # image: dipakthapa/openmrs-frontend:latest
     container_name: nidan-openmrs-frontend
     environment:
       - SPA_PATH=/openmrs/spa
@@ -157,7 +158,7 @@ services:
     volumes:
       - odoo-data:/var/lib/odoo
       # Mount custom addons (including nidan_connector) for dev
-      - ./odoo/odoo_19_addons/odoo_19_addons:/mnt/extra-addons
+      - ${ODOO_EXTRA_ADDONS_HOST_PATH}:/mnt/extra-addons
     networks:
       - nidan-network
     depends_on:
