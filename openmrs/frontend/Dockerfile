@@ -12,6 +12,14 @@ WORKDIR /app
 COPY spa-assemble-config.json .
 COPY spa-build-config.json .
 
+RUN yarn global add husky
+
+COPY packages/trigonal-esm-patient-report-app-1.0.0.tgz .
+COPY packages/kenyaemr-esm-imaging-orders-app-4.0.5-trigonal.tgz .
+
+RUN yarn add ./kenyaemr-esm-imaging-orders-app-4.0.5-trigonal.tgz
+RUN yarn add ./trigonal-esm-patient-report-app-1.0.0.tgz
+
 ARG CACHE_BUST
 RUN npx --legacy-peer-deps openmrs@${APP_SHELL_VERSION:-next} assemble --manifest --mode config --config spa-assemble-config.json --target ./spa
 RUN npx --legacy-peer-deps openmrs@${APP_SHELL_VERSION:-next} build --build-config spa-build-config.json --target ./spa
