@@ -99,6 +99,10 @@ services:
       - SPA_PATH=/openmrs/spa
       - API_URL=/openmrs
       - SPA_CONFIG_URLS=
+    
+    #uncomment to mount nginx to override and allow backend-frontend communication when running without the gateway 
+    # volumes:
+    #   - ./openmrs/frontend/nginx.conf:/etc/nginx/nginx.conf:ro
     networks:
       - nidan-network
     depends_on:
@@ -114,6 +118,8 @@ services:
     image: mariadb:10.11.7
     container_name: nidan-openmrs-db
     command: "mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --sql-mode=''"
+    # Configure MariaDB with utf8mb4 and row‑based binlog (unique server-id, relaxed SQL mode) for Debezium/OpenMRS CDC --do the same if running external
+    #command: "mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --sql-mode='' --server-id=2749 --log-bin=mysql-bin --binlog_format=ROW --binlog_row_image=FULL"
     healthcheck:
       test: "mysql --user=${OPENMRS_DB_USER:-openmrs} --password=${OPENMRS_DB_PASSWORD:-openmrs} --execute \"SHOW DATABASES;\""
       interval: 3s
@@ -493,11 +499,22 @@ services:
     container_name: nidan-cis
     ports:
       - "${CIS_PORT:-8081}:${CIS_PORT:-8081}"
+    
+    # To call an EXTERNAL HTTPS OpenELIS :
+    # 1) Map the ELIS hostname to your ELIS IP
+    # extra_hosts:
+    #   - "elis.openelis-global.org:192.168.1.74"
+    # 2) Mount a truststore built from the ELIS TLS certificate
+    # volumes:
+    #   - ./openelis-truststore.p12:/etc/ssl/certs/openelis-truststore.p12:ro
     environment:
       # Database
       - INTEGRATION_DB_URL=jdbc:postgresql://${INTEGRATION_DB_HOST:-nidan-integration-db}:${INTEGRATION_DB_PORT:-5432}/${INTEGRATION_DB_NAME:-nidan_integration}
       - INTEGRATION_DB_USER=${INTEGRATION_DB_USER:-nidan}
       - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_PASSWORD:-nidan}
+      # OpenMRS database (used by Debezium)
+      # - OPENMRS_DB_HOST=${OPENMRS_DB_HOST:-openmrs-db}
+      # - OPENMRS_DB_PORT=${OPENMRS_DB_PORT:-3306}
       # Kafka
       - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:${KAFKA_PORT:-9092}
       - CIS_KAFKA_GROUP_ID=${CIS_KAFKA_GROUP_ID:-nidan-cis}
@@ -518,13 +535,21 @@ services:
       # OpenELIS
       - OPENELIS_ENABLED=${OPENELIS_ENABLED:-false}
       - OPENELIS_BASE_URL=${OPENELIS_BASE_URL:-http://openelis-fhir:8080/fhir}
+      #Uncomment the fhir base url and order bundle path for lab order sync to openelis 
+      # - OPENELIS_FHIR_BASE_URL=${OPENELIS_FHIR_BASE_URL:-http://openelis-fhir:8080}
+      # - OPENELIS_ORDER_BUNDLE_PATH=${OPENELIS_ORDER_BUNDLE_PATH:-/fhir/tasks}
       - OPENELIS_USERNAME=${OPENELIS_USERNAME:-admin}
       - OPENELIS_PASSWORD=${OPENELIS_PASSWORD:-adminADMIN!}
+      #- "JAVA_TOOL_OPTIONS=-Djavax.net.ssl.trustStore=/etc/ssl/certs/openelis-truststore.p12 -Djavax.net.ssl.trustStorePassword=openelisTrust123"
       # Integration
       - INTEGRATION_SOURCE_SYSTEM=${INTEGRATION_SOURCE_SYSTEM:-CIS}
       - INTEGRATION_SKIP_SOURCE_SYSTEMS=${INTEGRATION_SKIP_SOURCE_SYSTEMS:-OPENMRS}
       - RADIOLOGY_ACCESSION_PREFIX=${RADIOLOGY_ACCESSION_PREFIX:-RAD-}
       - RADIOLOGY_PROCEDURE_CODE_PREFIX=${RADIOLOGY_PROCEDURE_CODE_PREFIX:-RAD-}
+      # Debezium Embedded (CIS)--var control for debezium
+      # - DEBEZIUM_ENABLED=${DEBEZIUM_ENABLED:-false}
+      # - DEBEZIUM_DB_USER=${DEBEZIUM_DB_USER:-root}
+      # - DEBEZIUM_DB_PASSWORD=${DEBEZIUM_DB_PASSWORD:-root}
     depends_on:
       nidan-integration-db:
         condition: service_healthy
