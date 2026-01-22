@@ -1,0 +1,625 @@
+networks:
+  nidan-network:
+    driver: bridge
+
+volumes:
+  openmrs-data:
+  openmrs-db-data:
+  odoo-data:
+  odoo-db-data:
+  orthanc-data:
+  orthanc-db-data:
+  keycloak-db-data:
+  openelis-db-data:
+  openelis-lucene-index:
+  certbot-etc:
+  certbot-www:
+  nidan-integration-db-data:
+
+
+services:
+  # ============================================================================
+  # PROXY / GATEWAY
+  # ============================================================================
+  gateway:
+    build: ./proxy
+    image: nidan/gateway:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - GATEWAY_DOMAIN=${GATEWAY_DOMAIN:-localhost}
+      - OPENELIS_DOMAIN=${OPENELIS_DOMAIN}
+      # OpenELIS context path (must match the backend SERVER_SERVLET_CONTEXT_PATH)
+      - OPENELIS_CONTEXT_PATH=${OPENELIS_CONTEXT_PATH:-/api/OpenELIS-Global/}
+    networks:
+      - nidan-network
+    depends_on:
+      openmrs-frontend:
+        condition: service_healthy
+      odoo:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      openelis:
+        condition: service_started
+      openelis-fhir:
+        condition: service_started
+      nidan-certbot:
+        condition: service_started
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped  # Auto-restart if it fails during startup
+
+
+  # # ============================================================================
+  # # OPENMRS
+  # # ============================================================================
+  openmrs-backend:
+    #build: ./openmrs
+    image: openmrs/openmrs-reference-application-3-backend:${TAG:-qa}
+    # image: dipakthapa/openmrs-backend:latest
+    container_name: nidan-openmrs-backend
+    environment:
+      OMRS_CONFIG_MODULE_WEB_ADMIN: "true"
+      OMRS_CONFIG_AUTO_UPDATE_DATABASE: "true"
+      OMRS_CONFIG_CREATE_TABLES: "true"
+      OMRS_CONFIG_CONNECTION_SERVER: openmrs-db
+      OMRS_CONFIG_CONNECTION_DATABASE: ${OPENMRS_DB_NAME}
+      OMRS_CONFIG_CONNECTION_USERNAME: ${OPENMRS_DB_USER}
+      OMRS_CONFIG_CONNECTION_PASSWORD: ${OPENMRS_DB_PASSWORD}
+    networks:
+      - nidan-network
+    depends_on:
+      openmrs-db:
+        condition: service_healthy
+    volumes:
+      - openmrs-data:/openmrs/data
+      # - ./openmrs/custom_modules:/openmrs/data/modules
+      #- ./openmrs/runtime/openmrs-runtime.properties:/openmrs/openmrs-runtime.properties
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/openmrs/"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+  openmrs-frontend:
+    image: openmrs/openmrs-reference-application-3-frontend:${TAG:-qa}
+    #build: ./openmrs/frontend
+    # image: dipakthapa/openmrs-frontend:latest
+    container_name: nidan-openmrs-frontend
+    environment:
+      - SPA_PATH=/openmrs/spa
+      - API_URL=/openmrs
+      - SPA_CONFIG_URLS=
+    
+    #uncomment to mount nginx to override and allow backend-frontend communication when running without the gateway 
+    # volumes:
+    #   - ./openmrs/frontend/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - nidan-network
+    depends_on:
+      openmrs-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/index.html"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  openmrs-db:
+    image: mariadb:10.11.7
+    container_name: nidan-openmrs-db
+    #command: "mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --sql-mode=''"
+    # Configure MariaDB with utf8mb4 and row‑based binlog (unique server-id, relaxed SQL mode) for Debezium/OpenMRS CDC --do the same if running external
+    command: "mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --sql-mode='' --server-id=2749 --log-bin=mysql-bin --binlog_format=ROW --binlog_row_image=FULL"
+    healthcheck:
+      test: "mysql --user=${OPENMRS_DB_USER:-openmrs} --password=${OPENMRS_DB_PASSWORD:-openmrs} --execute \"SHOW DATABASES;\""
+      interval: 3s
+      timeout: 1s
+      retries: 5
+    environment:
+      MYSQL_DATABASE: ${OPENMRS_DB_NAME}
+      MYSQL_USER: ${OPENMRS_DB_USER}
+      MYSQL_PASSWORD: ${OPENMRS_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${OPENMRS_DB_ROOT_PASSWORD}
+    volumes:
+      - openmrs-db-data:/var/lib/mysql
+      #- ./openmrs/database/dbInit:/docker-entrypoint-initdb.d:ro
+    networks:
+      - nidan-network
+
+  # ============================================================================
+  # ODOO
+  # ============================================================================
+  odoo:
+    build: ./odoo
+    image: nidan/odoo:19
+    container_name: nidan-odoo
+    command: sh -c "odoo -d \${ODOO_DB_NAME:-nidan} -i base"
+    ports:
+      - "8069:8069"
+    environment:
+      # Odoo reads these environment variables automatically
+      - HOST=${ODOO_DB_HOST}
+      - USER=${ODOO_DB_USER}
+      - PASSWORD=${ODOO_DB_PASSWORD}
+      - PORT=${ODOO_DB_PORT}
+      - ODOO_DB_NAME=${ODOO_DB_NAME}
+      - ODOO_ADMIN_EMAIL=${ODOO_ADMIN_EMAIL:-nidan}
+      - ODOO_ADMIN_PASSWORD=${ODOO_ADMIN_PASSWORD:-nidan}
+      # PostgreSQL superuser for database creation
+      - POSTGRES_USER=${ODOO_POSTGRES_USER}
+      - POSTGRES_PASSWORD=${ODOO_POSTGRES_PASSWORD}
+      # Nidan OIS connector
+      - NIDAN_OIS_URL=${NIDAN_OIS_URL}
+      - NIDAN_OIS_SECRET=${NIDAN_OIS_SECRET}
+    volumes:
+      - odoo-data:/var/lib/odoo
+      # Mount custom addons (including nidan_connector) for dev
+      - ${ODOO_EXTRA_ADDONS_HOST_PATH}:/mnt/extra-addons
+    networks:
+      - nidan-network
+    depends_on:
+      odoo-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8069/web/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  odoo-db:
+    image: postgres:15
+    container_name: nidan-odoo-db
+    environment:
+      POSTGRES_DB: ${ODOO_POSTGRES_DB}
+      POSTGRES_PASSWORD: ${ODOO_POSTGRES_PASSWORD}
+      POSTGRES_USER: ${ODOO_POSTGRES_USER}
+      # Pass Odoo DB config to init script
+      ODOO_DB_NAME: ${ODOO_DB_NAME}
+      ODOO_DB_USER: ${ODOO_DB_USER}
+      ODOO_DB_PASSWORD: ${ODOO_DB_PASSWORD}
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data
+      - ./odoo-db/init-odoo-db.sh:/docker-entrypoint-initdb.d/init-odoo-db.sh:ro
+    networks:
+      - nidan-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${ODOO_POSTGRES_USER:-odoo} -d ${ODOO_POSTGRES_DB:-postgres}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # KEYCLOAK
+  # ============================================================================
+  keycloak:
+    image: quay.io/keycloak/keycloak:22.0
+    container_name: nidan-keycloak
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/${KEYCLOAK_DB_NAME}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_HTTP_RELATIVE_PATH: ${KEYCLOAK_RELATIVE_PATH}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    volumes:
+      - ./keycloak/imports:/opt/keycloak/data/import
+      - ./openelis/keycloak:/opt/keycloak/data/import/openelis
+      - certbot-etc:/etc/letsencrypt:ro
+    networks:
+      - nidan-network
+    depends_on:
+      - keycloak-db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/auth/realms/master"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  keycloak-db:
+    image: postgres:15
+    container_name: nidan-keycloak-db
+    environment:
+      POSTGRES_DB: ${KEYCLOAK_DB_NAME}
+      POSTGRES_USER: ${KEYCLOAK_DB_USER}
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+    networks:
+      - nidan-network
+
+  # ============================================================================
+  # ORTHANC
+  # ============================================================================
+  orthanc:
+    image: orthancteam/orthanc:latest
+    container_name: nidan-orthanc
+    ports:
+      - "8042:8042" # HTTP/REST API
+      - "4242:4242" # DICOM
+    environment:
+      # Enable plugins
+      DICOM_WEB_PLUGIN_ENABLED: "true"
+      WORKLISTS_PLUGIN_ENABLED: "true"
+      POSTGRESQL_PLUGIN_ENABLED: "true"
+      OHIF_PLUGIN_ENABLED: "true"
+      ORTHANC_EXPLORER_2_ENABLED: "true"
+      # Set to false in production
+      VERBOSE_STARTUP: "true"
+      # PostgreSQL database (dynamic/secrets)
+      ORTHANC__POSTGRESQL__ENABLE_INDEX: "true"
+      ORTHANC__POSTGRESQL__ENABLE_STORAGE: "true"
+      ORTHANC__POSTGRESQL__HOST: "${ORTHANC_DB_HOST:-orthanc-db}"
+      ORTHANC__POSTGRESQL__PORT: "5432"
+      ORTHANC__POSTGRESQL__DATABASE: "${ORTHANC_DB_NAME:-orthanc}"
+      ORTHANC__POSTGRESQL__USERNAME: "${ORTHANC_DB_USER:-orthanc}"
+      ORTHANC__POSTGRESQL__PASSWORD: "${ORTHANC_DB_PASSWORD:-orthanc}"
+      # Authentication (dynamic/secrets)
+      ORTHANC__REGISTERED_USERS: |
+        {"${ORTHANC_USERNAME:-nidan}": "${ORTHANC_PASSWORD:-nidan}"}
+    networks:
+      - nidan-network
+    depends_on:
+      - orthanc-db
+    volumes:
+      - certbot-etc:/etc/letsencrypt:ro
+      # Static configuration file
+      - ./orthanc/orthanc.json:/etc/orthanc/orthanc.json:ro
+      # Worklist directory for MWL plugin
+      - ./orthanc/worklists:/var/lib/orthanc/worklists
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8042/system"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  orthanc-db:
+    image: postgres:15
+    container_name: nidan-orthanc-db
+    environment:
+      POSTGRES_DB: ${ORTHANC_DB_NAME}
+      POSTGRES_USER: ${ORTHANC_DB_USER}
+      POSTGRES_PASSWORD: ${ORTHANC_DB_PASSWORD}
+    volumes:
+      - orthanc-db-data:/var/lib/postgresql/data
+    networks:
+      - nidan-network
+
+  # ============================================================================
+  # OPENELIS (Placeholder)
+  # ============================================================================
+  nidan-certbot:
+    image: certbot/certbot:latest
+    container_name: nidan-certbot
+    entrypoint: "/bin/sh -c 'trap \"exit 0\" TERM; while :; do certbot renew --webroot -w /var/www/certbot --agree-tos --noninteractive --keep-until-expiring; sleep 12h & wait $${!}; done;'"
+    environment:
+      - CERTBOT_EMAIL=${CERTBOT_EMAIL}
+      - CERTBOT_DOMAINS=${CERTBOT_DOMAINS}
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    networks:
+      - nidan-network
+
+
+  openelis-db:
+    image: itechuw/openelis-global-2-database:develop
+    #image: postgres:14.4
+    container_name: nidan-openelis-db
+    platform: linux/amd64
+    ports:
+      - "15432:5432"
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${OPENELIS_DB_PASSWORD:-changeme}
+      DB_PASSWORD: ${OPENELIS_DB_PASSWORD:-changeme}
+      DB_SUPERUSER_PASSWORD: ${OPENELIS_DB_ROOT_PASSWORD:-${OPENELIS_DB_PASSWORD:-changeme}}
+    volumes:
+      - openelis-db-data:/var/lib/postgresql/data
+      # Mount database initialization scripts - will run automatically on first startup
+      - ./openelis/database/dbInit:/docker-entrypoint-initdb.d:ro
+    networks:
+      - nidan-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U clinlims -d clinlims" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # OpenELIS backend (Tomcat)
+
+
+
+
+# OpenELIS backend (Tomcat) - FIXED with HTTP enabled
+  openelis:
+    #image: itechuw/openelis-global-2-dev:develop 
+    image: dipakthapa/openelis-global-2:latest
+    container_name: nidan-openelis
+    ports:
+      - "8083:8080"
+      - "8444:8443"
+    depends_on:
+      openelis-db:
+        condition: service_healthy
+    environment:
+      - DEFAULT_PW=${OPENELIS_DEFAULT_ADMIN_PASSWORD:-adminADMIN!}
+      - TZ=${OPENELIS_TZ:-UTC}
+      # Database connection
+      - CATALINA_OPTS=-Ddatasource.url=jdbc:postgresql://openelis-db:5432/clinlims -Ddatasource.username=clinlims -Ddatasource.password=${OPENELIS_DB_PASSWORD:-changeme}
+      # Disable Odoo integration
+      - ODOO_ENABLED=false
+      - ORG_OPENELISGLOBAL_ODOO_ENABLED=false
+      - OPENELIS_ENABLE_HTTPS=false
+    networks:
+      - nidan-network
+    volumes:
+      # IMPORTANT: Mount the fixed server.xml that enables HTTP on port 8080
+      - ./openelis/tomcat/server.xml:/usr/local/tomcat/conf/server.xml:ro
+      - ./openelis/volume/properties:/var/lib/openelis-global/properties
+      - ./openelis/volume/configuration:/var/lib/openelis-global/configuration
+      - ./openelis/volume/plugins:/var/lib/openelis-global/plugins
+      - ./openelis/volume/ocl:/var/lib/openelis-global/ocl
+      - ./openelis/volume/logs/oeLogs:/var/lib/openelis-global/logs
+      - ./openelis/volume/logs/tomcatLogs:/usr/local/tomcat/logs
+      - ./openelis/volume/analyzer:/var/lib/openelis-global/analyzer
+      - ./openelis/volume/odoo:/var/lib/openelis-global/odoo
+      - openelis-lucene-index:/var/lib/lucene_index
+      - ./openelis/volume/properties/common.properties:/run/secrets/common.properties:ro
+      - ./openelis/volume/certs:/etc/openelis-global:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/OpenELIS-Global/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+    restart: unless-stopped
+
+
+
+
+
+
+  # OpenELIS FHIR
+  openelis-fhir:
+    image: hapiproject/hapi:v6.6.0-tomcat
+    #image: itechuw/openelis-global-2-fhir:develop
+    container_name: nidan-openelis-fhir
+    platform: linux/amd64
+    ports:
+      - "8084:8080"
+    depends_on:
+      openelis-db:
+        condition: service_healthy
+    environment:
+      TZ: ${OPENELIS_TZ:-UTC}
+      FHIR_DATASOURCE_URL: "jdbc:postgresql://openelis-db:5432/clinlims?currentSchema=clinlims"
+      FHIR_DATASOURCE_USERNAME: "clinlims"
+      FHIR_DATASOURCE_PASSWORD: "${OPENELIS_DB_PASSWORD:-changeme}"
+      FHIR_SERVER_ADRESS: "http://openelis-fhir:8080/fhir/"
+      # Optional SSL configuration
+      SSL_TRUSTSTORE_PATH: ${SSL_TRUSTSTORE_PATH:-}
+      SSL_TRUSTSTORE_PASSWORD: ${SSL_TRUSTSTORE_PASSWORD:-}
+      SSL_KEYSTORE_PATH: ${SSL_KEYSTORE_PATH:-}
+      SSL_KEYSTORE_PASSWORD: ${SSL_KEYSTORE_PASSWORD:-}
+    networks:
+      - nidan-network
+    volumes:
+      - ./openelis/volume/properties/hapi_application.yaml:/opt/openelis/config/hapi_application.yaml:ro
+      - ./openelis/volume/certs:/etc/openelis-global:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/fhir/metadata"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+
+  # OpenELIS Frontend
+  openelis-frontend:
+    #image: itechuw/openelis-global-2-frontend-dev:develop
+    image: dipakthapa/openelis-global-2-frontend:latest
+    container_name: nidan-openelis-frontend
+    platform: linux/amd64
+    ports:
+      - "8085:80"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - REACT_APP_SERVER_BASE=/api/OpenELIS-Global  # This tells frontend where backend is
+    volumes:
+      - ./openelis/frontend-nginx.conf:/etc/nginx/conf.d/default.conf:ro  
+    networks:
+      - nidan-network
+
+    depends_on:
+      openelis:
+        condition: service_healthy
+
+
+
+
+  # ============================================================================
+  # NIDAN INTEGRATION MIDDLEWARE (Kafka + Postgres + CIS/OIS)
+  # ============================================================================
+  nidan-integration-db:
+    image: postgres:15
+    container_name: nidan-integration-db
+    environment:
+      POSTGRES_DB: ${INTEGRATION_DB_NAME:-nidan_integration}
+      POSTGRES_USER: ${INTEGRATION_DB_USER:-nidan}
+      POSTGRES_PASSWORD: ${INTEGRATION_DB_PASSWORD:-nidan}
+    volumes:
+      - nidan-integration-db-data:/var/lib/postgresql/data
+    networks:
+      - nidan-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${INTEGRATION_DB_USER:-nidan} -d ${INTEGRATION_DB_NAME:-nidan_integration}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Zookeeper for Kafka (Confluent images)
+  nidan-zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: nidan-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT:-2181}
+      ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME:-2000}
+    networks:
+      - nidan-network
+
+  nidan-kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: nidan-kafka
+    environment:
+      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID:-1}
+      KAFKA_ZOOKEEPER_CONNECT: "${KAFKA_ZOOKEEPER_CONNECT:-nidan-zookeeper:2181}"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:${KAFKA_PORT:-9092}"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://nidan-kafka:${KAFKA_PORT:-9092}"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR:-1}
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: ${KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR:-1}
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: ${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR:-1}
+      KAFKA_MIN_INSYNC_REPLICAS: ${KAFKA_MIN_INSYNC_REPLICAS:-1}
+    depends_on:
+      - nidan-zookeeper
+    networks:
+      - nidan-network
+
+  nidan-cis:
+    # build:
+    #   context: ./middleware
+    #   dockerfile: Dockerfile.cis
+    #image: dipakthapa/cis:latest
+    image: nidan-cis:local
+    container_name: nidan-cis
+    ports:
+      - "${CIS_PORT:-8081}:${CIS_PORT:-8081}"
+    
+    # To call an EXTERNAL HTTPS OpenELIS :
+    # 1) Map the ELIS hostname to your ELIS IP
+    # extra_hosts:
+    #   - "elis.openelis-global.org:192.168.1.74"
+    # 2) Mount a truststore built from the ELIS TLS certificate
+    volumes:
+      - ./gateway-truststore.p12:/etc/ssl/certs/gateway-truststore.p12:ro
+    environment:
+      # Database
+      - INTEGRATION_DB_URL=jdbc:postgresql://${INTEGRATION_DB_HOST:-nidan-integration-db}:${INTEGRATION_DB_PORT:-5432}/${INTEGRATION_DB_NAME:-nidan_integration}
+      - INTEGRATION_DB_USER=${INTEGRATION_DB_USER:-nidan}
+      - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_PASSWORD:-nidan}
+      # OpenMRS database (used by Debezium)
+      - OPENMRS_DB_HOST=${OPENMRS_DB_HOST:-openmrs-db}
+      - OPENMRS_DB_PORT=${OPENMRS_DB_PORT:-3306}
+      # Kafka
+      - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:${KAFKA_PORT:-9092}
+      - CIS_KAFKA_GROUP_ID=${CIS_KAFKA_GROUP_ID:-nidan-cis}
+      # OpenMRS
+      - OPENMRS_ENABLED=${OPENMRS_ENABLED:-true}
+      - OPENMRS_BASE_URL=${OPENMRS_BASE_URL:-http://openmrs-backend:8080/openmrs}
+      - OPENMRS_USERNAME=${OPENMRS_USERNAME:-admin}
+      - OPENMRS_PASSWORD=${OPENMRS_PASSWORD:-Admin123}
+      - OPENMRS_IDENTIFIER_TYPE_UUID=${OPENMRS_IDENTIFIER_TYPE_UUID:-05a29f94-c0ed-11e2-94be-8c13b969e334}
+      - OPENMRS_DEFAULT_LOCATION_UUID=${OPENMRS_DEFAULT_LOCATION_UUID:-44c3efb0-2583-4c80-a79e-1f756a03c0a1}
+      - OPENMRS_FHIR_EXTENSION_URL=${OPENMRS_FHIR_EXTENSION_URL:-http://fhir.openmrs.org/ext/patient/identifier#location}
+      # Orthanc
+      - ORTHANC_ENABLED=${ORTHANC_ENABLED:-true}
+      - ORTHANC_BASE_URL=${ORTHANC_BASE_URL:-http://orthanc:8042}
+      - ORTHANC_USERNAME=${ORTHANC_USERNAME:-orthanc}
+      - ORTHANC_PASSWORD=${ORTHANC_PASSWORD:-orthanc}
+      - ORTHANC_DICOM_UID_ROOT=${ORTHANC_DICOM_UID_ROOT:-1.2.840.10008}
+      # OpenELIS
+      - OPENELIS_ENABLED=${OPENELIS_ENABLED:-false}
+      - OPENELIS_BASE_URL=${OPENELIS_BASE_URL:-http://openelis-fhir:8080/fhir}
+      #Uncomment the fhir base url and order bundle path for lab order sync to openelis 
+      - OPENELIS_FHIR_BASE_URL=${OPENELIS_FHIR_BASE_URL:-http://openelis-fhir:8080}
+      - OPENELIS_ORDER_BUNDLE_PATH=${OPENELIS_ORDER_BUNDLE_PATH:-/fhir/tasks}
+      - OPENELIS_USERNAME=${OPENELIS_USERNAME:-admin}
+      - OPENELIS_PASSWORD=${OPENELIS_PASSWORD:-adminADMIN!}
+      - JAVA_TOOL_OPTIONS=-Djavax.net.ssl.trustStore=/etc/ssl/certs/gateway-truststore.p12 -Djavax.net.ssl.trustStorePassword=gatewayTrust123 -Djdk.internal.httpclient.disableHostnameVerification=true
+      # Integration
+      - INTEGRATION_SOURCE_SYSTEM=${INTEGRATION_SOURCE_SYSTEM:-CIS}
+      - INTEGRATION_SKIP_SOURCE_SYSTEMS=${INTEGRATION_SKIP_SOURCE_SYSTEMS:-OPENMRS}
+      - RADIOLOGY_ACCESSION_PREFIX=${RADIOLOGY_ACCESSION_PREFIX:-RAD-}
+      - RADIOLOGY_PROCEDURE_CODE_PREFIX=${RADIOLOGY_PROCEDURE_CODE_PREFIX:-RAD-}
+      # Debezium Embedded (CIS)--var control for debezium
+      - DEBEZIUM_ENABLED=${DEBEZIUM_ENABLED:-false}
+      - DEBEZIUM_DB_USER=${DEBEZIUM_DB_USER:-root}
+      - DEBEZIUM_DB_PASSWORD=${DEBEZIUM_DB_PASSWORD:-root}
+    depends_on:
+      nidan-integration-db:
+        condition: service_healthy
+      nidan-kafka:
+        condition: service_started
+      openmrs-backend:
+        condition: service_healthy
+      # Orthanc dependency made optional - CIS can start without it if radiology is disabled
+      orthanc:
+        condition: service_started
+    networks:
+      - nidan-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${CIS_PORT:-8081}/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  nidan-ois:
+    # build:
+    #   context: ./middleware
+    #   dockerfile: Dockerfile.ois
+    #image: dipakthapa/ois:latest
+    image: nidan-ois:local
+    container_name: nidan-ois
+    ports:
+      - "${OIS_PORT:-8082}:${OIS_PORT:-8082}"
+    environment:
+      # Database
+      - INTEGRATION_DB_URL=jdbc:postgresql://${INTEGRATION_DB_HOST:-nidan-integration-db}:${INTEGRATION_DB_PORT:-5432}/${INTEGRATION_DB_NAME:-nidan_integration}
+      - INTEGRATION_DB_USER=${INTEGRATION_DB_USER:-nidan}
+      - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_PASSWORD:-nidan}
+      # Kafka
+      - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:${KAFKA_PORT:-9092}
+      - OIS_KAFKA_GROUP_ID=${OIS_KAFKA_GROUP_ID:-nidan-ois}
+      # Odoo
+      - ODOO_BASE_URL=${ODOO_BASE_URL:-http://odoo:8069}
+      - ODOO_DATABASE=${ODOO_DB_NAME:-nidan}
+      - ODOO_USERNAME=${ODOO_USERNAME:-admin}
+      - ODOO_PASSWORD=${ODOO_PASSWORD:-admin}
+      - ODOO_POS_ORDER_REF_PREFIX=${ODOO_POS_ORDER_REF_PREFIX:-RAD-}
+      - ODOO_POS_DEFAULT_RADIOLOGY_PRODUCT_ID=${ODOO_POS_DEFAULT_RADIOLOGY_PRODUCT_ID:-1}
+      # Integration
+      - OIS_WEBHOOK_SECRET=${OIS_WEBHOOK_SECRET:-change-me-secret-key}
+      - SKIP_SOURCE_SYSTEMS_FOR_ODOO=${SKIP_SOURCE_SYSTEMS_FOR_ODOO:-ODOO}
+    depends_on:
+      nidan-integration-db:
+        condition: service_healthy
+      nidan-kafka:
+        condition: service_started
+      odoo:
+        condition: service_healthy
+    networks:
+      - nidan-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${OIS_PORT:-8082}/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
