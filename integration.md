@@ -255,3 +255,60 @@ This layout allows the OpenMRS Reference Application to be served without routin
 ## 7. Notes on Running the Stack
 
 For standard development usage, the existing `README.md` in `nidan-docker` remains the primary source of truth for starting and stopping the stack. This document is intended to complement it by describing integration‑specific behavior, expected database runtime configuration, and the options available for Debezium and external OpenELIS connectivity.
+
+---
+
+## 8. CIS TLS Truststore for Gateway (In‑Stack HTTPS)
+
+When CIS calls OpenELIS through the in‑stack gateway over HTTPS (for example, `https://gateway/api/OpenELIS-Global/...`), Java’s `HttpClient` must trust the gateway’s TLS certificate. This section summarizes the steps to create a truststore from the gateway certificate and wire it into the `nidan-cis` service.
+
+### 8.1 Create a Truststore from the Gateway Certificate
+
+1. **Export the gateway certificate from the host (one‑time)**
+
+   From the `nidan-docker` directory on the host:
+
+   ```bash
+   # From nidan-docker directory on host
+   openssl s_client -showcerts -connect localhost:443 </dev/null 2>/dev/null \
+     | openssl x509 -outform PEM > gateway.pem
+   ```
+
+2. **Build a PKCS#12 truststore from the exported certificate**
+
+   ```bash
+   keytool -importcert \
+     -keystore gateway-truststore.p12 \
+     -storetype PKCS12 \
+     -storepass gatewayTrust123 \
+     -alias gateway \
+     -file gateway.pem \
+     -noprompt
+   ```
+
+3. **Place `gateway-truststore.p12` alongside `docker-compose.yml` (or an appropriate subdirectory)**
+
+   This ensures the relative volume mount used by `nidan-cis` resolves correctly.
+
+### 8.2 Mount the Truststore into `nidan-cis`
+
+In `docker-compose.yml`, under the `nidan-cis` service, mount the truststore into the container:
+
+```yaml
+nidan-cis:
+  volumes:
+    - ./gateway-truststore.p12:/etc/ssl/certs/gateway-truststore.p12:ro
+```
+
+### 8.3 Configure Java to Use the Truststore
+
+Still under the `nidan-cis` service in `docker-compose.yml`, configure `JAVA_TOOL_OPTIONS` so that Java’s HTTP client uses the mounted truststore. In development, hostname verification can be relaxed to account for `CN=localhost` while calling `https://gateway/...`:
+
+```yaml
+- JAVA_TOOL_OPTIONS=-Djavax.net.ssl.trustStore=/etc/ssl/certs/gateway-truststore.p12 -Djavax.net.ssl.trustStorePassword=gatewayTrust123 -Djdk.internal.httpclient.disableHostnameVerification=true
+```
+
+- The `trustStore` / password pair ensures Java trusts the self‑signed gateway certificate.
+- `-Djdk.internal.httpclient.disableHostnameVerification=true` is a development‑time workaround for the mismatch between `CN=localhost` on the certificate and the internal hostname `gateway` used inside the Docker network.
+
+In a more production‑oriented deployment, you would instead issue a certificate whose `CN` or `subjectAltName` includes `gateway` (for example, `CN=gateway` or `subjectAltName=DNS:gateway`) and omit the hostname‑disabling flag.

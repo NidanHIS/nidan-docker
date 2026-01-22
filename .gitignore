@@ -20,3 +20,5 @@ middleware/*/target/**
 
 **/.DS_Store
 
+gateway-truststore.p12
+gateway.pem
