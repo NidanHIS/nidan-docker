@@ -22,3 +22,4 @@ middleware/*/target/**
 
 gateway-truststore.p12
 gateway.pem
+OpenELIS-Global.war

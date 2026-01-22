@@ -275,6 +275,10 @@ When CIS calls OpenELIS through the in‑stack gateway over HTTPS (for example, 
    ```
 
 2. **Build a PKCS#12 truststore from the exported certificate**
+  **Run this command to remove the existing truststore:** 
+  ```bash
+  rm -rf gateway-truststore.p12
+  ```
 
    ```bash
    keytool -importcert \
@@ -312,3 +316,20 @@ Still under the `nidan-cis` service in `docker-compose.yml`, configure `JAVA_TOO
 - `-Djdk.internal.httpclient.disableHostnameVerification=true` is a development‑time workaround for the mismatch between `CN=localhost` on the certificate and the internal hostname `gateway` used inside the Docker network.
 
 In a more production‑oriented deployment, you would instead issue a certificate whose `CN` or `subjectAltName` includes `gateway` (for example, `CN=gateway` or `subjectAltName=DNS:gateway`) and omit the hostname‑disabling flag.
+
+---
+
+## 9. Using a Local OpenELIS WAR in Development
+
+For development and rapid iteration on the OpenELIS backend, you can override the WAR bundled in the Docker image by mounting a locally built `OpenELIS-Global.war` into the `openelis` service in `dev.docker-compose.yml`.
+
+
+```yaml
+openelis:
+  volumes:
+    - ./openelis/volume/properties/common.properties:/run/secrets/common.properties:ro
+    - ./openelis/volume/certs:/etc/openelis-global:ro
+    - ./OpenELIS-Global.war:/usr/local/tomcat/webapps/OpenELIS-Global.war:ro
+```
+
+- This override is intended for development; in more stable or production‑like environments you would typically rely on a tested image that already contains the correct WAR.
