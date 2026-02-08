@@ -1,7 +1,6 @@
 {
   "frontendModules": {
-    "@kenyaemr/esm-imaging-orders-app": "kenyaemr-esm-imaging-orders-app-4.0.5-trigonal.tgz",
-    "@trigonal/esm-patient-report-app": "trigonal-esm-patient-report-app-1.0.0.tgz",
+    "@kenyaemr/esm-imaging-orders-app": "kenyaemr-esm-imaging-orders-app-4.0.5.tgz",
     "@kenyaemr/esm-procedure-orders-app": "next",
     "@openmrs/esm-active-visits-app": "next",
     "@openmrs/esm-appointments-app": "next",
