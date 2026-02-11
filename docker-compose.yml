@@ -51,13 +51,12 @@ services:
       - certbot-etc:/etc/letsencrypt
       - certbot-www:/var/www/certbot
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
+      test: [ "CMD", "curl", "-f", "http://localhost/" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
-    restart: unless-stopped  # Auto-restart if it fails during startup
-
+    restart: unless-stopped # Auto-restart if it fails during startup
 
   # # ============================================================================
   # # OPENMRS
@@ -85,7 +84,7 @@ services:
       # - ./openmrs/custom_modules:/openmrs/data/modules
       #- ./openmrs/runtime/openmrs-runtime.properties:/openmrs/openmrs-runtime.properties
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/openmrs/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/openmrs/" ]
       interval: 30s
       timeout: 10s
       retries: 10
@@ -99,7 +98,7 @@ services:
       - SPA_PATH=/openmrs/spa
       - API_URL=/openmrs
       - SPA_CONFIG_URLS=
-    
+
     #uncomment to mount nginx to override and allow backend-frontend communication when running without the gateway 
     # volumes:
     #   - ./openmrs/frontend/nginx.conf:/etc/nginx/nginx.conf:ro
@@ -109,7 +108,7 @@ services:
       openmrs-backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/index.html"]
+      test: [ "CMD", "curl", "-f", "http://localhost/index.html" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -171,7 +170,7 @@ services:
       odoo-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8069/web/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8069/web/health" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -223,7 +222,7 @@ services:
     depends_on:
       - keycloak-db
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/auth/realms/master"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/auth/realms/master" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -281,7 +280,7 @@ services:
       # Worklist directory for MWL plugin
       - ./orthanc/worklists:/var/lib/orthanc/worklists
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8042/system"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8042/system" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -315,7 +314,6 @@ services:
     networks:
       - nidan-network
 
-
   openelis-db:
     image: itechuw/openelis-global-2-database:develop
     container_name: nidan-openelis-db
@@ -346,7 +344,7 @@ services:
 
 
 
-# OpenELIS backend (Tomcat) - FIXED with HTTP enabled
+  # OpenELIS backend (Tomcat) - FIXED with HTTP enabled
   openelis:
     image: dipakthapa/openelis-global-2:latest
     container_name: nidan-openelis
@@ -382,17 +380,12 @@ services:
       - ./openelis/volume/properties/common.properties:/run/secrets/common.properties:ro
       - ./openelis/volume/certs:/etc/openelis-global:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/OpenELIS-Global/ || exit 1"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:8080/OpenELIS-Global/ || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 10
       start_period: 180s
     restart: unless-stopped
-
-
-
-
-
 
   # OpenELIS FHIR
   openelis-fhir:
@@ -421,7 +414,7 @@ services:
       - ./openelis/volume/properties/hapi_application.yaml:/opt/openelis/config/hapi_application.yaml:ro
       - ./openelis/volume/certs:/etc/openelis-global:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/fhir/metadata"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/fhir/metadata" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -437,12 +430,9 @@ services:
       - "8085:80"
     environment:
       - CHOKIDAR_USEPOLLING=true
-      - REACT_APP_SERVER_BASE=/api/OpenELIS-Global  # This tells frontend where backend is
+      - REACT_APP_SERVER_BASE=/api/OpenELIS-Global # This tells frontend where backend is
     networks:
       - nidan-network
-
-
-
 
   # ============================================================================
   # NIDAN INTEGRATION MIDDLEWARE (Kafka + Postgres + CIS/OIS)
@@ -459,7 +449,7 @@ services:
     networks:
       - nidan-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${INTEGRATION_DB_USER:-nidan} -d ${INTEGRATION_DB_NAME:-nidan_integration}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${INTEGRATION_DB_USER:-nidan} -d ${INTEGRATION_DB_NAME:-nidan_integration}" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -500,7 +490,7 @@ services:
     container_name: nidan-cis
     ports:
       - "${CIS_PORT:-8081}:${CIS_PORT:-8081}"
-    
+
     # To call an EXTERNAL HTTPS OpenELIS :
     # 1) Map the ELIS hostname to your ELIS IP
     # extra_hosts:
@@ -564,7 +554,7 @@ services:
     networks:
       - nidan-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${CIS_PORT:-8081}/actuator/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:${CIS_PORT:-8081}/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -597,6 +587,8 @@ services:
       # Integration
       - OIS_WEBHOOK_SECRET=${OIS_WEBHOOK_SECRET:-change-me-secret-key}
       - SKIP_SOURCE_SYSTEMS_FOR_ODOO=${SKIP_SOURCE_SYSTEMS_FOR_ODOO:-ODOO}
+      - NIDAN_OIS_URL=${NIDAN_OIS_URL:-http://nidan-ois:8082}
+      - NIDAN_OIS_SECRET=${NIDAN_OIS_SECRET:-nidan-secret-password}
     depends_on:
       nidan-integration-db:
         condition: service_healthy
@@ -607,7 +599,7 @@ services:
     networks:
       - nidan-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${OIS_PORT:-8082}/actuator/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:${OIS_PORT:-8082}/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 5
