@@ -15,6 +15,10 @@ volumes:
   certbot-etc:
   certbot-www:
   nidan-integration-db-data:
+  dhis2-integration-db-data:
+  dhis2-integration-data:
+  dhis2-integration-audit-logs:
+  dhis2-integration-app-logs:
 
 
 services:
@@ -51,13 +55,12 @@ services:
       - certbot-etc:/etc/letsencrypt
       - certbot-www:/var/www/certbot
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
+      test: [ "CMD", "curl", "-f", "http://localhost/" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
-    restart: unless-stopped  # Auto-restart if it fails during startup
-
+    restart: unless-stopped # Auto-restart if it fails during startup
 
   # # ============================================================================
   # # OPENMRS
@@ -85,7 +88,7 @@ services:
       # - ./openmrs/custom_modules:/openmrs/data/modules
       #- ./openmrs/runtime/openmrs-runtime.properties:/openmrs/openmrs-runtime.properties
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/openmrs/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/openmrs/" ]
       interval: 30s
       timeout: 10s
       retries: 10
@@ -99,7 +102,7 @@ services:
       - SPA_PATH=/openmrs/spa
       - API_URL=/openmrs
       - SPA_CONFIG_URLS=
-    
+
     #uncomment to mount nginx to override and allow backend-frontend communication when running without the gateway 
     # volumes:
     #   - ./openmrs/frontend/nginx.conf:/etc/nginx/nginx.conf:ro
@@ -109,7 +112,7 @@ services:
       openmrs-backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/index.html"]
+      test: [ "CMD", "curl", "-f", "http://localhost/index.html" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -125,6 +128,8 @@ services:
       interval: 3s
       timeout: 1s
       retries: 5
+    ports:
+      - "3310:3306"
     environment:
       MYSQL_DATABASE: ${OPENMRS_DB_NAME}
       MYSQL_USER: ${OPENMRS_DB_USER}
@@ -143,7 +148,7 @@ services:
     build: ./odoo
     image: nidan/odoo:19
     container_name: nidan-odoo
-    command: sh -c "odoo -d \${ODOO_DB_NAME:-nidan} -i base"
+    command: sh -c "odoo -d \${ODOO_DB_NAME:-nidan} -u all"
     ports:
       - "8069:8069"
     environment:
@@ -171,7 +176,7 @@ services:
       odoo-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8069/web/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8069/web/health" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -223,7 +228,7 @@ services:
     depends_on:
       - keycloak-db
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/auth/realms/master"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/auth/realms/master" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -281,7 +286,7 @@ services:
       # Worklist directory for MWL plugin
       - ./orthanc/worklists:/var/lib/orthanc/worklists
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8042/system"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8042/system" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -315,7 +320,6 @@ services:
     networks:
       - nidan-network
 
-
   openelis-db:
     image: itechuw/openelis-global-2-database:develop
     container_name: nidan-openelis-db
@@ -346,7 +350,7 @@ services:
 
 
 
-# OpenELIS backend (Tomcat) - FIXED with HTTP enabled
+  # OpenELIS backend (Tomcat) - FIXED with HTTP enabled
   openelis:
     image: dipakthapa/openelis-global-2:latest
     container_name: nidan-openelis
@@ -382,17 +386,12 @@ services:
       - ./openelis/volume/properties/common.properties:/run/secrets/common.properties:ro
       - ./openelis/volume/certs:/etc/openelis-global:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/OpenELIS-Global/ || exit 1"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:8080/OpenELIS-Global/ || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 10
       start_period: 180s
     restart: unless-stopped
-
-
-
-
-
 
   # OpenELIS FHIR
   openelis-fhir:
@@ -421,7 +420,7 @@ services:
       - ./openelis/volume/properties/hapi_application.yaml:/opt/openelis/config/hapi_application.yaml:ro
       - ./openelis/volume/certs:/etc/openelis-global:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/fhir/metadata"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/fhir/metadata" ]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -437,12 +436,9 @@ services:
       - "8085:80"
     environment:
       - CHOKIDAR_USEPOLLING=true
-      - REACT_APP_SERVER_BASE=/api/OpenELIS-Global  # This tells frontend where backend is
+      - REACT_APP_SERVER_BASE=/api/OpenELIS-Global # This tells frontend where backend is
     networks:
       - nidan-network
-
-
-
 
   # ============================================================================
   # NIDAN INTEGRATION MIDDLEWARE (Kafka + Postgres + CIS/OIS)
@@ -459,7 +455,7 @@ services:
     networks:
       - nidan-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${INTEGRATION_DB_USER:-nidan} -d ${INTEGRATION_DB_NAME:-nidan_integration}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${INTEGRATION_DB_USER:-nidan} -d ${INTEGRATION_DB_NAME:-nidan_integration}" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -492,15 +488,15 @@ services:
       - nidan-network
 
   nidan-cis:
-    # build:
-    #   context: ./middleware
-    #   dockerfile: Dockerfile.cis
+    build:
+      context: ./middleware
+      dockerfile: Dockerfile.cis
     #image: dipakthapa/cis:latest
-    image: prabin12/kafka-stack:cis-latest
+    #image: prabin12/kafka-stack:cis-latest
     container_name: nidan-cis
     ports:
       - "${CIS_PORT:-8081}:${CIS_PORT:-8081}"
-    
+
     # To call an EXTERNAL HTTPS OpenELIS :
     # 1) Map the ELIS hostname to your ELIS IP
     # extra_hosts:
@@ -564,18 +560,18 @@ services:
     networks:
       - nidan-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${CIS_PORT:-8081}/actuator/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:${CIS_PORT:-8081}/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
 
   nidan-ois:
-    # build:
-    #   context: ./middleware
-    #   dockerfile: Dockerfile.ois
+    build:
+      context: ./middleware
+      dockerfile: Dockerfile.ois
     #image: dipakthapa/ois:latest
-    image: prabin12/kafka-stack:ois-latest
+    #image: prabin12/kafka-stack:ois-latest
     container_name: nidan-ois
     ports:
       - "${OIS_PORT:-8082}:${OIS_PORT:-8082}"
@@ -590,13 +586,15 @@ services:
       # Odoo
       - ODOO_BASE_URL=${ODOO_BASE_URL:-http://odoo:8069}
       - ODOO_DATABASE=${ODOO_DB_NAME:-nidan}
-      - ODOO_USERNAME=${ODOO_USERNAME:-admin}
-      - ODOO_PASSWORD=${ODOO_PASSWORD:-admin}
+      - ODOO_USERNAME=${ODOO_USERNAME:-nidan}
+      - ODOO_PASSWORD=${ODOO_PASSWORD:-nidan}
       - ODOO_POS_ORDER_REF_PREFIX=${ODOO_POS_ORDER_REF_PREFIX:-RAD-}
       - ODOO_POS_DEFAULT_RADIOLOGY_PRODUCT_ID=${ODOO_POS_DEFAULT_RADIOLOGY_PRODUCT_ID:-1}
       # Integration
-      - OIS_WEBHOOK_SECRET=${OIS_WEBHOOK_SECRET:-change-me-secret-key}
+      - OIS_WEBHOOK_SECRET=${NIDAN_OIS_SECRET:-nidan-secret-password}
       - SKIP_SOURCE_SYSTEMS_FOR_ODOO=${SKIP_SOURCE_SYSTEMS_FOR_ODOO:-ODOO}
+      - NIDAN_OIS_URL=${NIDAN_OIS_URL:-http://nidan-ois:8082}
+      - NIDAN_OIS_SECRET=${NIDAN_OIS_SECRET:-nidan-secret-password}
     depends_on:
       nidan-integration-db:
         condition: service_healthy
@@ -607,8 +605,96 @@ services:
     networks:
       - nidan-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${OIS_PORT:-8082}/actuator/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:${OIS_PORT:-8082}/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
+
+  # ============================================================================
+  # DHIS2 / FEDERAL HMIS INTEGRATION
+  # ============================================================================
+  nidan-dhis2-db:
+    image: mysql:8.0
+    container_name: nidan-dhis2-db
+    environment:
+      MYSQL_DATABASE: ${DHIS2_DB_NAME:-nidan_dhis2}
+      MYSQL_USER: ${DHIS2_DB_USER:-nidan}
+      MYSQL_PASSWORD: ${DHIS2_DB_PASSWORD:-nidan}
+      MYSQL_ROOT_PASSWORD: ${DHIS2_DB_ROOT_PASSWORD:-nidan_root}
+    volumes:
+      - dhis2-integration-db-data:/var/lib/mysql
+    networks:
+      - nidan-network
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DHIS2_DB_USER:-nidan}", "-p${DHIS2_DB_PASSWORD:-nidan}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  nidan-dhis2:
+    image: trigonaltechnology/nidan-dhis2-integration:latest
+    container_name: nidan-dhis2
+    ports:
+      - "${DHIS2_APP_PORT:-5003}:5000"
+    volumes:
+      # Runtime / persistent data and YAML config
+      - ./dhis2/mappings:/app/mappings
+      - ./dhis2/connections:/app/connections
+      - ./dhis2/sql:/app/sql
+      # Runtime / persistent data
+      - dhis2-integration-data:/app/data
+      - dhis2-integration-audit-logs:/app/audit_logs
+      - dhis2-integration-app-logs:/app/logs
+    environment:
+      # Flask
+      - SECRET_KEY=${DHIS2_SECRET_KEY:-change-me-in-production}
+      - DEBUG=${DHIS2_DEBUG:-false}
+      - FLASK_ENV=${DHIS2_FLASK_ENV:-production}
+      # Internal audit DB (dedicated MySQL)
+      - DATABASE_URL=mysql+pymysql://${DHIS2_DB_USER:-nidan}:${DHIS2_DB_PASSWORD:-nidan}@${DHIS2_DB_HOST:-nidan-dhis2-db}:${DHIS2_DB_PORT:-3306}/${DHIS2_DB_NAME:-nidan_dhis2}
+      # Auth
+      - AUTH_PROVIDER=${DHIS2_AUTH_PROVIDER:-env_file}
+      - REPORTER_USERNAME=${DHIS2_REPORTER_USERNAME:-reporter}
+      - REPORTER_PASSWORD=${DHIS2_REPORTER_PASSWORD:-change-me}
+      # Source DB connections — URLs built entirely from env vars
+      - OPENMRS_DB_URL=mysql+pymysql://${OPENMRS_DB_USER}:${OPENMRS_DB_PASSWORD}@${OPENMRS_DB_HOST:-openmrs-db}:${OPENMRS_DB_PORT:-3306}/${OPENMRS_DB_NAME}
+      - OPENELIS_DB_URL=postgresql://${OPENELIS_DB_USER:-clinlims}:${OPENELIS_DB_PASSWORD}@${OPENELIS_DB_HOST:-openelis-db}:${OPENELIS_DB_PORT:-5432}/${OPENELIS_DB_NAME:-clinlims}
+      - ODOO_DB_URL=postgresql://${ODOO_DB_USER}:${ODOO_DB_PASSWORD}@${ODOO_DB_HOST:-odoo-db}:${ODOO_DB_PORT:-5432}/${ODOO_DB_NAME}
+      # Connection settings
+      - DB_CONNECT_TIMEOUT=${DHIS2_DB_CONNECT_TIMEOUT:-10}
+      - DB_DATE_OVERLAP_BUFFER_DAYS=${DHIS2_DB_DATE_OVERLAP_BUFFER_DAYS:-2}
+      # Federal HMIS (Nepal)
+      - FEDERAL_HMIS_URL=${FEDERAL_HMIS_URL}
+      - FEDERAL_HMIS_USERNAME=${FEDERAL_HMIS_USERNAME}
+      - FEDERAL_HMIS_PASSWORD=${FEDERAL_HMIS_PASSWORD}
+      - FEDERAL_HMIS_SSL_VERIFY=${FEDERAL_HMIS_SSL_VERIFY:-false}
+      - FEDERAL_HMIS_ORG_UNIT=${FEDERAL_HMIS_ORG_UNIT}
+      # Provincial DHIS2 (optional — leave blank to disable)
+      - PROVINCIAL_DHIS2_URL=${PROVINCIAL_DHIS2_URL:-}
+      - PROVINCIAL_DHIS2_USERNAME=${PROVINCIAL_DHIS2_USERNAME:-}
+      - PROVINCIAL_DHIS2_PASSWORD=${PROVINCIAL_DHIS2_PASSWORD:-}
+      - PROVINCIAL_DHIS2_SSL_VERIFY=${PROVINCIAL_DHIS2_SSL_VERIFY:-true}
+      - PROVINCIAL_DHIS2_ORG_UNIT=${PROVINCIAL_DHIS2_ORG_UNIT:-}
+    networks:
+      - nidan-network
+    depends_on:
+      nidan-dhis2-db:
+        condition: service_healthy
+      openmrs-db:
+        condition: service_healthy
+      odoo-db:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:5000/auth/login" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
