@@ -1,0 +1,12 @@
+# Provincial DHIS2 connection (optional — comment targets: list in mapping YAML to disable)
+id: bagmati_province_dhis2
+label: "Bagmati Province DHIS2"
+is_active: false
+adapter_type: dhis2
+
+url_env: PROVINCIAL_DHIS2_URL
+username_env: PROVINCIAL_DHIS2_USERNAME
+password_env: PROVINCIAL_DHIS2_PASSWORD
+org_unit_id_env: PROVINCIAL_DHIS2_ORG_UNIT
+
+ssl_verify: true
