@@ -634,10 +634,7 @@ services:
     restart: unless-stopped
 
   nidan-dhis2:
-    build:
-      context: ../nidan-dhis2-integration
-      dockerfile: Dockerfile
-    image: nidan/dhis2-integration:latest
+    image: trigonaltechnology/nidan-dhis2-integration:latest
     container_name: nidan-dhis2
     ports:
       - "${DHIS2_APP_PORT:-5003}:5000"
