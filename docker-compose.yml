@@ -488,11 +488,10 @@ services:
       - nidan-network
 
   nidan-cis:
-    build:
-      context: ./middleware
-      dockerfile: Dockerfile.cis
-    #image: dipakthapa/cis:latest
-    #image: prabin12/kafka-stack:cis-latest
+    # build:
+    #   context: ./middleware
+    #   dockerfile: Dockerfile.cis
+    image: trigonaltechnology/nidan-cis:latest
     container_name: nidan-cis
     ports:
       - "${CIS_PORT:-8081}:${CIS_PORT:-8081}"
@@ -567,11 +566,11 @@ services:
       start_period: 60s
 
   nidan-ois:
-    build:
-      context: ./middleware
-      dockerfile: Dockerfile.ois
+    # build:
+    #   context: ./middleware
+    #   dockerfile: Dockerfile.ois
     #image: dipakthapa/ois:latest
-    #image: prabin12/kafka-stack:ois-latest
+    image: trigonaltechnology/nidan-ois:latest
     container_name: nidan-ois
     ports:
       - "${OIS_PORT:-8082}:${OIS_PORT:-8082}"
