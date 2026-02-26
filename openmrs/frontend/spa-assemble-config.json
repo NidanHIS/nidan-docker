@@ -38,7 +38,7 @@
     "@openmrs/esm-patient-programs-app": "next",
     "@openmrs/esm-patient-registration-app": "next",
     "@openmrs/esm-patient-search-app": "next",
-    "@openmrs/esm-patient-tests-app": "next",
+    "@trigonal/esm-patient-tests-app": "trigonal-esm-patient-tests-app-1.0.0.tgz",
     "@openmrs/esm-patient-vitals-app": "next",
     "@openmrs/esm-primary-navigation-app": "next",
     "@openmrs/esm-reports-app": "next",
