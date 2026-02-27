@@ -19,12 +19,16 @@
         <!-- HTTP Connector -->
         <Connector port="8080" protocol="HTTP/1.1"
                    connectionTimeout="20000"
-                   redirectPort="8443" />
+                   redirectPort="8443"
+                   scheme="https"
+                   secure="true"
+                   proxyPort="443" />
 
         <Engine name="Catalina" defaultHost="localhost">
 
             <!-- Add this valve to respect X-Forwarded-* headers from Nginx -->
             <Valve className="org.apache.catalina.valves.RemoteIpValve"
+                   internalProxies=".*"
                    remoteIpHeader="x-forwarded-for"
                    protocolHeader="x-forwarded-proto"
                    portHeader="x-forwarded-port"
