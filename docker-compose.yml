@@ -10,6 +10,7 @@ volumes:
   orthanc-data:
   orthanc-db-data:
   keycloak-db-data:
+  nidan-openelis-data:
   openelis-db-data:
   openelis-lucene-index:
   certbot-etc:
@@ -47,6 +48,8 @@ services:
       keycloak:
         condition: service_started
       openelis:
+        condition: service_started
+      openelis-frontend:
         condition: service_started
       nidan-certbot:
         condition: service_started
@@ -332,7 +335,7 @@ services:
       DB_PASSWORD: ${OPENELIS_DB_PASSWORD:-changeme}
       DB_SUPERUSER_PASSWORD: ${OPENELIS_DB_PASSWORD:-changeme}
     volumes:
-      - nidan-openelis-db:/var/lib/postgresql/data
+      - openelis-db-data:/var/lib/postgresql/data
     networks:
       - nidan-network
     healthcheck:
