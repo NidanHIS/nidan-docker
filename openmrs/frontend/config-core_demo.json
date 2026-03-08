@@ -41,5 +41,20 @@
   },
   "@openmrs/esm-styleguide": {
     "Brand color #1": "#005d5d"
+  },
+  "@kenyaemr/esm-imaging-orders-app": {
+    "radiologyConceptSetUuid": "cd9f116c-517d-439e-847d-d8d257434083",
+    "orders": {
+      "radiologyOrderTypeUuid": "c19c8e82-8b8d-4b4e-b1ff-3f09890b2db3"
+    }
+  },
+  "@kenyaemr/esm-procedure-orders-app": {
+    "procedureConceptSetUuid": "0c3019b0-9bd3-4bc7-8e2c-e6230c31ed18"
+  },
+  "@kenyaemr/esm-medical-supply-orders-app": {
+    "medicalSupplyConceptSetUuid": "095befe9-ff7c-4eba-bbd8-37b055f52e7d",
+    "orders": {
+      "medicalSupplyOrderTypeUuid": "dab3ab30-2feb-48ec-b4af-8332a0831b49"
+    }
   }
 }
