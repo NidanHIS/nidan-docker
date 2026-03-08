@@ -10,6 +10,7 @@ volumes:
   orthanc-data:
   orthanc-db-data:
   keycloak-db-data:
+  nidan-openelis-data:
   openelis-db-data:
   openelis-lucene-index:
   certbot-etc:
@@ -31,6 +32,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "8443:8443"
     environment:
       - GATEWAY_DOMAIN=${GATEWAY_DOMAIN:-localhost}
       - OPENELIS_DOMAIN=${OPENELIS_DOMAIN}
@@ -47,7 +49,7 @@ services:
         condition: service_started
       openelis:
         condition: service_started
-      openelis-fhir:
+      openelis-frontend:
         condition: service_started
       nidan-certbot:
         condition: service_started
@@ -321,42 +323,36 @@ services:
       - nidan-network
 
   openelis-db:
-    image: itechuw/openelis-global-2-database:develop
+    image: trigonaltechnology/openelis-global-2-database:latest
     container_name: nidan-openelis-db
     platform: linux/amd64
     ports:
       - "15432:5432"
     environment:
-      POSTGRES_DB: postgres
-      POSTGRES_USER: postgres
+      POSTGRES_DB: ${OPENELIS_DB_NAME:-clinlims}
+      POSTGRES_USER: ${OPENELIS_DB_USER:-postgres}
       POSTGRES_PASSWORD: ${OPENELIS_DB_PASSWORD:-changeme}
       DB_PASSWORD: ${OPENELIS_DB_PASSWORD:-changeme}
-      DB_SUPERUSER_PASSWORD: ${OPENELIS_DB_ROOT_PASSWORD:-${OPENELIS_DB_PASSWORD:-changeme}}
+      DB_SUPERUSER_PASSWORD: ${OPENELIS_DB_PASSWORD:-changeme}
     volumes:
       - openelis-db-data:/var/lib/postgresql/data
-      # Mount database initialization scripts - will run automatically on first startup
-      - ./openelis/database/dbInit:/docker-entrypoint-initdb.d:ro
     networks:
       - nidan-network
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U clinlims -d clinlims" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${OPENELIS_DB_USER:-postgres} -d ${OPENELIS_DB_NAME:-clinlims}" ]
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
-
-  # OpenELIS backend (Tomcat)
-
-
-
 
   # OpenELIS backend (Tomcat) - FIXED with HTTP enabled
   openelis:
-    image: dipakthapa/openelis-global-2:latest
+    build:
+      context: ../OpenELIS-Global-2
+      dockerfile: Dockerfile
+    image: trigonaltechnology/openelis-global-2-backend:latest
     container_name: nidan-openelis
     ports:
       - "8083:8080"
-      - "8444:8443"
     depends_on:
       openelis-db:
         condition: service_healthy
@@ -393,49 +389,20 @@ services:
       start_period: 180s
     restart: unless-stopped
 
-  # OpenELIS FHIR
-  openelis-fhir:
-    image: itechuw/openelis-global-2-fhir:develop
-    container_name: nidan-openelis-fhir
-    platform: linux/amd64
-    ports:
-      - "8084:8080"
-    depends_on:
-      openelis-db:
-        condition: service_healthy
-    environment:
-      TZ: ${OPENELIS_TZ:-UTC}
-      FHIR_DATASOURCE_URL: "jdbc:postgresql://openelis-db:5432/clinlims?currentSchema=clinlims"
-      FHIR_DATASOURCE_USERNAME: "clinlims"
-      FHIR_DATASOURCE_PASSWORD: "${OPENELIS_DB_PASSWORD:-changeme}"
-      FHIR_SERVER_ADRESS: "http://openelis-fhir:8080/fhir/"
-      # Optional SSL configuration
-      SSL_TRUSTSTORE_PATH: ${SSL_TRUSTSTORE_PATH:-}
-      SSL_TRUSTSTORE_PASSWORD: ${SSL_TRUSTSTORE_PASSWORD:-}
-      SSL_KEYSTORE_PATH: ${SSL_KEYSTORE_PATH:-}
-      SSL_KEYSTORE_PASSWORD: ${SSL_KEYSTORE_PASSWORD:-}
-    networks:
-      - nidan-network
-    volumes:
-      - ./openelis/volume/properties/hapi_application.yaml:/opt/openelis/config/hapi_application.yaml:ro
-      - ./openelis/volume/certs:/etc/openelis-global:ro
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8080/fhir/metadata" ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 120s
-    restart: unless-stopped
-
   # OpenELIS Frontend
   openelis-frontend:
-    image: dipakthapa/openelis-global-2-frontend:latest
+    build:
+      context: ../OpenELIS-Global-2/frontend
+      dockerfile: Dockerfile.prod
+    image: trigonaltechnology/openelis-global-2-frontend:latest
     container_name: nidan-openelis-frontend
     platform: linux/amd64
     ports:
       - "8085:80"
     environment:
       - CHOKIDAR_USEPOLLING=true
+      - PUBLIC_URL=/openelis
+      - REACT_APP_BASE_PATH=/openelis
       - REACT_APP_SERVER_BASE=/api/OpenELIS-Global # This tells frontend where backend is
     networks:
       - nidan-network
@@ -530,7 +497,7 @@ services:
       - ORTHANC_DICOM_UID_ROOT=${ORTHANC_DICOM_UID_ROOT:-1.2.840.10008}
       # OpenELIS
       - OPENELIS_ENABLED=${OPENELIS_ENABLED:-false}
-      - OPENELIS_BASE_URL=${OPENELIS_BASE_URL:-http://openelis-fhir:8080/fhir}
+      - OPENELIS_BASE_URL=${OPENELIS_BASE_URL:-http://openelis:8080/OpenELIS-Global/rest}
       #Uncomment the fhir base url and order bundle path for lab order sync to openelis 
       # - OPENELIS_FHIR_BASE_URL=${OPENELIS_FHIR_BASE_URL:-http://openelis-fhir:8080}
       # - OPENELIS_ORDER_BUNDLE_PATH=${OPENELIS_ORDER_BUNDLE_PATH:-/fhir/tasks}
