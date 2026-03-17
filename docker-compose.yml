@@ -62,8 +62,8 @@ services:
   # # OPENMRS
   # # ============================================================================
   openmrs-backend:
-    build: ./openmrs
-    image: nidan-docker-openmrs-backend
+    # build: ./openmrs
+    image: trigonaltechnology/openmrs-backend:latest
     user: root
     container_name: nidan-openmrs-backend
     environment:
@@ -104,8 +104,8 @@ services:
       start_period: 1200s
 
   openmrs-frontend:
-    build: ./openmrs/frontend
-    # image: dipakthapa/openmrs-frontend:latest
+    # build: ./openmrs/frontend
+    image: trigonaltechnology/openmrs-frontend:latest
     container_name: nidan-openmrs-frontend
     environment:
       - SPA_PATH=/openmrs/spa
