@@ -56,5 +56,41 @@
     "orders": {
       "medicalSupplyOrderTypeUuid": "dab3ab30-2feb-48ec-b4af-8332a0831b49"
     }
+  },
+  "@openmrs/esm-patient-registration-app": {
+    "sections": ["demographics", "contact", "relationships", "additional-info"],
+
+    "sectionDefinitions": [
+      {
+        "id": "contact",
+        "fields": ["address", "phone","emergencyContact"]
+      },
+      {
+        "id": "additional-info",
+        "name": "Additional Information",
+        "fields": ["ethnicity", "bloodGroup"]
+      }
+    ],
+
+    "fieldDefinitions": [
+      {
+        "id": "ethnicity",
+        "type": "person attribute",
+        "uuid": "1d8b39ee-b95e-4822-a0d3-e1901dfa57b9",
+        "label": "Cast Details"
+      },
+      {
+        "id": "emergencyContact",
+        "type": "person attribute",
+        "uuid": "b9cc3b9d-4c3e-5f6a-0b2c-3d4e5f6a7b8c",
+        "label": "Emergency Contact"
+      },
+      {
+        "id": "bloodGroup",
+        "type": "person attribute",
+        "uuid": "a8bb2a8c-3b2d-4e5f-9a1b-2c3d4e5f6a7b",
+        "label": "Blood Group"
+      }
+    ]
   }
 }
