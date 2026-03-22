@@ -70,6 +70,8 @@ jobs:
           context: openmrs
           file: openmrs/Dockerfile
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            CACHE_BUST=${{ github.run_id }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
