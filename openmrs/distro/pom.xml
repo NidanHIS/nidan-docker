@@ -56,6 +56,8 @@
         <ordertemplates.version>2.2.0</ordertemplates.version>
         <!-- orderexpansion provided by custom_modules/ (Nidan SNAPSHOT) -->
         <orderexpansion.version>1.0.1-SNAPSHOT</orderexpansion.version>
+        <!-- nidancore provided by custom_modules/ (Nidan SNAPSHOT) -->
+        <nidancore.version>1.0.0-SNAPSHOT</nidancore.version>
         <patientflags.version>3.0.10</patientflags.version>
         <o3forms.version>2.3.0</o3forms.version>
         <emrapi.version>3.2.1</emrapi.version>
@@ -303,6 +305,15 @@
             <groupId>org.openmrs.module</groupId>
             <artifactId>orderexpansion-omod</artifactId>
             <version>${orderexpansion.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        -->
+        <!-- nidancore provided by custom_modules/ (Nidan SNAPSHOT) — comment out to avoid version conflict -->
+        <!--
+        <dependency>
+            <groupId>org.openmrs.module</groupId>
+            <artifactId>nidancore-omod</artifactId>
+            <version>${nidancore.version}</version>
             <scope>provided</scope>
         </dependency>
         -->

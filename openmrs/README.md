@@ -7,7 +7,7 @@ This folder contains the build context for the OpenMRS 3.x Backend and Frontend.
 The Dockerfile performs a full custom build from source:
 1. **Content**: Cloned from `Trigonal-Technology/openmrs-content-referenceapplication-demo` (override with `CONTENT_REPO_URL`, `CONTENT_REPO_REF`)
 2. **Distro**: `distro/` controls backend modules via `distro-no-demo.properties`
-3. **Custom modules**: `custom_modules/` provides Nidan OMODs (attachments, appointments, medication-administration, etc.)
+3. **Custom modules**: `custom_modules/` provides Nidan OMODs (attachments, appointments, medication-administration, nidancore, etc.)
 
 ### Prerequisites
 
@@ -16,7 +16,7 @@ Populate `custom_modules/` with `.omod` files before building (see `custom_modul
 ```bash
 # From repo root
 cd openmrs-backend/openmrs-module-medication-administration && mvn package -DskipTests && cp omod/target/*.omod ../../../nidan-docker/openmrs/custom_modules/
-# Repeat for attachments, appointments, etc.
+# Repeat for attachments, appointments, nidancore, etc.
 ```
 
 ### Build
