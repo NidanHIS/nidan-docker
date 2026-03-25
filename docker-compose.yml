@@ -681,10 +681,8 @@ services:
   # APACHE SUPERSET
   # ============================================================================
   superset:
-    build:
-      context: ./superset
-      dockerfile: Dockerfile
-    image: nidan/superset:latest
+    # build: ./superset  # local dev: docker compose build superset
+    image: ${SUPERSET_IMAGE:-trigonaltechnology/superset:latest}
     container_name: nidan-superset
     ports:
       - "8088:8088"  # Keep for direct access during debugging, remove in production
