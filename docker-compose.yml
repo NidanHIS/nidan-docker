@@ -65,7 +65,7 @@ services:
   openmrs-backend:
     # build: ./openmrs
     image: trigonaltechnology/openmrs-backend:latest
-    user: root
+    # user: root
     container_name: nidan-openmrs-backend
     environment:
       # Database (MySQL) - OMRS_DB_HOSTNAME/OMRS_DB_PORT used by wait-for-it.sh; OMRS_DB_URL for connection
@@ -96,6 +96,7 @@ services:
         condition: service_healthy
     volumes:
       - openmrs-data:/openmrs/data
+      # - ./openmrs/custom_modules:/openmrs/custom_modules:ro
       - ./openmrs/startup-custom.sh:/openmrs/startup.sh:ro
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/openmrs/" ]
@@ -462,9 +463,6 @@ services:
   #   docker compose up --build nidan-cis nidan-ois
   # Set NIDAN_CIS_IMAGE / NIDAN_OIS_IMAGE to registry tags to use prebuilt images without local build.
   nidan-cis:
-    build:
-      context: ../nidan-middleware/integration
-      dockerfile: Dockerfile.cis
     image: ${NIDAN_CIS_IMAGE:-nidan-cis:local}
     container_name: nidan-cis
     ports:
