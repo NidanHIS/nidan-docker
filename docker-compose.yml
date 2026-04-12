@@ -97,7 +97,7 @@ services:
         condition: service_healthy
     volumes:
       - openmrs-data:/openmrs/data
-      # - ./openmrs/custom_modules:/openmrs/custom_modules:ro
+      - ./openmrs/custom_modules:/openmrs/custom_modules:ro
       - ./openmrs/startup-custom.sh:/openmrs/startup.sh:ro
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/openmrs/" ]
@@ -464,7 +464,10 @@ services:
   #   docker compose up --build nidan-cis nidan-ois
   # Set NIDAN_CIS_IMAGE / NIDAN_OIS_IMAGE to registry tags to use prebuilt images without local build.
   nidan-cis:
-    image: ${NIDAN_CIS_IMAGE:-nidan-cis:local}
+    build:
+      context: ../nidan-middleware/integration
+      dockerfile: Dockerfile.cis
+    image: nidan-cis:local
     container_name: nidan-cis
     ports:
       - "${CIS_PORT:-8081}:${CIS_PORT:-8081}"
@@ -539,7 +542,7 @@ services:
       - DEBEZIUM_ENABLED=${DEBEZIUM_ENABLED:-false}
       - DEBEZIUM_DB_USER=${DEBEZIUM_DB_USER:-root}
       - DEBEZIUM_DB_PASSWORD=${DEBEZIUM_DB_PASSWORD:-root}
-      - DEBEZIUM_TABLE_INCLUDE_LIST=${DEBEZIUM_TABLE_INCLUDE_LIST:-openmrs.orders,openmrs.person,openmrs.person_name,openmrs.patient_identifier}
+      - DEBEZIUM_TABLE_INCLUDE_LIST=${DEBEZIUM_TABLE_INCLUDE_LIST:-openmrs.orders,openmrs.drug_order,openmrs.person,openmrs.person_name,openmrs.patient_identifier}
       # Kafka retry topics (opt-in via @KafkaRetryable)
       - INTEGRATION_KAFKA_RETRY_ENABLED=${INTEGRATION_KAFKA_RETRY_ENABLED:-false}
       - INTEGRATION_KAFKA_RETRY_ATTEMPTS=${INTEGRATION_KAFKA_RETRY_ATTEMPTS:-5}
@@ -571,7 +574,7 @@ services:
     build:
       context: ../nidan-middleware/integration
       dockerfile: Dockerfile.ois
-    image: ${NIDAN_OIS_IMAGE:-nidan-ois:local}
+    image: nidan-ois:local
     container_name: nidan-ois
     ports:
       - "${OIS_PORT:-8082}:${OIS_PORT:-8082}"
