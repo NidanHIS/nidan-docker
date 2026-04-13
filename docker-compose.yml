@@ -467,7 +467,7 @@ services:
     build:
       context: ../nidan-middleware/integration
       dockerfile: Dockerfile.cis
-    image: nidan-cis:local
+    image: ${NIDAN_CIS_IMAGE:-nidan-cis:local}
     container_name: nidan-cis
     ports:
       - "${CIS_PORT:-8081}:${CIS_PORT:-8081}"
@@ -574,7 +574,7 @@ services:
     build:
       context: ../nidan-middleware/integration
       dockerfile: Dockerfile.ois
-    image: nidan-ois:local
+    image: ${NIDAN_OIS_IMAGE:-nidan-ois:local}
     container_name: nidan-ois
     ports:
       - "${OIS_PORT:-8082}:${OIS_PORT:-8082}"
