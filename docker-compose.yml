@@ -97,8 +97,9 @@ services:
         condition: service_healthy
     volumes:
       - openmrs-data:/openmrs/data
-      # - ./openmrs/custom_modules:/openmrs/custom_modules:ro
       - ./openmrs/startup-custom.sh:/openmrs/startup.sh:ro
+      - ./openmrs/custom_modules/bahmni-ipd-1.2.0-nidan-SNAPSHOT.omod:/openmrs/distribution/openmrs_modules/bahmni-ipd-1.2.0-nidan-SNAPSHOT.omod:ro
+      - ./openmrs/custom_modules/bedmanagement-7.3.0-nidan-SNAPSHOT.omod:/openmrs/distribution/openmrs_modules/bedmanagement-7.3.0-nidan-SNAPSHOT.omod:ro
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/openmrs/" ]
       interval: 30s
@@ -439,8 +440,16 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT:-2181}
       ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME:-2000}
+      ZOOKEEPER_HEAP_OPTS: ${ZOOKEEPER_HEAP_OPTS:--Xmx256m -Xms256m}
     networks:
       - nidan-network
+    healthcheck:
+      test: ["CMD", "cub", "zk-ready", "localhost:2181", "10"]
+      interval: 10s
+      timeout: 15s
+      retries: 6
+      start_period: 25s
+    restart: unless-stopped
 
   nidan-kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -454,17 +463,39 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: ${KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR:-1}
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: ${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR:-1}
       KAFKA_MIN_INSYNC_REPLICAS: ${KAFKA_MIN_INSYNC_REPLICAS:-1}
+      # Dev/single-broker: more heap + I/O threads reduce GC stalls and broker timeouts under many consumers.
+      KAFKA_HEAP_OPTS: ${KAFKA_HEAP_OPTS:--Xmx768m -Xms768m}
+      KAFKA_JVM_PERFORMANCE_OPTS: ${KAFKA_JVM_PERFORMANCE_OPTS:--XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:+ExitOnOutOfMemoryError}
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: ${KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS:-3000}
+      KAFKA_NUM_NETWORK_THREADS: ${KAFKA_NUM_NETWORK_THREADS:-8}
+      KAFKA_NUM_IO_THREADS: ${KAFKA_NUM_IO_THREADS:-8}
+      KAFKA_SOCKET_SEND_BUFFER_BYTES: ${KAFKA_SOCKET_SEND_BUFFER_BYTES:-102400}
+      KAFKA_SOCKET_RECEIVE_BUFFER_BYTES: ${KAFKA_SOCKET_RECEIVE_BUFFER_BYTES:-102400}
+      KAFKA_SOCKET_REQUEST_MAX_BYTES: ${KAFKA_SOCKET_REQUEST_MAX_BYTES:-104857600}
+      KAFKA_REPLICA_SOCKET_TIMEOUT_MS: ${KAFKA_REPLICA_SOCKET_TIMEOUT_MS:-60000}
+      KAFKA_CONTROLLER_SOCKET_TIMEOUT_MS: ${KAFKA_CONTROLLER_SOCKET_TIMEOUT_MS:-60000}
     depends_on:
-      - nidan-zookeeper
+      nidan-zookeeper:
+        condition: service_healthy
     networks:
       - nidan-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:${KAFKA_PORT:-9092} >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 8
+      start_period: 45s
+    restart: unless-stopped
 
   # CIS / OIS: build from ../nidan-middleware/integration (Maven runs in Docker).
   #   docker compose build nidan-cis nidan-ois
   #   docker compose up --build nidan-cis nidan-ois
   # Set NIDAN_CIS_IMAGE / NIDAN_OIS_IMAGE to registry tags to use prebuilt images without local build.
   nidan-cis:
-    image: ${NIDAN_CIS_IMAGE:-nidan-cis:local}
+    build:
+      context: ../nidan-middleware/integration
+      dockerfile: Dockerfile.cis
+    # image: ${NIDAN_CIS_IMAGE:-nidan-cis:local}
     container_name: nidan-cis
     ports:
       - "${CIS_PORT:-8081}:${CIS_PORT:-8081}"
@@ -491,6 +522,18 @@ services:
       # Kafka
       - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:${KAFKA_PORT:-9092}
       - CIS_KAFKA_GROUP_ID=${CIS_KAFKA_GROUP_ID:-nidan-cis}
+      # Client timeouts / backoff (Spring application.yml — override via .env if needed)
+      - KAFKA_CONSUMER_REQUEST_TIMEOUT_MS=${KAFKA_CONSUMER_REQUEST_TIMEOUT_MS:-120000}
+      - KAFKA_CONSUMER_SESSION_TIMEOUT_MS=${KAFKA_CONSUMER_SESSION_TIMEOUT_MS:-45000}
+      - KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS=${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS:-15000}
+      - KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS=${KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS:-600000}
+      - KAFKA_CONSUMER_FETCH_MAX_WAIT_MS=${KAFKA_CONSUMER_FETCH_MAX_WAIT_MS:-500}
+      - KAFKA_PRODUCER_REQUEST_TIMEOUT_MS=${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS:-120000}
+      - KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS=${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS:-180000}
+      - KAFKA_PRODUCER_LINGER_MS=${KAFKA_PRODUCER_LINGER_MS:-5}
+      - KAFKA_METADATA_MAX_AGE_MS=${KAFKA_METADATA_MAX_AGE_MS:-300000}
+      - KAFKA_RECONNECT_BACKOFF_MS=${KAFKA_RECONNECT_BACKOFF_MS:-500}
+      - KAFKA_RECONNECT_BACKOFF_MAX_MS=${KAFKA_RECONNECT_BACKOFF_MAX_MS:-10000}
       # OpenMRS
       - OPENMRS_ENABLED=${OPENMRS_ENABLED:-true}
       - OPENMRS_BASE_URL=${OPENMRS_BASE_URL:-http://openmrs-backend:8080/openmrs}
@@ -539,7 +582,7 @@ services:
       - DEBEZIUM_ENABLED=${DEBEZIUM_ENABLED:-false}
       - DEBEZIUM_DB_USER=${DEBEZIUM_DB_USER:-root}
       - DEBEZIUM_DB_PASSWORD=${DEBEZIUM_DB_PASSWORD:-root}
-      - DEBEZIUM_TABLE_INCLUDE_LIST=${DEBEZIUM_TABLE_INCLUDE_LIST:-openmrs.orders,openmrs.drug_order,openmrs.person,openmrs.person_name,openmrs.patient_identifier}
+      - DEBEZIUM_TABLE_INCLUDE_LIST=${DEBEZIUM_TABLE_INCLUDE_LIST:-openmrs.orders,openmrs.drug_order,openmrs.person,openmrs.person_name,openmrs.patient_identifier,openmrs.bed_type,openmrs.bed_patient_assignment_map}
       # Kafka retry topics (opt-in via @KafkaRetryable)
       - INTEGRATION_KAFKA_RETRY_ENABLED=${INTEGRATION_KAFKA_RETRY_ENABLED:-false}
       - INTEGRATION_KAFKA_RETRY_ATTEMPTS=${INTEGRATION_KAFKA_RETRY_ATTEMPTS:-5}
@@ -552,7 +595,7 @@ services:
       nidan-integration-db:
         condition: service_healthy
       nidan-kafka:
-        condition: service_started
+        condition: service_healthy
       openmrs-backend:
         condition: service_healthy
       # Orthanc dependency made optional - CIS can start without it if radiology is disabled
@@ -568,7 +611,10 @@ services:
       start_period: 60s
 
   nidan-ois:
-    image: ${NIDAN_OIS_IMAGE:-nidan-ois:local}
+    build:
+      context: ../nidan-middleware/integration
+      dockerfile: Dockerfile.ois
+    # image: ${NIDAN_OIS_IMAGE:-nidan-ois:local}
     container_name: nidan-ois
     ports:
       - "${OIS_PORT:-8082}:${OIS_PORT:-8082}"
@@ -580,6 +626,17 @@ services:
       # Kafka
       - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:${KAFKA_PORT:-9092}
       - OIS_KAFKA_GROUP_ID=${OIS_KAFKA_GROUP_ID:-nidan-ois}
+      - KAFKA_CONSUMER_REQUEST_TIMEOUT_MS=${KAFKA_CONSUMER_REQUEST_TIMEOUT_MS:-120000}
+      - KAFKA_CONSUMER_SESSION_TIMEOUT_MS=${KAFKA_CONSUMER_SESSION_TIMEOUT_MS:-45000}
+      - KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS=${KAFKA_CONSUMER_HEARTBEAT_INTERVAL_MS:-15000}
+      - KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS=${KAFKA_CONSUMER_MAX_POLL_INTERVAL_MS:-600000}
+      - KAFKA_CONSUMER_FETCH_MAX_WAIT_MS=${KAFKA_CONSUMER_FETCH_MAX_WAIT_MS:-500}
+      - KAFKA_PRODUCER_REQUEST_TIMEOUT_MS=${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS:-120000}
+      - KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS=${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS:-180000}
+      - KAFKA_PRODUCER_LINGER_MS=${KAFKA_PRODUCER_LINGER_MS:-5}
+      - KAFKA_METADATA_MAX_AGE_MS=${KAFKA_METADATA_MAX_AGE_MS:-300000}
+      - KAFKA_RECONNECT_BACKOFF_MS=${KAFKA_RECONNECT_BACKOFF_MS:-500}
+      - KAFKA_RECONNECT_BACKOFF_MAX_MS=${KAFKA_RECONNECT_BACKOFF_MAX_MS:-10000}
       # Odoo
       - ODOO_BASE_URL=${ODOO_BASE_URL:-http://odoo:8069}
       - ODOO_DATABASE=${ODOO_DB_NAME:-nidan}
@@ -612,7 +669,7 @@ services:
       nidan-integration-db:
         condition: service_healthy
       nidan-kafka:
-        condition: service_started
+        condition: service_healthy
       odoo:
         condition: service_healthy
     networks:
