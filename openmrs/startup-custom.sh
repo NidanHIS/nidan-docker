@@ -1,6 +1,6 @@
-#!/bin/bash -aeu
+#!/bin/bash
 #       Custom startup script for Nidan (PostgreSQL URL fix; no custom dialect)
-
+set -aeu
 source /openmrs/startup-init.sh
 
 DATA_DIR="${OMRS_DATA_DIR:-/openmrs/data}"
