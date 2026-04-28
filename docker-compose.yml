@@ -135,7 +135,8 @@ services:
   openmrs-db:
     image: mariadb:10.11
     container_name: nidan-openmrs-db
-    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --log-bin=mysql-bin --binlog_format=ROW --server-id=1 --binlog_row_image=FULL
+    # Debezium/CIS: row-based binlog events for wide rows must fit max_allowed_packet (error 1236 if too small).
+    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --log-bin=mysql-bin --binlog_format=ROW --server-id=1 --binlog_row_image=FULL --max-allowed-packet=512M
     healthcheck:
       test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
       interval: 5s
@@ -598,6 +599,8 @@ services:
         condition: service_healthy
       nidan-kafka:
         condition: service_healthy
+      openmrs-db:
+        condition: service_healthy
       openmrs-backend:
         condition: service_healthy
       # Orthanc dependency made optional - CIS can start without it if radiology is disabled
@@ -729,6 +732,8 @@ services:
       - DATABASE_URL=mysql+pymysql://${DHIS2_DB_USER:-nidan}:${DHIS2_DB_PASSWORD:-nidan}@${DHIS2_DB_HOST:-nidan-dhis2-db}:${DHIS2_DB_PORT:-3306}/${DHIS2_DB_NAME:-nidan_dhis2}
       # Auth
       - AUTH_PROVIDER=${DHIS2_AUTH_PROVIDER:-env_file}
+      - ADMIN_USERNAME=${DHIS2_ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${DHIS2_ADMIN_PASSWORD:-pass}
       - REPORTER_USERNAME=${DHIS2_REPORTER_USERNAME:-reporter}
       - REPORTER_PASSWORD=${DHIS2_REPORTER_PASSWORD:-change-me}
       # Source DB connections — URLs built entirely from env vars

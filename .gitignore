@@ -7,13 +7,18 @@ _backup_legacy/
 # OHIF configuration (OHIF is now integrated into Orthanc via plugin)
 ohif/
 
+# Orthanc MWL: worklist files dropped at runtime (track worklists/.gitkeep only)
+orthanc/worklists/*.wl
+
 # OpenELIS logs
 openelis/volume/logs/
+
 
 # OpenELIS runtime config (written by container, would expose internal config if committed)
 openelis/volume/properties/TotalSystemConfiguration.properties
 openelis/volume/properties/SystemConfiguration.properties
 openelis/volume/properties/ChangedSystemConfiguration.properties
+openelis/volume/configuration/backend/ocl-checksums.properties
 
 # Middleware build artifacts (JAR files)
 middleware/*/target/
