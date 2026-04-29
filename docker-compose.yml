@@ -98,8 +98,9 @@ services:
     volumes:
       - openmrs-data:/openmrs/data
       - ./openmrs/startup-custom.sh:/openmrs/startup.sh:ro
-      - ./openmrs/custom_modules/bahmni-ipd-1.2.0-nidan-SNAPSHOT.omod:/openmrs/distribution/openmrs_modules/bahmni-ipd-1.2.0-nidan-SNAPSHOT.omod:ro
-      - ./openmrs/custom_modules/bedmanagement-7.3.0-nidan-SNAPSHOT.omod:/openmrs/distribution/openmrs_modules/bedmanagement-7.3.0-nidan-SNAPSHOT.omod:ro
+      # - ./openmrs/custom_modules/bahmni-ipd-1.2.0-nidan-SNAPSHOT.omod:/openmrs/distribution/openmrs_modules/bahmni-ipd-1.2.0-nidan-SNAPSHOT.omod:ro
+      # - ./openmrs/custom_modules/bedmanagement-7.3.0-nidan-SNAPSHOT.omod:/openmrs/distribution/openmrs_modules/bedmanagement-7.3.0-nidan-SNAPSHOT.omod:ro
+      - ./openmrs/custom_modules/nidancore-1.0.0-SNAPSHOT.omod:/openmrs/distribution/openmrs_modules/nidancore-1.0.0-SNAPSHOT.omod:ro
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/openmrs/" ]
       interval: 30s
