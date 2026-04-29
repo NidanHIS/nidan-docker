@@ -8,7 +8,8 @@
       }
     }
   },
-  "@openmrs/esm-ward-app": {
+  "@trigonal/esm-ward-app": {
+    "ipdVisitTypeUuid": "7b0f5697-27e3-40c4-8bae-f4049abfb4ed",
     "extensionSlots": {
       "action-menu-ward-patient-items-slot": {
         "add": ["order-basket-action-menu"]
@@ -115,5 +116,45 @@
     "radiologyOrderTypeUuid": "c19c8e82-8b8d-4b4e-b1ff-3f09890b2db3",
     "procedureOrderTypeUuid": "4237a01f-29c5-4167-9d8e-96d6e590aa33",
     "medicalSupplyOrderTypeUuid": "dab3ab30-2feb-48ec-b4af-8332a0831b49"
+  },
+  "@trigonal/esm-ipd-app": {
+    "concepts": {
+      "systolicBloodPressureUuid": "5085AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "diastolicBloodPressureUuid": "5086AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "pulseUuid": "5087AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "temperatureUuid": "5088AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "oxygenSaturationUuid": "5092AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "respiratoryRateUuid": "5242AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "heightUuid": "5090AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "weightUuid": "5089AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "midUpperArmCircumferenceUuid": "1343AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "vitalSignsConceptSetUuid": "1114AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "nursingTaskTypesConceptSetUuid": "c2144f97-efa1-49c0-b9f2-2b3e8bf974a9",
+      "defaultNursingTaskTypeUuid": "ada92e1a-81e5-4607-a003-3bed8356549e"
+    },
+    "admissionLocationTagUuid": "7d0f0b44-dc7a-11e8-9f8b-f2801f1b9fd1",
+    "admissionEncounterTypeUuid": "e22e39fd-7db2-45e7-80f1-60fa0d5a4378",
+    "dischargeEncounterTypeUuid": "181820aa-88c9-479b-9077-af92f5364329",
+    "ipdVisitTypeUuid": "7b0f5697-27e3-40c4-8bae-f4049abfb4ed",
+    "showMedicationChart": true,
+    "showNursingTasks": true,
+    "showIntakeOutput": true,
+    "showNonMedicationTasks": false,
+    "ipdDashboardSections": [
+      { "componentKey": "AL", "title": "Allergies", "displayOrder": 1 },
+      { "componentKey": "VT", "title": "Vitals", "displayOrder": 2 },
+      { "componentKey": "DG", "title": "Diagnosis", "displayOrder": 3 },
+      { "componentKey": "TR", "title": "Treatments", "displayOrder": 4 },
+      { "componentKey": "NT", "title": "Nursing Tasks", "displayOrder": 5 },
+      { "componentKey": "DC", "title": "Drug Chart", "displayOrder": 6 },
+      { "componentKey": "IO", "title": "Intake Output", "displayOrder": 7 },
+      { "componentKey": "NMT", "title": "Non-Medication Tasks", "displayOrder": 8 }
+    ],
+    "patientSearchMinChars": 3,
+    "nursingTaskLateWindowMinutes": 60,
+    "drugChartSlider": {
+      "timeInMinutesToDisableSlotPostScheduledTime": 60
+    },
+    "intakeOutputFormUuid": "de010f04-2eb5-3a9c-afec-587868f3c2fa"
   }
 }
