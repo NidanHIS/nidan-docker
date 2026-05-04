@@ -7,6 +7,7 @@
     "@trigonal/esm-patient-report-app": "trigonal-esm-patient-report-app-1.0.0.tgz",
     "@openmrs/esm-patient-orders-fast-app": "openmrs-esm-patient-orders-fast-app-12.0.1.tgz",
     "@openmrs/esm-orderset-app": "openmrs-esm-orderset-app-12.0.1.tgz",
+    "@openmrs/esm-nidan-core-app": "openmrs-esm-nidan-core-app-4.0.0.tgz",
     "@openmrs/esm-active-visits-app": "next",
     "@openmrs/esm-appointments-app": "next",
     "@openmrs/esm-bed-management-app": "next",

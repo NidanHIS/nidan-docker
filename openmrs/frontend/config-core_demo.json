@@ -47,10 +47,13 @@
     "radiologyConceptSetUuid": "cd9f116c-517d-439e-847d-d8d257434083",
     "orders": {
       "radiologyOrderTypeUuid": "c19c8e82-8b8d-4b4e-b1ff-3f09890b2db3"
-    }
+    },
+    "radiologyReportFormUuid": "052e2315-ffcc-36bd-a6ce-6851a9414361",
+    "ohifViewerUrl": "/ohif/viewer"
   },
   "@kenyaemr/esm-procedure-orders-app": {
-    "procedureConceptSetUuid": "0c3019b0-9bd3-4bc7-8e2c-e6230c31ed18"
+    "procedureConceptSetUuid": "0c3019b0-9bd3-4bc7-8e2c-e6230c31ed18",
+    "procedureReportFormUuid": "dc3c02db-26b5-3731-8288-0319e5a33109"
   },
   "@kenyaemr/esm-medical-supply-orders-app": {
     "medicalSupplyConceptSetUuid": "095befe9-ff7c-4eba-bbd8-37b055f52e7d",
