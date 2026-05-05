@@ -97,9 +97,6 @@ services:
     volumes:
       - openmrs-data:/openmrs/data
       - ./openmrs/startup-custom.sh:/openmrs/startup.sh:ro
-      # - ./openmrs/custom_modules/bahmni-ipd-1.2.0-nidan-SNAPSHOT.omod:/openmrs/distribution/openmrs_modules/bahmni-ipd-1.2.0-nidan-SNAPSHOT.omod:ro
-      # - ./openmrs/custom_modules/bedmanagement-7.3.0-nidan-SNAPSHOT.omod:/openmrs/distribution/openmrs_modules/bedmanagement-7.3.0-nidan-SNAPSHOT.omod:ro
-      - ./openmrs/custom_modules/nidancore-1.0.0-SNAPSHOT.omod:/openmrs/distribution/openmrs_modules/nidancore-1.0.0-SNAPSHOT.omod:ro
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/openmrs/" ]
       interval: 30s
@@ -499,11 +496,10 @@ services:
   #   docker compose up --build nidan-cis nidan-ois
   # Set NIDAN_CIS_IMAGE / NIDAN_OIS_IMAGE to registry tags to use prebuilt images without local build.
   nidan-cis:
-    build:
-      context: ../nidan-middleware/integration
-      dockerfile: Dockerfile.cis
-    # image: ${NIDAN_CIS_IMAGE:-nidan-cis:local}
-    image: nidan-cis:local
+    # build:
+    #   context: ../nidan-middleware/integration
+    #   dockerfile: Dockerfile.cis
+    image: ${NIDAN_CIS_IMAGE:-nidan-cis:local}
     container_name: nidan-cis
     ports:
       - "${CIS_PORT:-8081}:${CIS_PORT:-8081}"
@@ -623,11 +619,7 @@ services:
       start_period: 60s
 
   nidan-ois:
-    build:
-      context: ../nidan-middleware/integration
-      dockerfile: Dockerfile.ois
-    # image: ${NIDAN_OIS_IMAGE:-nidan-ois:local}
-    image: nidan-ois:local
+    image: ${NIDAN_OIS_IMAGE:-nidan-ois:local}
     container_name: nidan-ois
     ports:
       - "${OIS_PORT:-8082}:${OIS_PORT:-8082}"
@@ -718,9 +710,7 @@ services:
     restart: unless-stopped
 
   nidan-dhis2:
-    build:
-      context: ./../nidan-dhis2-integration
-    # image: trigonaltechnology/nidan-dhis2-integration:latest
+    image: trigonaltechnology/nidan-dhis2-integration:latest
     container_name: nidan-dhis2
     ports:
       - "${DHIS2_APP_PORT:-5003}:5000"
@@ -791,7 +781,7 @@ services:
   # APACHE SUPERSET
   # ============================================================================
   superset:
-    # build: ./superset
+    build: ./superset
     image: ${SUPERSET_IMAGE:-trigonaltechnology/superset:latest}
     container_name: nidan-superset
     ports:
