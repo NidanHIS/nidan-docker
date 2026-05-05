@@ -35,8 +35,7 @@
             "OhifViewer3PublicRoot": "/ohif/"
         }
     },
-    "WebhookOnStoredInstance": {
-        "URL": "${ORTHANC_WEBHOOK_URL}",
-        "Events": ["NewStudy"]
-    }
+    "LuaScripts": [
+        "/etc/orthanc/webhook.lua"
+    ]
 }

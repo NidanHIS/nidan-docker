@@ -4,8 +4,8 @@ networks:
 
 volumes:
   openmrs-data:
-  openmrs-db-data:
-  # openmrs-db-postgres-data:  # commented - PostgreSQL for OpenMRS disabled for now
+  openmrs-db-data: # openmrs-db-postgres-data:  # commented - PostgreSQL for OpenMRS disabled for now
+
   odoo-data:
   odoo-db-data:
   orthanc-data:
@@ -22,7 +22,6 @@ volumes:
   dhis2-integration-audit-logs:
   dhis2-integration-app-logs:
   superset-home:
-
 
 services:
   # ============================================================================
@@ -266,11 +265,13 @@ services:
       POSTGRESQL_PLUGIN_ENABLED: "true"
       OHIF_PLUGIN_ENABLED: "true"
       ORTHANC_EXPLORER_2_ENABLED: "true"
+      WEBHOOKS_PLUGIN_ENABLED: "true"
       # Set to false in production
       VERBOSE_STARTUP: "true"
       # PostgreSQL database (dynamic/secrets)
       ORTHANC__POSTGRESQL__ENABLE_INDEX: "true"
-      ORTHANC__POSTGRESQL__ENABLE_STORAGE: "true"
+      # Set to false to store actual DICOM files on the filesystem instead of the database
+      ORTHANC__POSTGRESQL__ENABLE_STORAGE: "false"
       ORTHANC__POSTGRESQL__HOST: "${ORTHANC_DB_HOST:-orthanc-db}"
       ORTHANC__POSTGRESQL__PORT: "5432"
       ORTHANC__POSTGRESQL__DATABASE: "${ORTHANC_DB_NAME:-orthanc}"
@@ -292,8 +293,11 @@ services:
       - certbot-etc:/etc/letsencrypt:ro
       # Static configuration file
       - ./orthanc/orthanc.json:/etc/orthanc/orthanc.json:ro
+      - ./orthanc/webhook.lua:/etc/orthanc/webhook.lua:ro
       # Worklist directory for MWL plugin
       - ./orthanc/worklists:/var/lib/orthanc/worklists
+      # DICOM File Storage (use a named volume or change to a host path like /mnt/dicom:/var/lib/orthanc/db)
+      - orthanc-data:/var/lib/orthanc/db
     healthcheck:
       # TCP-only check: "healthy" means port listens, not that the UI loaded (UI needs HTTP Basic auth).
       test: [ "CMD", "python3", "-c", "import socket; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.settimeout(1); s.connect(('127.0.0.1', 8042))" ]
@@ -357,7 +361,8 @@ services:
     build:
       context: ../OpenELIS-Global-2
       dockerfile: Dockerfile
-    image: trigonaltechnology/openelis-global-2:latest
+    # image: trigonaltechnology/openelis-global-2:latest
+    image: openelis:local
     container_name: nidan-openelis
     ports:
       - "8083:8080"
@@ -446,7 +451,7 @@ services:
     networks:
       - nidan-network
     healthcheck:
-      test: ["CMD", "cub", "zk-ready", "localhost:2181", "10"]
+      test: [ "CMD", "cub", "zk-ready", "localhost:2181", "10" ]
       interval: 10s
       timeout: 15s
       retries: 6
@@ -482,7 +487,7 @@ services:
     networks:
       - nidan-network
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:${KAFKA_PORT:-9092} >/dev/null 2>&1 || exit 1"]
+      test: [ "CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:${KAFKA_PORT:-9092} >/dev/null 2>&1 || exit 1" ]
       interval: 10s
       timeout: 10s
       retries: 8
@@ -494,10 +499,11 @@ services:
   #   docker compose up --build nidan-cis nidan-ois
   # Set NIDAN_CIS_IMAGE / NIDAN_OIS_IMAGE to registry tags to use prebuilt images without local build.
   nidan-cis:
-    # build:
-    #   context: ../nidan-middleware/integration
-    #   dockerfile: Dockerfile.cis
-    image: ${NIDAN_CIS_IMAGE:-nidan-cis:local}
+    build:
+      context: ../nidan-middleware/integration
+      dockerfile: Dockerfile.cis
+    # image: ${NIDAN_CIS_IMAGE:-nidan-cis:local}
+    image: nidan-cis:local
     container_name: nidan-cis
     ports:
       - "${CIS_PORT:-8081}:${CIS_PORT:-8081}"
@@ -617,10 +623,11 @@ services:
       start_period: 60s
 
   nidan-ois:
-    # build:
-    #   context: ../nidan-middleware/integration
-    #   dockerfile: Dockerfile.ois
-    image: ${NIDAN_OIS_IMAGE:-nidan-ois:local}
+    build:
+      context: ../nidan-middleware/integration
+      dockerfile: Dockerfile.ois
+    # image: ${NIDAN_OIS_IMAGE:-nidan-ois:local}
+    image: nidan-ois:local
     container_name: nidan-ois
     ports:
       - "${OIS_PORT:-8082}:${OIS_PORT:-8082}"
@@ -711,7 +718,9 @@ services:
     restart: unless-stopped
 
   nidan-dhis2:
-    image: trigonaltechnology/nidan-dhis2-integration:latest
+    build:
+      context: ./../nidan-dhis2-integration
+    # image: trigonaltechnology/nidan-dhis2-integration:latest
     container_name: nidan-dhis2
     ports:
       - "${DHIS2_APP_PORT:-5003}:5000"
@@ -777,28 +786,30 @@ services:
       options:
         max-size: "10m"
         max-file: "5"
-  
+
   # ============================================================================
   # APACHE SUPERSET
   # ============================================================================
   superset:
-    build: ./superset
+    # build: ./superset
     image: ${SUPERSET_IMAGE:-trigonaltechnology/superset:latest}
     container_name: nidan-superset
     ports:
-      - "8088:8088"  # Keep for direct access during debugging, remove in production
+      - "8088:8088" # Keep for direct access during debugging, remove in production
     environment:
       SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY}
       SUPERSET_LOAD_EXAMPLES: ${SUPERSET_LOAD_EXAMPLES:-no}
       PYTHONPATH: /app/pythonpath
-      
+
       # CRITICAL: Set the public-facing base URL
       SUPERSET_WEBSERVER_ADDRESS: '0.0.0.0'
       SUPERSET_WEBSERVER_PORT: '8088'
-      
+
       # Tell Superset it's behind a reverse proxy at /superset/
       SCRIPT_NAME: /superset
-      
+      # Fix health check path issue
+      SUPERSET_HEALTH_CHECK_ENDPOINT: /health
+
       # Database connections (seeded at startup for OpenMRS, OpenELIS, Odoo)
       OPENMRS_DB_HOST: ${OPENMRS_DB_HOST:-openmrs-db}
       OPENMRS_DB_PORT: ${OPENMRS_DB_PORT:-3306}
@@ -815,8 +826,8 @@ services:
       ODOO_DB_NAME: ${ODOO_DB_NAME:-nidan}
       ODOO_DB_USER: ${ODOO_DB_USER:-nidan}
       ODOO_DB_PASSWORD: ${ODOO_DB_PASSWORD:-nidan}
-      
-    command: ["/bin/sh", "/app/docker-entrypoint.sh"]
+
+    command: [ "/bin/sh", "/app/docker-entrypoint.sh" ]
     networks:
       - nidan-network
     depends_on:
