@@ -358,8 +358,7 @@ services:
     build:
       context: ../OpenELIS-Global-2
       dockerfile: Dockerfile
-    # image: trigonaltechnology/openelis-global-2:latest
-    image: openelis:local
+    image: trigonaltechnology/openelis-global-2:latest
     container_name: nidan-openelis
     ports:
       - "8083:8080"
