@@ -355,9 +355,6 @@ services:
 
   # OpenELIS backend (Tomcat) - FIXED with HTTP enabled
   openelis:
-    build:
-      context: ../OpenELIS-Global-2
-      dockerfile: Dockerfile
     image: trigonaltechnology/openelis-global-2:latest
     container_name: nidan-openelis
     ports:
