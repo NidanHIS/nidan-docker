@@ -16,6 +16,14 @@
       }
     }
   },
+  "@trigonal/esm-patient-tests-app": {
+    "resultsViewerConcepts": [
+      {
+        "conceptUuid": "8904fa2b-6a8f-437d-89ec-6fce3cd99093",
+        "defaultOpen": false
+      }
+    ]
+  },
   "@openmrs/esm-service-queues-app": {
     "statusConfigs": [
       {
