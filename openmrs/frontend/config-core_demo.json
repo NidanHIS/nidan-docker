@@ -14,7 +14,9 @@
       "action-menu-ward-patient-items-slot": {
         "add": ["order-basket-action-menu"]
       }
-    }
+    },
+    "dischargeNoteFormUuid": "a9d36a3b-71d5-3dfc-9ebb-61db4bbbab2d",
+    "maternalDischargeNoteFormUuid": "3caeed2e-6909-3042-9d96-4f37365b3e00"
   },
   "@trigonal/esm-patient-tests-app": {
     "resultsViewerConcepts": [
