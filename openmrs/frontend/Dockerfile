@@ -27,11 +27,13 @@ COPY packages/openmrs-esm-patient-chart-app-12.0.1.tgz .
 COPY packages/openmrs-esm-orderset-app-12.0.1.tgz .
 COPY packages/trigonal-esm-ward-app-1.0.0.tgz .
 COPY packages/openmrs-esm-nidan-core-app-1.0.0.tgz .
+COPY packages/openmrs-esm-service-queues-app-10.0.2.tgz .
 
 RUN yarn add ./trigonal-esm-patient-report-app-1.0.0.tgz
 RUN yarn add ./trigonal-esm-ipd-app-1.0.0.tgz
 RUN yarn add ./kenyaemr-esm-imaging-orders-app-4.0.5.tgz
 RUN yarn add ./kenyaemr-esm-procedure-orders-app-4.0.5.tgz
+RUN yarn add ./kenyaemr-esm-medical-supply-orders-app-4.0.5.tgz
 RUN yarn add ./kenyaemr-esm-bed-orders-app-4.0.5.tgz
 RUN yarn add ./openmrs-esm-patient-orders-app-11.3.0.tgz
 RUN yarn add ./trigonal-esm-patient-tests-app-1.0.0.tgz
@@ -40,6 +42,7 @@ RUN yarn add ./openmrs-esm-patient-chart-app-12.0.1.tgz
 RUN yarn add ./openmrs-esm-orderset-app-12.0.1.tgz
 RUN yarn add ./trigonal-esm-ward-app-1.0.0.tgz 
 RUN yarn add ./openmrs-esm-nidan-core-app-1.0.0.tgz
+RUN yarn add ./openmrs-esm-service-queues-app-10.0.2.tgz
 
 ARG CACHE_BUST
 RUN npx --legacy-peer-deps openmrs@${APP_SHELL_VERSION:-next} assemble --manifest --mode config --config spa-assemble-config.json --target ./spa

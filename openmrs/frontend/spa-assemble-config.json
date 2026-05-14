@@ -45,7 +45,7 @@
     "@openmrs/esm-patient-vitals-app": "next",
     "@openmrs/esm-primary-navigation-app": "next",
     "@openmrs/esm-reports-app": "next",
-    "@openmrs/esm-service-queues-app": "next",
+    "@openmrs/esm-service-queues-app": "openmrs-esm-service-queues-app-10.0.2.tgz",
     "@openmrs/esm-system-admin-app": "next",
     "@openmrs/esm-user-onboarding-app": "next",
     "@trigonal/esm-ward-app": "trigonal-esm-ward-app-1.0.0.tgz",
