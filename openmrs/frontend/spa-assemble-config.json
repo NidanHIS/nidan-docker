@@ -30,7 +30,7 @@
     "@openmrs/esm-patient-chart-app": "openmrs-esm-patient-chart-app-12.0.1.tgz",
     "@openmrs/esm-patient-conditions-app": "next",
     "@openmrs/esm-patient-flags-app": "next",
-    "@openmrs/esm-patient-forms-app": "next",
+    "@openmrs/esm-patient-forms-app": "openmrs-esm-patient-forms-app-12.0.1.tgz",
     "@openmrs/esm-patient-immunizations-app": "next",
     "@openmrs/esm-patient-label-printing-app": "next",
     "@openmrs/esm-patient-list-management-app": "next",

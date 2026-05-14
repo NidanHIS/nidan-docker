@@ -24,6 +24,7 @@ COPY packages/openmrs-esm-patient-orders-app-11.3.0.tgz .
 COPY packages/trigonal-esm-patient-tests-app-1.0.0.tgz .
 COPY packages/openmrs-esm-patient-orders-fast-app-12.0.1.tgz .
 COPY packages/openmrs-esm-patient-chart-app-12.0.1.tgz .
+COPY packages/openmrs-esm-patient-forms-app-12.0.1.tgz .
 COPY packages/openmrs-esm-orderset-app-12.0.1.tgz .
 COPY packages/trigonal-esm-ward-app-1.0.0.tgz .
 COPY packages/openmrs-esm-nidan-core-app-1.0.0.tgz .
@@ -38,6 +39,7 @@ RUN yarn add ./openmrs-esm-patient-orders-app-11.3.0.tgz
 RUN yarn add ./trigonal-esm-patient-tests-app-1.0.0.tgz
 RUN yarn add ./openmrs-esm-patient-orders-fast-app-12.0.1.tgz
 RUN yarn add ./openmrs-esm-patient-chart-app-12.0.1.tgz
+RUN yarn add ./openmrs-esm-patient-forms-app-12.0.1.tgz
 RUN yarn add ./openmrs-esm-orderset-app-12.0.1.tgz
 RUN yarn add ./trigonal-esm-ward-app-1.0.0.tgz 
 RUN yarn add ./openmrs-esm-nidan-core-app-1.0.0.tgz
