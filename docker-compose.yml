@@ -108,8 +108,7 @@ services:
     # build:
     #   context: ./openmrs/frontend
     #   dockerfile: Dockerfile
-    # image: trigonaltechnology/openmrs-frontend:latest
-    image: nidan-medications:latest
+    image: trigonaltechnology/openmrs-frontend:latest
     container_name: nidan-openmrs-frontend
     environment:
       - SPA_PATH=/openmrs/spa
