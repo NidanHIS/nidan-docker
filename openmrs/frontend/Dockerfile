@@ -5,8 +5,6 @@
 FROM --platform=$BUILDPLATFORM node:22-alpine as dev
 
 ARG APP_SHELL_VERSION=next
-# Bump when refreshing packages/*.tgz from openmrs-esm-patient-chart (yarn build && yarn pack -o ...)
-ARG CACHE_BUST=2026-05-16
 
 RUN mkdir -p /app
 WORKDIR /app
