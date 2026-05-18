@@ -35,7 +35,7 @@
     "@openmrs/esm-patient-label-printing-app": "next",
     "@openmrs/esm-patient-list-management-app": "next",
     "@openmrs/esm-patient-lists-app": "next",
-    "@openmrs/esm-patient-medications-app": "next",
+    "@openmrs/esm-patient-medications-app": "openmrs-esm-patient-medications-app-12.1.0-trigonal.tgz",
     "@openmrs/esm-patient-notes-app": "next",
     "@openmrs/esm-patient-orders-app": "openmrs-esm-patient-orders-app-12.1.0.tgz",
     "@openmrs/esm-patient-programs-app": "next",
