@@ -168,6 +168,11 @@
     "drugChartSlider": {
       "timeInMinutesToDisableSlotPostScheduledTime": 60
     },
-    "intakeOutputFormUuid": "de010f04-2eb5-3a9c-afec-587868f3c2fa"
+    "intakeOutputFormUuid": "de010f04-2eb5-3a9c-afec-587868f3c2fa",
+    "shiftDetails": {
+      "1": { "shiftStartTime": "06:00", "shiftEndTime": "13:00" },
+      "2": { "shiftStartTime": "13:00", "shiftEndTime": "17:00" },
+      "3": { "shiftStartTime": "17:00", "shiftEndTime": "06:00" }
+    }
   }
 }
