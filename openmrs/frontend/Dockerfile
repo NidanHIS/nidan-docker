@@ -25,6 +25,7 @@ COPY packages/kenyaemr-esm-medical-supply-orders-app-4.0.5.tgz .
 COPY packages/kenyaemr-esm-bed-orders-app-4.0.5.tgz .
 COPY packages/openmrs-esm-nidan-core-app-1.0.0.tgz .
 COPY packages/openmrs-esm-form-builder-app-3.4.1.tgz .
+COPY packages/openmrs-esm-form-engine-app-12.1.0.tgz .
 COPY packages/openmrs-esm-service-queues-app-10.0.2.tgz .
 
 # Nidan patient-chart fork (@openmrs/esm-patient-chart 12.1.0 + extensions)
@@ -45,6 +46,7 @@ RUN yarn add ./kenyaemr-esm-medical-supply-orders-app-4.0.5.tgz
 RUN yarn add ./kenyaemr-esm-bed-orders-app-4.0.5.tgz
 RUN yarn add ./openmrs-esm-nidan-core-app-1.0.0.tgz
 RUN yarn add ./openmrs-esm-form-builder-app-3.4.1.tgz
+RUN yarn add ./openmrs-esm-form-engine-app-12.1.0.tgz
 RUN yarn add ./openmrs-esm-service-queues-app-10.0.2.tgz
 RUN yarn add ./openmrs-esm-patient-chart-app-12.1.0.tgz
 RUN yarn add ./openmrs-esm-patient-forms-app-12.1.0.tgz
