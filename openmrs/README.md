@@ -82,6 +82,8 @@ To add **Custom Frontend Modules** (Microfrontends):
     docker-compose up -d openmrs-frontend
     ```
 
+**Nepali calendar (default)**: `frontend/Dockerfile` assembles `@nidan/esm-nepali-calendar` and patches date pickers + read-only date formatting. **Vanilla upstream SPA** (no BS calendar): `docker build -f openmrs/frontend/Dockerfile.vanilla openmrs/frontend` using `spa-assemble-config.vanilla.json`.
+
 ## 3. Configuration (`frontend/config-core_demo.json`)
 The file `frontend/config-core_demo.json` controls the runtime behavior of the frontend (e.g., logos, primary colors, default locales, enabled extensions).
 
