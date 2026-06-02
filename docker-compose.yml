@@ -401,9 +401,6 @@ services:
 
   # OpenELIS Frontend
   openelis-frontend:
-    # build:
-    #   context: ../OpenELIS-Global-2/frontend
-    #   dockerfile: Dockerfile.prod
     image: trigonaltechnology/openelis-global-2-frontend:latest
     container_name: nidan-openelis-frontend
     platform: linux/amd64

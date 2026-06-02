@@ -15,46 +15,46 @@ COPY spa-assemble-config.vanilla.json spa-build-config.json ./
 RUN yarn global add husky
 
 # Third-party / fork tarballs (paths must match spa-assemble-config.vanilla.json)
-# COPY packages/trigonal-esm-patient-report-app-1.0.0.tgz .
-# COPY packages/trigonal-esm-ipd-app-1.0.0.tgz .
-# COPY packages/trigonal-esm-patient-tests-app-1.0.0.tgz .
-# COPY packages/trigonal-esm-ward-app-1.0.0.tgz .
-# COPY packages/kenyaemr-esm-imaging-orders-app-4.0.5.tgz .
-# COPY packages/kenyaemr-esm-procedure-orders-app-4.0.5.tgz .
-# COPY packages/kenyaemr-esm-medical-supply-orders-app-4.0.5.tgz .
-# COPY packages/kenyaemr-esm-bed-orders-app-4.0.5.tgz .
-# COPY packages/openmrs-esm-nidan-core-app-1.0.0.tgz .
-# COPY packages/openmrs-esm-form-builder-app-3.4.1-trigonal.tgz .
-# COPY packages/openmrs-esm-form-engine-app-12.1.0-trigonal.tgz .
-# COPY packages/openmrs-esm-service-queues-app-10.0.2.tgz .
+COPY packages/trigonal-esm-patient-report-app-1.0.0.tgz .
+COPY packages/trigonal-esm-ipd-app-1.0.0.tgz .
+COPY packages/trigonal-esm-patient-tests-app-1.0.0.tgz .
+COPY packages/trigonal-esm-ward-app-1.0.0.tgz .
+COPY packages/kenyaemr-esm-imaging-orders-app-4.0.5.tgz .
+COPY packages/kenyaemr-esm-procedure-orders-app-4.0.5.tgz .
+COPY packages/kenyaemr-esm-medical-supply-orders-app-4.0.5.tgz .
+COPY packages/kenyaemr-esm-bed-orders-app-4.0.5.tgz .
+COPY packages/openmrs-esm-nidan-core-app-1.0.0.tgz .
+COPY packages/openmrs-esm-form-builder-app-3.4.1-trigonal.tgz .
+COPY packages/openmrs-esm-form-engine-app-12.1.0-trigonal.tgz .
+COPY packages/openmrs-esm-service-queues-app-10.0.2.tgz .
 
 # Nidan patient-chart fork (@openmrs/esm-patient-chart 12.1.0 + extensions)
-# COPY packages/openmrs-esm-patient-chart-app-12.1.0.tgz .
-# COPY packages/openmrs-esm-patient-forms-app-12.1.0.tgz .
-# COPY packages/openmrs-esm-patient-orders-app-12.1.0.tgz .
-# COPY packages/openmrs-esm-orderset-app-12.0.1.tgz .
-# COPY packages/openmrs-esm-patient-orders-fast-app-12.0.1.tgz .
-# COPY packages/openmrs-esm-patient-medications-app-12.1.0-trigonal.tgz .
+COPY packages/openmrs-esm-patient-chart-app-12.1.0.tgz .
+COPY packages/openmrs-esm-patient-forms-app-12.1.0.tgz .
+COPY packages/openmrs-esm-patient-orders-app-12.1.0.tgz .
+COPY packages/openmrs-esm-orderset-app-12.0.1.tgz .
+COPY packages/openmrs-esm-patient-orders-fast-app-12.0.1.tgz .
+COPY packages/openmrs-esm-patient-medications-app-12.1.0-trigonal.tgz .
 
-# RUN yarn add ./trigonal-esm-patient-report-app-1.0.0.tgz
-# RUN yarn add ./trigonal-esm-ipd-app-1.0.0.tgz
-# RUN yarn add ./trigonal-esm-patient-tests-app-1.0.0.tgz
-# RUN yarn add ./trigonal-esm-ward-app-1.0.0.tgz
-# RUN yarn add ./kenyaemr-esm-imaging-orders-app-4.0.5.tgz
-# RUN yarn add ./kenyaemr-esm-procedure-orders-app-4.0.5.tgz
-# RUN yarn add ./kenyaemr-esm-medical-supply-orders-app-4.0.5.tgz
-# RUN yarn add ./kenyaemr-esm-bed-orders-app-4.0.5.tgz
-# RUN yarn add ./openmrs-esm-nidan-core-app-1.0.0.tgz
 RUN yarn add openmrs@${APP_SHELL_VERSION:-next} --legacy-peer-deps
-# RUN yarn add ./openmrs-esm-form-builder-app-3.4.1-trigonal.tgz
-# RUN yarn add ./openmrs-esm-form-engine-app-12.1.0-trigonal.tgz
-# RUN yarn add ./openmrs-esm-service-queues-app-10.0.2.tgz
-# RUN yarn add ./openmrs-esm-patient-chart-app-12.1.0.tgz
-# RUN yarn add ./openmrs-esm-patient-forms-app-12.1.0.tgz
-# RUN yarn add ./openmrs-esm-patient-orders-app-12.1.0.tgz
-# RUN yarn add ./openmrs-esm-orderset-app-12.0.1.tgz
-# RUN yarn add ./openmrs-esm-patient-orders-fast-app-12.0.1.tgz
-# RUN yarn add ./openmrs-esm-patient-medications-app-12.1.0-trigonal.tgz
+RUN yarn add ./trigonal-esm-patient-report-app-1.0.0.tgz
+RUN yarn add ./trigonal-esm-ipd-app-1.0.0.tgz
+RUN yarn add ./trigonal-esm-patient-tests-app-1.0.0.tgz
+RUN yarn add ./trigonal-esm-ward-app-1.0.0.tgz
+RUN yarn add ./kenyaemr-esm-imaging-orders-app-4.0.5.tgz
+RUN yarn add ./kenyaemr-esm-procedure-orders-app-4.0.5.tgz
+RUN yarn add ./kenyaemr-esm-medical-supply-orders-app-4.0.5.tgz
+RUN yarn add ./kenyaemr-esm-bed-orders-app-4.0.5.tgz
+RUN yarn add ./openmrs-esm-nidan-core-app-1.0.0.tgz
+RUN yarn add ./openmrs-esm-form-builder-app-3.4.1-trigonal.tgz
+RUN yarn add ./openmrs-esm-form-engine-app-12.1.0-trigonal.tgz
+RUN yarn add ./openmrs-esm-service-queues-app-10.0.2.tgz
+RUN yarn add ./openmrs-esm-patient-chart-app-12.1.0.tgz
+RUN yarn add ./openmrs-esm-patient-forms-app-12.1.0.tgz
+RUN yarn add ./openmrs-esm-patient-orders-app-12.1.0.tgz
+RUN yarn add ./openmrs-esm-orderset-app-12.0.1.tgz
+RUN yarn add ./openmrs-esm-patient-orders-fast-app-12.0.1.tgz
+RUN yarn add ./openmrs-esm-patient-medications-app-12.1.0-trigonal.tgz
 
 RUN cp spa-assemble-config.vanilla.json spa-assemble-config.json && \
     yarn openmrs assemble --manifest --mode config --config spa-assemble-config.json --target ./spa
