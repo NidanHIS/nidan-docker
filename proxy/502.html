@@ -1,65 +1,281 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Service Unavailable - NidanEHR</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: #f4f6f8;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            color: #333;
-        }
-        .container {
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            max-width: 500px;
-        }
-        .icon {
-            font-size: 5rem;
-            margin-bottom: 20px;
-        }
-        h1 {
-            font-size: 1.8rem;
-            margin-top: 0;
-            color: #d32f2f;
-        }
-        p {
-            font-size: 1rem;
-            color: #666;
-            line-height: 1.5;
-            margin-bottom: 30px;
-        }
-        a {
-            display: inline-block;
-            background: #1976d2;
-            color: white;
-            text-decoration: none;
-            padding: 10px 24px;
-            border-radius: 6px;
-            font-weight: 500;
-            transition: background 0.2s;
-        }
-        a:hover {
-            background: #1565c0;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Service Unavailable — NidanEHR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --page:  #F5F6F8;
+      --white: #FFFFFF;
+      --border:#E4E7EC;
+      --navy:  #0F2043;
+      --amber: #B45309;
+      --amber-bg: #FFFBEB;
+      --amber-border: #FDE68A;
+      --text-primary:   #111827;
+      --text-secondary: #6B7280;
+      --text-tertiary:  #9CA3AF;
+      --teal:  #007C71;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--page);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Topbar — same as portal */
+    .topbar {
+      height: 60px;
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 32px;
+    }
+
+    .topbar-logo {
+      height: 32px;
+      width: auto;
+    }
+
+    /* Main */
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+    }
+
+    /* Card */
+    .card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 48px 44px;
+      max-width: 480px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 0;
+    }
+
+    /* Icon */
+    .icon-wrap {
+      width: 60px;
+      height: 60px;
+      border-radius: 14px;
+      background: var(--amber-bg);
+      border: 1px solid var(--amber-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .icon-wrap svg {
+      width: 28px;
+      height: 28px;
+      stroke: var(--amber);
+      fill: none;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Status label */
+    .error-code {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--amber);
+      margin-bottom: 12px;
+    }
+
+    .error-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--navy);
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+
+    .error-body {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+      max-width: 340px;
+      margin-bottom: 32px;
+    }
+
+    /* Divider */
+    .divider {
+      width: 100%;
+      height: 1px;
+      background: var(--border);
+      margin-bottom: 24px;
+    }
+
+    /* Detail row */
+    .detail {
+      width: 100%;
+      background: #FAFAFA;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      text-align: left;
+      margin-bottom: 28px;
+    }
+
+    .detail-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-bottom: 10px;
+    }
+
+    .detail-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+    }
+
+    .detail-row:last-child { border-bottom: none; }
+
+    .detail-key {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
+    .detail-val {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Back button */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 24px;
+      background: var(--navy);
+      color: #FFFFFF;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      letter-spacing: 0.01em;
+      transition: background 0.15s;
+    }
+
+    .btn:hover { background: #1a3460; }
+
+    .btn svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Footer */
+    footer {
+      background: var(--white);
+      border-top: 1px solid var(--border);
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+    }
+
+    .footer-brand { display: flex; align-items: center; gap: 10px; }
+    .footer-label { font-size: 12px; color: var(--text-tertiary); font-weight: 500; }
+    .footer-logo  { height: 22px; opacity: 0.45; transition: opacity 0.2s; }
+    .footer-logo:hover { opacity: 0.8; }
+    .footer-copy  { font-size: 12px; color: var(--text-tertiary); }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="icon">⚠️</div>
-        <h1>502 Bad Gateway</h1>
-        <p>The requested service is currently offline or restarting. Please wait a few moments and try again.</p>
-        <a href="/">Return to Dashboard</a>
+
+  <header class="topbar">
+    <img src="nidan-logo.png" alt="NidanEHR" class="topbar-logo">
+  </header>
+
+  <main>
+    <div class="card">
+
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 9v4M12 17h.01"/>
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        </svg>
+      </div>
+
+      <div class="error-code">HTTP 502 · Bad Gateway</div>
+      <h1 class="error-title">Service unavailable</h1>
+      <p class="error-body">This service is currently restarting or unreachable. Other clinical services are unaffected. Please wait a moment and try again.</p>
+
+      <div class="divider"></div>
+
+      <div class="detail">
+        <div class="detail-label">System status</div>
+        <div class="detail-row">
+          <span class="detail-key">Upstream</span>
+          <span class="detail-val">Container not responding</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-key">Event bus</span>
+          <span class="detail-val">Active · messages queued</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-key">Other services</span>
+          <span class="detail-val">Unaffected</span>
+        </div>
+      </div>
+
+      <a href="/" class="btn">
+        <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Return to portal
+      </a>
+
     </div>
+  </main>
+
+  <footer>
+    <div class="footer-brand">
+      <span class="footer-label">Powered by</span>
+      <img src="trigonal-logo.png" alt="Trigonal Technology" class="footer-logo">
+    </div>
+    <span class="footer-copy">© 2026 NidanEHR · All rights reserved</span>
+  </footer>
+
 </body>
 </html>
