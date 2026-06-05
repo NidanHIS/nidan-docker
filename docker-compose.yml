@@ -87,6 +87,10 @@ services:
       OMRS_JAVA_MEMORY_OPTS: "-Xmx2g -Xms1g"
       # JVM (optional overrides)
       _JAVA_OPTIONS: "-Dcsrf.enabled=false"
+      # Nidan paywall → Odoo payment-status API (read by nidancore via System.getenv;
+      # no openmrs-runtime.properties edit / startup.sh patch needed).
+      NIDANCORE_ODOO_URL: ${NIDANCORE_ODOO_URL:-http://odoo:8069}
+      NIDANCORE_ODOO_PAYMENT_SECRET: ${NIDAN_ODOO_SECRET}
     # ports:
     #   - "5005:5005"  # Remote debug port
     networks:
@@ -97,6 +101,9 @@ services:
     volumes:
       - openmrs-data:/openmrs/data
       - ./openmrs/startup-custom.sh:/openmrs/startup.sh:ro
+      # Live overlay of locally-built custom OMODs (startup-custom.sh copies *.omod into the
+      # data modules dir on start, overriding the baked distribution copies — no image rebuild).
+      - ./openmrs/custom_modules:/openmrs/custom_modules:ro
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/openmrs/" ]
       interval: 30s
@@ -184,7 +191,11 @@ services:
   # ODOO
   # ============================================================================
   odoo:
-    image: trigonaltechnology/nidan_odoo:latest
+    # Open-source base by default; hospitals set ODOO_IMAGE to the private image
+    # (e.g. trigonaltechnology/nidan_odoo_pro:stable) which bakes the closed-source
+    # addons into /mnt/private-addons. No host addon source is mounted in prod.
+    # image: ${ODOO_IMAGE:-trigonaltechnology/nidan_odoo:stable}
+    image: trigonaltechnology/nidan_odoo_pro:latest
     container_name: nidan-odoo
     command: sh -c "odoo -d \${ODOO_DB_NAME:-nidan} --proxy-mode --dev=xml -u all"
     ports:
@@ -211,8 +222,10 @@ services:
       - ODOO_DB_FILTER=^${ODOO_DB_NAME:-nidan}$
     volumes:
       - odoo-data:/var/lib/odoo
-      # Bind-mount addons for live sync (set ODOO_ADDONS_PATH in .env to absolute path)
+      # Addons come from the image (baked at /mnt/extra-addons + /mnt/private-addons).
       - ${ODOO_ADDONS_PATH:-../odoo_19_addons}:/mnt/extra-addons
+      # Live-mount the closed-source addons so the current source (not the baked copy) is used.
+      - ${ODOO_PRIVATE_ADDONS_HOST_PATH:-../nidan_odoo_extra_addons}:/mnt/private-addons
       # odoo.conf from git (read-only). Entrypoint copies to container; runtime changes stay in container.
       - ./odoo/odoo.conf:/mnt/odoo.conf.template:ro
     networks:

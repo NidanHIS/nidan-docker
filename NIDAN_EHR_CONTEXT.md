@@ -148,10 +148,13 @@ Or: `docker-compose build openmrs-frontend`
 
 ## 6. Odoo 19
 
-- **Image**: trigonaltechnology/nidan_odoo (built from `odoo_19_addons` submodule)
-- **Addons**: Built into image from `odoo/odoo_19_addons`; for dev, use `dev.docker-compose.yml` which mounts `ODOO_EXTRA_ADDONS_HOST_PATH` → `/mnt/extra-addons`
-- **odoo.conf**: `addons_path = /usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons`
-- **Key addons**: nidan_core, nidan_connector, nidan_pos_enhance, nidan_insurance_management, base_accounting_kit, l10n_np, nepal_address_hierarchy, image_capture_upload_widget
+- **Image (selectable via `ODOO_IMAGE`)**: two layers —
+  - `trigonaltechnology/nidan_odoo:stable` — open-source base, built from `odoo_19_addons/packages/Dockerfile`; bakes open-source addons into `/mnt/extra-addons`.
+  - `trigonaltechnology/nidan_odoo_pro:stable` — **private**, built from `nidan_odoo_extra_addons/packages/Dockerfile` (`FROM` the base); bakes closed-source addons (`nidan_commission_management`, `nidan_payment_management`) into `/mnt/private-addons`. Pushed to a private Docker Hub repo. Hospitals set `ODOO_IMAGE` to this. Build order: base first, then Pro.
+- **Addons**: Baked into the image in prod (no host mount). For dev, `dev.docker-compose.yml` mounts `ODOO_EXTRA_ADDONS_HOST_PATH` → `/mnt/extra-addons` and `ODOO_PRIVATE_ADDONS_HOST_PATH` → `/mnt/private-addons`.
+- **odoo.conf**: `addons_path = /usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons,/mnt/private-addons`
+- **First-run auto-install**: entrypoint scans `ADDONS_INIT_DIRS` (default `/mnt/extra-addons`; Pro image sets `/mnt/extra-addons /mnt/private-addons`); Odoo resolves install order from each manifest's `depends`.
+- **Key addons**: nidan_core, nidan_connector, nidan_pos_enhance, nidan_insurance_management, base_accounting_kit, l10n_np, nepal_address_hierarchy, image_capture_upload_widget; private: nidan_commission_management, nidan_payment_management
 - **OIS webhook**: `NIDAN_OIS_URL`, `NIDAN_OIS_SECRET` for Odoo ↔ OIS
 
 ---
