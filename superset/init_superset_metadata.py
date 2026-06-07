@@ -1,9 +1,35 @@
 #!/usr/bin/env python3
 """
-NidanEHR Superset Comprehensive Hospital Dashboard
-Creates database connections, datasets, charts, and dashboards for hospital analytics.
+NidanEHR Superset — Configurable & Filterable Hospital Analytics
+================================================================
+
+Design goals (see README.md "Reporting architecture"):
+
+1. WIDE FACT DATASETS, not pre-aggregated reports.
+   Each dataset is one row per business event (visit, encounter, diagnosis,
+   lab order, invoice line, ...) carrying:
+     - a single real datetime column  -> enables Day/Week/Month/Quarter/Year roll-up
+     - every dimension preserved      -> enables data-element filtering
+     - additive base measures + SAVED metrics for distinct counts
+   No `WHERE date >= NOW()-90d` windows and no `LIMIT` are baked into the SQL,
+   so dashboard filters (custom range, "this year", etc.) actually work.
+
+2. UNIVERSAL FILTERS on every dashboard, generated programmatically:
+     - Time Range   (presets + custom range)         -> filter_time
+     - Time Grain   (Day/Week/Month/Quarter/Year)    -> filter_timegrain
+     - one value filter per declared data element     -> filter_select
+   plus a real grid layout (position_json) and cross-filtering.
+
+Dialects: OpenMRS = MySQL/MariaDB (this branch), OpenELIS & Odoo = PostgreSQL.
+Each dataset's SQL is written for its source dialect. When OpenMRS migrates to
+PostgreSQL (feat/postgres), set OPENMRS_DB_TYPE=postgresql AND port the OpenMRS
+SQL below (DATE_SUB/TIMESTAMPDIFF/CURDATE/HOUR -> Postgres equivalents).
+
+The script is idempotent: it creates missing objects and updates SQL / metrics /
+chart params / dashboard filters in place on every container start.
 """
 
+import hashlib
 import json
 import os
 import sys
@@ -12,8 +38,11 @@ from urllib.parse import quote_plus
 sys.path.insert(0, "/app")
 
 
+# --------------------------------------------------------------------------- #
+# Connection helpers
+# --------------------------------------------------------------------------- #
 def get_db_uri(prefix: str, default_host: str, db_type: str = "postgresql") -> str:
-    """Build database connection URI from env vars. db_type: postgresql or mysql."""
+    """Build a SQLAlchemy URI from env vars. db_type: postgresql | mysql."""
     host = os.environ.get(f"{prefix}_HOST", default_host)
     port = os.environ.get(f"{prefix}_PORT", "5432" if db_type == "postgresql" else "3306")
     name = os.environ.get(f"{prefix}_NAME", "")
@@ -25,6 +54,714 @@ def get_db_uri(prefix: str, default_host: str, db_type: str = "postgresql") -> s
     return f"postgresql://{user}:{safe_password}@{host}:{port}/{name}"
 
 
+# --------------------------------------------------------------------------- #
+# Reusable SQL fragments
+# --------------------------------------------------------------------------- #
+# HMIS-style age bands. `bd` = birthdate column, `ref` = reference date expr.
+def age_group_mysql(bd: str, ref: str) -> str:
+    return f"""CASE
+        WHEN TIMESTAMPDIFF(YEAR, {bd}, {ref}) < 1 THEN '<1'
+        WHEN TIMESTAMPDIFF(YEAR, {bd}, {ref}) BETWEEN 1 AND 4 THEN '01-04'
+        WHEN TIMESTAMPDIFF(YEAR, {bd}, {ref}) BETWEEN 5 AND 14 THEN '05-14'
+        WHEN TIMESTAMPDIFF(YEAR, {bd}, {ref}) BETWEEN 15 AND 24 THEN '15-24'
+        WHEN TIMESTAMPDIFF(YEAR, {bd}, {ref}) BETWEEN 25 AND 34 THEN '25-34'
+        WHEN TIMESTAMPDIFF(YEAR, {bd}, {ref}) BETWEEN 35 AND 44 THEN '35-44'
+        WHEN TIMESTAMPDIFF(YEAR, {bd}, {ref}) BETWEEN 45 AND 54 THEN '45-54'
+        WHEN TIMESTAMPDIFF(YEAR, {bd}, {ref}) BETWEEN 55 AND 64 THEN '55-64'
+        ELSE '65+' END"""
+
+
+def age_group_pg(years_expr: str) -> str:
+    return f"""CASE
+        WHEN {years_expr} < 1 THEN '<1'
+        WHEN {years_expr} BETWEEN 1 AND 4 THEN '01-04'
+        WHEN {years_expr} BETWEEN 5 AND 14 THEN '05-14'
+        WHEN {years_expr} BETWEEN 15 AND 24 THEN '15-24'
+        WHEN {years_expr} BETWEEN 25 AND 34 THEN '25-34'
+        WHEN {years_expr} BETWEEN 35 AND 44 THEN '35-44'
+        WHEN {years_expr} BETWEEN 45 AND 54 THEN '45-54'
+        WHEN {years_expr} BETWEEN 55 AND 64 THEN '55-64'
+        ELSE '65+' END"""
+
+
+# --------------------------------------------------------------------------- #
+# DATASET SPECS
+# Each: key (source db), table_name, sql, dttm (main datetime col or None),
+#       columns [(name, type, is_dim)], metrics [(name, expression)]
+# `is_dim` columns are made groupby+filterable so they appear as filter options.
+# --------------------------------------------------------------------------- #
+def build_dataset_specs():
+    specs = []
+
+    # ---- OpenMRS: PATIENTS (registration grain) --------------------------- #
+    specs.append({
+        "db": "openmrs", "table_name": "fct_patients", "dttm": "registered_at",
+        "sql": f"""
+            SELECT
+                p.patient_id,
+                p.date_created AS registered_at,
+                COALESCE(pe.gender, 'U') AS gender,
+                {age_group_mysql('pe.birthdate', 'CURDATE()')} AS age_group,
+                COALESCE(pa.city_village, 'Unknown') AS municipality,
+                COALESCE(pa.county_district, 'Unknown') AS district,
+                COALESCE(pa.state_province, 'Unknown') AS province
+            FROM patient p
+            JOIN person pe ON p.patient_id = pe.person_id
+            LEFT JOIN (
+                SELECT person_id, city_village, county_district, state_province,
+                       ROW_NUMBER() OVER (PARTITION BY person_id
+                           ORDER BY preferred DESC, person_address_id DESC) AS rn
+                FROM person_address WHERE voided = 0
+            ) pa ON pa.person_id = pe.person_id AND pa.rn = 1
+            WHERE p.voided = 0
+        """,
+        "columns": [
+            ("patient_id", "BIGINT", False), ("registered_at", "TIMESTAMP", False),
+            ("gender", "VARCHAR", True), ("age_group", "VARCHAR", True),
+            ("municipality", "VARCHAR", True), ("district", "VARCHAR", True),
+            ("province", "VARCHAR", True),
+        ],
+        "metrics": [("Patients", "COUNT(DISTINCT patient_id)")],
+    })
+
+    # ---- OpenMRS: VISITS -------------------------------------------------- #
+    specs.append({
+        "db": "openmrs", "table_name": "fct_visits", "dttm": "started_at",
+        "sql": f"""
+            SELECT
+                v.visit_id, v.patient_id,
+                v.date_started AS started_at,
+                v.date_stopped AS ended_at,
+                HOUR(v.date_started) AS hour_of_day,
+                COALESCE(vt.name, 'Unknown') AS visit_type,
+                COALESCE(loc.name, 'Unknown') AS location,
+                COALESCE(pe.gender, 'U') AS gender,
+                {age_group_mysql('pe.birthdate', 'v.date_started')} AS age_group,
+                CASE WHEN v.date_stopped IS NULL THEN 'Open' ELSE 'Closed' END AS visit_status,
+                CASE WHEN v.date_stopped IS NOT NULL
+                     THEN TIMESTAMPDIFF(SECOND, v.date_started, v.date_stopped) / 86400.0
+                END AS los_days
+            FROM visit v
+            LEFT JOIN visit_type vt ON v.visit_type_id = vt.visit_type_id
+            LEFT JOIN location loc ON v.location_id = loc.location_id
+            JOIN person pe ON v.patient_id = pe.person_id
+            WHERE v.voided = 0
+        """,
+        "columns": [
+            ("visit_id", "BIGINT", False), ("patient_id", "BIGINT", False),
+            ("started_at", "TIMESTAMP", False), ("ended_at", "TIMESTAMP", False),
+            ("hour_of_day", "INTEGER", True), ("visit_type", "VARCHAR", True),
+            ("location", "VARCHAR", True), ("gender", "VARCHAR", True),
+            ("age_group", "VARCHAR", True), ("visit_status", "VARCHAR", True),
+            ("los_days", "FLOAT", False),
+        ],
+        "metrics": [
+            ("Visits", "COUNT(DISTINCT visit_id)"),
+            ("Unique Patients", "COUNT(DISTINCT patient_id)"),
+            ("Avg LOS (days)", "AVG(los_days)"),
+        ],
+    })
+
+    # ---- OpenMRS: ENCOUNTERS (encounter x provider grain) ----------------- #
+    specs.append({
+        "db": "openmrs", "table_name": "fct_encounters", "dttm": "encounter_at",
+        "sql": """
+            SELECT
+                e.encounter_id, e.patient_id,
+                e.encounter_datetime AS encounter_at,
+                COALESCE(et.name, 'Unknown') AS encounter_type,
+                COALESCE(loc.name, 'Unknown') AS location,
+                COALESCE(NULLIF(TRIM(CONCAT(COALESCE(pn.given_name, ''), ' ',
+                         COALESCE(pn.family_name, ''))), ''), 'Unknown') AS provider_name
+            FROM encounter e
+            LEFT JOIN encounter_type et ON e.encounter_type = et.encounter_type_id
+            LEFT JOIN location loc ON e.location_id = loc.location_id
+            LEFT JOIN encounter_provider ep ON e.encounter_id = ep.encounter_id
+                AND (ep.voided = 0 OR ep.voided IS NULL)
+            LEFT JOIN provider p ON ep.provider_id = p.provider_id
+            LEFT JOIN person_name pn ON p.person_id = pn.person_id AND pn.voided = 0
+            WHERE e.voided = 0
+        """,
+        "columns": [
+            ("encounter_id", "BIGINT", False), ("patient_id", "BIGINT", False),
+            ("encounter_at", "TIMESTAMP", False), ("encounter_type", "VARCHAR", True),
+            ("location", "VARCHAR", True), ("provider_name", "VARCHAR", True),
+        ],
+        "metrics": [
+            ("Encounters", "COUNT(DISTINCT encounter_id)"),
+            ("Patients", "COUNT(DISTINCT patient_id)"),
+        ],
+    })
+
+    # ---- OpenMRS: DIAGNOSES (morbidity / surveillance) -------------------- #
+    # Source: encounter_diagnosis (OpenMRS 2.x). May be empty if diagnoses are
+    # captured only as obs in this deployment -> then this dataset returns 0 rows
+    # (harmless). Gives age/sex-disaggregated morbidity for public-health reports.
+    specs.append({
+        "db": "openmrs", "table_name": "fct_diagnoses", "dttm": "diagnosed_at",
+        "sql": f"""
+            SELECT
+                ed.diagnosis_id, ed.patient_id,
+                ed.date_created AS diagnosed_at,
+                COALESCE(cn.name, ed.diagnosis_non_coded, 'Unknown') AS diagnosis,
+                CASE WHEN ed.dx_rank = 1 THEN 'Primary' ELSE 'Secondary' END AS dx_rank,
+                COALESCE(ed.certainty, 'Unknown') AS certainty,
+                COALESCE(pe.gender, 'U') AS gender,
+                {age_group_mysql('pe.birthdate', 'ed.date_created')} AS age_group
+            FROM encounter_diagnosis ed
+            LEFT JOIN concept_name cn ON ed.diagnosis_coded = cn.concept_id
+                AND cn.locale = 'en' AND cn.concept_name_type = 'FULLY_SPECIFIED'
+                AND cn.voided = 0
+            JOIN person pe ON ed.patient_id = pe.person_id
+            WHERE ed.voided = 0
+        """,
+        "columns": [
+            ("diagnosis_id", "BIGINT", False), ("patient_id", "BIGINT", False),
+            ("diagnosed_at", "TIMESTAMP", False), ("diagnosis", "VARCHAR", True),
+            ("dx_rank", "VARCHAR", True), ("certainty", "VARCHAR", True),
+            ("gender", "VARCHAR", True), ("age_group", "VARCHAR", True),
+        ],
+        "metrics": [
+            ("Diagnoses", "COUNT(*)"),
+            ("Patients", "COUNT(DISTINCT patient_id)"),
+        ],
+    })
+
+    # ---- OpenMRS: DRUG ORDERS (prescriptions) ----------------------------- #
+    specs.append({
+        "db": "openmrs", "table_name": "fct_drug_orders", "dttm": "ordered_at",
+        "sql": """
+            SELECT
+                o.order_id, o.patient_id,
+                o.date_activated AS ordered_at,
+                COALESCE(cn.name, 'Unknown') AS drug_name,
+                COALESCE(o.order_action, 'NEW') AS order_action
+            FROM orders o
+            JOIN drug_order dord ON o.order_id = dord.order_id
+            LEFT JOIN drug d ON dord.drug_inventory_id = d.drug_id
+            LEFT JOIN concept_name cn ON d.concept_id = cn.concept_id
+                AND cn.locale = 'en' AND cn.concept_name_type = 'FULLY_SPECIFIED'
+                AND cn.voided = 0
+            WHERE o.voided = 0
+        """,
+        "columns": [
+            ("order_id", "BIGINT", False), ("patient_id", "BIGINT", False),
+            ("ordered_at", "TIMESTAMP", False), ("drug_name", "VARCHAR", True),
+            ("order_action", "VARCHAR", True),
+        ],
+        "metrics": [
+            ("Prescriptions", "COUNT(DISTINCT order_id)"),
+            ("Patients", "COUNT(DISTINCT patient_id)"),
+        ],
+    })
+
+    # ---- OpenMRS: BED OCCUPANCY (Bahmni bedmanagement) -------------------- #
+    # One row per bed assignment. Schema is from the bedmanagement OMOD added on
+    # this branch; column names may need tweaking against the live DB.
+    specs.append({
+        "db": "openmrs", "table_name": "fct_bed_assignments", "dttm": "assigned_at",
+        "sql": """
+            SELECT
+                bpam.id AS assignment_id,
+                bpam.patient_id,
+                bpam.start_datetime AS assigned_at,
+                bpam.end_datetime AS released_at,
+                COALESCE(b.bed_number, 'Unknown') AS bed_number,
+                COALESCE(bt.name, 'Unknown') AS bed_type,
+                COALESCE(loc.name, 'Unknown') AS ward,
+                CASE WHEN bpam.end_datetime IS NULL THEN 'Occupied' ELSE 'Released' END AS bed_status,
+                TIMESTAMPDIFF(SECOND, bpam.start_datetime,
+                    COALESCE(bpam.end_datetime, NOW())) / 86400.0 AS bed_days
+            FROM bed_patient_assignment_map bpam
+            JOIN bed b ON bpam.bed_id = b.bed_id
+            LEFT JOIN bed_type bt ON b.bed_type_id = bt.bed_type_id
+            LEFT JOIN bed_location_map blm ON b.bed_id = blm.bed_id
+            LEFT JOIN location loc ON blm.location_id = loc.location_id
+        """,
+        "columns": [
+            ("assignment_id", "BIGINT", False), ("patient_id", "BIGINT", False),
+            ("assigned_at", "TIMESTAMP", False), ("released_at", "TIMESTAMP", False),
+            ("bed_number", "VARCHAR", True), ("bed_type", "VARCHAR", True),
+            ("ward", "VARCHAR", True), ("bed_status", "VARCHAR", True),
+            ("bed_days", "FLOAT", False),
+        ],
+        "metrics": [
+            ("Admissions", "COUNT(DISTINCT assignment_id)"),
+            ("Bed Days", "SUM(bed_days)"),
+            ("Avg Bed Days", "AVG(bed_days)"),
+        ],
+    })
+
+    # ---- OpenELIS: LAB ORDERS (analysis grain) ---------------------------- #
+    specs.append({
+        "db": "openelis", "table_name": "fct_lab_orders", "dttm": "ordered_at",
+        "sql": """
+            SELECT
+                a.id AS analysis_id,
+                a.entry_date AS ordered_at,
+                a.lastupdated AS updated_at,
+                COALESCE(t.description, 'Unknown') AS test_name,
+                COALESCE(ts.name, 'Unknown') AS test_section,
+                COALESCE(sos.name, 'Unknown') AS status,
+                sh.patient_id,
+                EXTRACT(EPOCH FROM (COALESCE(a.lastupdated, a.entry_date) - a.entry_date)) / 3600.0 AS tat_hours
+            FROM analysis a
+            LEFT JOIN test t ON a.test_id = t.id
+            LEFT JOIN test_section ts ON t.test_section_id = ts.id
+            LEFT JOIN status_of_sample sos ON a.status_id = sos.id
+            LEFT JOIN sample_item si ON a.sampitem_id = si.id
+            LEFT JOIN sample s ON si.samp_id = s.id
+            LEFT JOIN sample_human sh ON s.id = sh.samp_id
+        """,
+        "columns": [
+            ("analysis_id", "BIGINT", False), ("ordered_at", "TIMESTAMP", False),
+            ("updated_at", "TIMESTAMP", False), ("test_name", "VARCHAR", True),
+            ("test_section", "VARCHAR", True), ("status", "VARCHAR", True),
+            ("patient_id", "BIGINT", False), ("tat_hours", "FLOAT", False),
+        ],
+        "metrics": [
+            ("Tests", "COUNT(analysis_id)"),
+            ("Unique Patients", "COUNT(DISTINCT patient_id)"),
+            ("Avg TAT (hrs)", "AVG(tat_hours)"),
+        ],
+    })
+
+    # ---- Odoo: INVOICE LINES (revenue) ------------------------------------ #
+    specs.append({
+        "db": "odoo", "table_name": "fct_invoice_lines", "dttm": "invoiced_at",
+        "sql": """
+            SELECT
+                aml.id AS line_id,
+                am.id AS invoice_id,
+                am.invoice_date AS invoiced_at,
+                am.partner_id,
+                COALESCE(pt.name->>'en_US', pt.name->>'en', 'Other') AS product,
+                COALESCE(pc.name, 'Other') AS product_category,
+                COALESCE(am.payment_state, 'unknown') AS payment_state,
+                aml.price_subtotal AS amount
+            FROM account_move am
+            JOIN account_move_line aml ON am.id = aml.move_id
+                AND (aml.display_type IS NULL OR aml.display_type = 'product')
+            LEFT JOIN product_product pp ON aml.product_id = pp.id
+            LEFT JOIN product_template pt ON pp.product_tmpl_id = pt.id
+            LEFT JOIN product_category pc ON pt.categ_id = pc.id
+            WHERE am.move_type = 'out_invoice' AND am.state = 'posted'
+        """,
+        "columns": [
+            ("line_id", "BIGINT", False), ("invoice_id", "BIGINT", False),
+            ("invoiced_at", "TIMESTAMP", False), ("partner_id", "BIGINT", False),
+            ("product", "VARCHAR", True), ("product_category", "VARCHAR", True),
+            ("payment_state", "VARCHAR", True), ("amount", "FLOAT", False),
+        ],
+        "metrics": [
+            ("Revenue", "SUM(amount)"),
+            ("Invoices", "COUNT(DISTINCT invoice_id)"),
+            ("Customers", "COUNT(DISTINCT partner_id)"),
+            ("Avg Line Value", "AVG(amount)"),
+        ],
+    })
+
+    # ---- Odoo: OUTSTANDING AR (invoice header grain) ---------------------- #
+    specs.append({
+        "db": "odoo", "table_name": "fct_outstanding_ar", "dttm": "invoiced_at",
+        "sql": """
+            SELECT
+                am.id AS invoice_id,
+                am.invoice_date AS invoiced_at,
+                am.partner_id,
+                am.amount_total,
+                am.amount_residual,
+                COALESCE(am.payment_state, 'unknown') AS payment_state,
+                (CURRENT_DATE - am.invoice_date) AS days_outstanding,
+                CASE
+                    WHEN CURRENT_DATE - am.invoice_date <= 30 THEN '0-30 days'
+                    WHEN CURRENT_DATE - am.invoice_date <= 60 THEN '31-60 days'
+                    WHEN CURRENT_DATE - am.invoice_date <= 90 THEN '61-90 days'
+                    ELSE '90+ days' END AS aging_bucket
+            FROM account_move am
+            WHERE am.move_type = 'out_invoice' AND am.state = 'posted'
+              AND am.payment_state <> 'paid'
+        """,
+        "columns": [
+            ("invoice_id", "BIGINT", False), ("invoiced_at", "TIMESTAMP", False),
+            ("partner_id", "BIGINT", False), ("amount_total", "FLOAT", False),
+            ("amount_residual", "FLOAT", False), ("payment_state", "VARCHAR", True),
+            ("days_outstanding", "INTEGER", False), ("aging_bucket", "VARCHAR", True),
+        ],
+        "metrics": [
+            ("Outstanding", "SUM(amount_residual)"),
+            ("Billed", "SUM(amount_total)"),
+            ("Open Invoices", "COUNT(DISTINCT invoice_id)"),
+        ],
+    })
+
+    # ---- Odoo: DRUG STOCK (snapshot, non-temporal) ------------------------ #
+    specs.append({
+        "db": "odoo", "table_name": "fct_drug_stock", "dttm": None,
+        "sql": """
+            SELECT
+                pt.id AS product_id,
+                COALESCE(pt.name->>'en_US', pt.name->>'en', 'Unknown') AS drug_name,
+                COALESCE(sl.name, 'No Lot') AS lot_number,
+                COALESCE(loc.complete_name, 'Unknown') AS location,
+                SUM(sq.quantity) AS quantity
+            FROM stock_quant sq
+            JOIN product_product pp ON sq.product_id = pp.id
+            JOIN product_template pt ON pp.product_tmpl_id = pt.id
+            JOIN stock_location loc ON sq.location_id = loc.id
+            LEFT JOIN stock_lot sl ON sq.lot_id = sl.id
+            WHERE pt.clinical_product_type = 'drug'
+              AND loc.usage = 'internal'
+              AND sq.quantity > 0
+            GROUP BY pt.id, pt.name, sl.name, loc.complete_name
+        """,
+        "columns": [
+            ("product_id", "BIGINT", False), ("drug_name", "VARCHAR", True),
+            ("lot_number", "VARCHAR", True), ("location", "VARCHAR", True),
+            ("quantity", "FLOAT", False),
+        ],
+        "metrics": [("Quantity on Hand", "SUM(quantity)")],
+    })
+
+    return specs
+
+
+# --------------------------------------------------------------------------- #
+# CHART helpers — every chart leaves time range/grain to the dashboard filters
+# (time_range="No filter", time_grain default P1D overridden by the grain filter)
+# --------------------------------------------------------------------------- #
+def ts_chart(name, table, metrics, x_axis, groupby=None, viz="echarts_timeseries_line"):
+    return (name, table, viz, {
+        "x_axis": x_axis,
+        "time_grain_sqla": "P1D",
+        "metrics": metrics,
+        "groupby": groupby or [],
+        "row_limit": 10000,
+        "time_range": "No filter",
+        "x_axis_sort_asc": True,
+        "show_legend": True,
+        "rich_tooltip": True,
+        "adhoc_filters": [],
+    })
+
+
+def cat_bar_chart(name, table, metric, dimension, row_limit=25):
+    return (name, table, "echarts_timeseries_bar", {
+        "x_axis": dimension,
+        "metrics": [metric],
+        "groupby": [],
+        "row_limit": row_limit,
+        "time_range": "No filter",
+        "order_desc": True,
+        "show_legend": False,
+        "adhoc_filters": [],
+    })
+
+
+def pie_chart(name, table, metric, dimension):
+    return (name, table, "pie", {
+        "metric": metric,
+        "groupby": [dimension],
+        "row_limit": 50,
+        "time_range": "No filter",
+        "show_legend": True,
+        "legendType": "scroll",
+        "adhoc_filters": [],
+    })
+
+
+def big_number(name, table, metric, subheader=""):
+    return (name, table, "big_number_total", {
+        "metric": metric,
+        "time_range": "No filter",
+        "subheader": subheader,
+        "adhoc_filters": [],
+    })
+
+
+def table_chart(name, table, columns, metrics=None, row_limit=100, order_by=None):
+    params = {
+        "query_mode": "aggregate" if metrics else "raw",
+        "row_limit": row_limit,
+        "time_range": "No filter",
+        "adhoc_filters": [],
+    }
+    if metrics:
+        params["groupby"] = columns
+        params["metrics"] = metrics
+    else:
+        params["all_columns"] = columns
+    if order_by:
+        params["order_by_cols"] = order_by
+    return (name, table, "table", params)
+
+
+def build_chart_specs():
+    M = lambda *names: list(names)  # saved-metric references by name
+    charts = []
+
+    # Executive KPIs
+    charts += [
+        big_number("KPI · Patients Registered", "fct_patients", "Patients"),
+        big_number("KPI · Visits", "fct_visits", "Visits"),
+        big_number("KPI · Lab Tests", "fct_lab_orders", "Tests"),
+        big_number("KPI · Revenue", "fct_invoice_lines", "Revenue"),
+        ts_chart("Patient Registrations Trend", "fct_patients", ["Patients"], "registered_at"),
+        ts_chart("Visits Trend by Type", "fct_visits", ["Visits"], "started_at", groupby=["visit_type"]),
+        ts_chart("Revenue Trend", "fct_invoice_lines", ["Revenue"], "invoiced_at"),
+        ts_chart("Lab Volume Trend", "fct_lab_orders", ["Tests"], "ordered_at"),
+    ]
+
+    # Patient flow & demographics
+    charts += [
+        pie_chart("Gender Distribution", "fct_patients", "Patients", "gender"),
+        cat_bar_chart("Age Distribution", "fct_patients", "Patients", "age_group"),
+        cat_bar_chart("Top Municipalities", "fct_patients", "Patients", "municipality"),
+        cat_bar_chart("Patients by District", "fct_patients", "Patients", "district"),
+        cat_bar_chart("Visits by Hour of Day", "fct_visits", "Visits", "hour_of_day", row_limit=24),
+        pie_chart("Visits by Status", "fct_visits", "Visits", "visit_status"),
+    ]
+
+    # Clinical operations
+    charts += [
+        cat_bar_chart("Encounter Types", "fct_encounters", "Encounters", "encounter_type"),
+        cat_bar_chart("Provider Productivity", "fct_encounters", "Encounters", "provider_name"),
+        cat_bar_chart("Encounters by Location", "fct_encounters", "Encounters", "location"),
+        ts_chart("Avg Length of Stay", "fct_visits", ["Avg LOS (days)"], "started_at", groupby=["visit_type"]),
+    ]
+
+    # Morbidity / public health
+    charts += [
+        cat_bar_chart("Top Diagnoses", "fct_diagnoses", "Diagnoses", "diagnosis", row_limit=25),
+        cat_bar_chart("Morbidity by Age Group", "fct_diagnoses", "Diagnoses", "age_group"),
+        pie_chart("Morbidity by Gender", "fct_diagnoses", "Diagnoses", "gender"),
+        ts_chart("Diagnosis Trend", "fct_diagnoses", ["Diagnoses"], "diagnosed_at"),
+    ]
+
+    # Laboratory
+    charts += [
+        ts_chart("Lab Test Volume", "fct_lab_orders", ["Tests"], "ordered_at", groupby=["test_section"]),
+        cat_bar_chart("Top Tests", "fct_lab_orders", "Tests", "test_name", row_limit=25),
+        ts_chart("Turnaround Time Trend", "fct_lab_orders", ["Avg TAT (hrs)"], "ordered_at", groupby=["test_section"]),
+        pie_chart("Tests by Status", "fct_lab_orders", "Tests", "status"),
+    ]
+
+    # Financial
+    charts += [
+        ts_chart("Revenue by Category Trend", "fct_invoice_lines", ["Revenue"], "invoiced_at", groupby=["product_category"]),
+        cat_bar_chart("Revenue by Category", "fct_invoice_lines", "Revenue", "product_category"),
+        cat_bar_chart("Top Revenue Products", "fct_invoice_lines", "Revenue", "product", row_limit=25),
+        cat_bar_chart("AR Aging", "fct_outstanding_ar", "Outstanding", "aging_bucket"),
+        pie_chart("Invoices by Payment State", "fct_invoice_lines", "Invoices", "payment_state"),
+    ]
+
+    # Pharmacy
+    charts += [
+        cat_bar_chart("Top Prescribed Drugs", "fct_drug_orders", "Prescriptions", "drug_name", row_limit=25),
+        ts_chart("Prescription Trend", "fct_drug_orders", ["Prescriptions"], "ordered_at"),
+        table_chart("Stock on Hand", "fct_drug_stock",
+                    ["drug_name", "lot_number", "location"], metrics=["Quantity on Hand"], row_limit=200),
+    ]
+
+    # Inpatient / bed management
+    charts += [
+        big_number("KPI · Currently Admitted", "fct_bed_assignments", "Admissions"),
+        ts_chart("Admissions Trend", "fct_bed_assignments", ["Admissions"], "assigned_at", groupby=["ward"]),
+        cat_bar_chart("Bed Days by Ward", "fct_bed_assignments", "Bed Days", "ward"),
+        pie_chart("Beds by Type", "fct_bed_assignments", "Admissions", "bed_type"),
+    ]
+
+    return charts
+
+
+# --------------------------------------------------------------------------- #
+# DASHBOARD SPECS
+# filters: list of (table_name, column, label). Every dashboard also gets a
+# global Time Range + Time Grain filter automatically.
+# --------------------------------------------------------------------------- #
+def build_dashboard_specs():
+    return [
+        {
+            "title": "NidanEHR · Executive Overview",
+            "charts": ["KPI · Patients Registered", "KPI · Visits", "KPI · Lab Tests", "KPI · Revenue",
+                       "Patient Registrations Trend", "Revenue Trend",
+                       "Visits Trend by Type", "Lab Volume Trend"],
+            "filters": [("fct_visits", "visit_type", "Visit Type"),
+                        ("fct_visits", "location", "Location"),
+                        ("fct_patients", "gender", "Gender")],
+        },
+        {
+            "title": "NidanEHR · Patient Flow & Demographics",
+            "charts": ["Gender Distribution", "Age Distribution", "Top Municipalities",
+                       "Patients by District", "Visits by Hour of Day", "Visits by Status"],
+            "filters": [("fct_patients", "gender", "Gender"),
+                        ("fct_patients", "age_group", "Age Group"),
+                        ("fct_patients", "district", "District"),
+                        ("fct_patients", "province", "Province")],
+        },
+        {
+            "title": "NidanEHR · Clinical Operations",
+            "charts": ["Encounter Types", "Provider Productivity", "Encounters by Location",
+                       "Avg Length of Stay"],
+            "filters": [("fct_encounters", "encounter_type", "Encounter Type"),
+                        ("fct_encounters", "location", "Location"),
+                        ("fct_encounters", "provider_name", "Provider")],
+        },
+        {
+            "title": "NidanEHR · Morbidity & Public Health",
+            "charts": ["Top Diagnoses", "Morbidity by Age Group", "Morbidity by Gender",
+                       "Diagnosis Trend"],
+            "filters": [("fct_diagnoses", "diagnosis", "Diagnosis"),
+                        ("fct_diagnoses", "age_group", "Age Group"),
+                        ("fct_diagnoses", "gender", "Gender"),
+                        ("fct_diagnoses", "dx_rank", "Diagnosis Rank")],
+        },
+        {
+            "title": "NidanEHR · Laboratory Analytics",
+            "charts": ["Lab Test Volume", "Top Tests", "Turnaround Time Trend", "Tests by Status"],
+            "filters": [("fct_lab_orders", "test_section", "Test Section"),
+                        ("fct_lab_orders", "test_name", "Test"),
+                        ("fct_lab_orders", "status", "Status")],
+        },
+        {
+            "title": "NidanEHR · Financial Performance",
+            "charts": ["Revenue by Category Trend", "Revenue by Category", "Top Revenue Products",
+                       "AR Aging", "Invoices by Payment State"],
+            "filters": [("fct_invoice_lines", "product_category", "Service Category"),
+                        ("fct_invoice_lines", "payment_state", "Payment State")],
+        },
+        {
+            "title": "NidanEHR · Pharmacy Management",
+            "charts": ["Top Prescribed Drugs", "Prescription Trend", "Stock on Hand"],
+            "filters": [("fct_drug_orders", "drug_name", "Drug")],
+        },
+        {
+            "title": "NidanEHR · Inpatient & Bed Management",
+            "charts": ["KPI · Currently Admitted", "Admissions Trend", "Bed Days by Ward", "Beds by Type"],
+            "filters": [("fct_bed_assignments", "ward", "Ward"),
+                        ("fct_bed_assignments", "bed_type", "Bed Type"),
+                        ("fct_bed_assignments", "bed_status", "Bed Status")],
+        },
+    ]
+
+
+# --------------------------------------------------------------------------- #
+# Layout + native-filter JSON generators
+# --------------------------------------------------------------------------- #
+def _hash_id(prefix, *parts):
+    h = hashlib.md5("::".join(str(p) for p in parts).encode()).hexdigest()[:10]
+    return f"{prefix}-{h}"
+
+
+def build_position_json(title, slices):
+    """Grid layout: KPI/big-number charts compact, others 2-per-row."""
+    position = {
+        "DASHBOARD_VERSION_KEY": "v2",
+        "ROOT_ID": {"type": "ROOT", "id": "ROOT_ID", "children": ["GRID_ID"]},
+        "GRID_ID": {"type": "GRID", "id": "GRID_ID", "children": [], "parents": ["ROOT_ID"]},
+        "HEADER_ID": {"type": "HEADER", "id": "HEADER_ID", "meta": {"text": title}},
+    }
+    rows = []
+    kpis = [s for s in slices if s.viz_type == "big_number_total"]
+    others = [s for s in slices if s.viz_type != "big_number_total"]
+
+    def add_row(members, width, height):
+        if not members:
+            return
+        row_id = _hash_id("ROW", title, len(rows))
+        children = []
+        for s in members:
+            cid = _hash_id("CHART", s.id)
+            position[cid] = {
+                "type": "CHART", "id": cid, "children": [],
+                "meta": {"chartId": s.id, "sliceName": s.slice_name,
+                         "width": width, "height": height},
+                "parents": ["ROOT_ID", "GRID_ID", row_id],
+            }
+            children.append(cid)
+        position[row_id] = {
+            "type": "ROW", "id": row_id, "children": children,
+            "meta": {"background": "BACKGROUND_TRANSPARENT"},
+            "parents": ["ROOT_ID", "GRID_ID"],
+        }
+        rows.append(row_id)
+
+    # KPI row: up to 4 across
+    for i in range(0, len(kpis), 4):
+        add_row(kpis[i:i + 4], width=3, height=40)
+    # Other charts: 2 across
+    for i in range(0, len(others), 2):
+        add_row(others[i:i + 2], width=6, height=52)
+
+    position["GRID_ID"]["children"] = rows
+    return position
+
+
+def build_native_filters(title, filter_specs, table_to_dataset, primary_dataset_id):
+    """Time Range + Time Grain + one select per (table, column, label)."""
+    filters = []
+
+    # Time Range (presets + custom range). Default to a generous window.
+    filters.append({
+        "id": _hash_id("NATIVE_FILTER", title, "time_range"),
+        "name": "Time Range",
+        "filterType": "filter_time",
+        "type": "NATIVE_FILTER",
+        "targets": [{}],
+        "controlValues": {},
+        "defaultDataMask": {
+            "filterState": {"value": "Last 90 days"},
+            "extraFormData": {"time_range": "Last 90 days"},
+        },
+        "cascadeParentIds": [],
+        "scope": {"rootPath": ["ROOT_ID"], "excluded": []},
+        "description": "",
+    })
+
+    # Time Grain: Day / Week / Month / Quarter / Year
+    filters.append({
+        "id": _hash_id("NATIVE_FILTER", title, "time_grain"),
+        "name": "Time Grain",
+        "filterType": "filter_timegrain",
+        "type": "NATIVE_FILTER",
+        "targets": [{"datasetId": primary_dataset_id}],
+        "controlValues": {},
+        "defaultDataMask": {
+            "filterState": {"value": ["P1D"]},
+            "extraFormData": {"time_grain_sqla": "P1D"},
+        },
+        "cascadeParentIds": [],
+        "scope": {"rootPath": ["ROOT_ID"], "excluded": []},
+        "description": "Daily / Weekly / Monthly / Quarterly / Yearly",
+    })
+
+    # Value (data-element) filters
+    for table_name, column, label in filter_specs:
+        ds_id = table_to_dataset.get(table_name)
+        if not ds_id:
+            continue
+        filters.append({
+            "id": _hash_id("NATIVE_FILTER", title, table_name, column),
+            "name": label,
+            "filterType": "filter_select",
+            "type": "NATIVE_FILTER",
+            "targets": [{"datasetId": ds_id, "column": {"name": column}}],
+            "controlValues": {
+                "multiSelect": True, "enableEmptyFilter": False,
+                "searchAllOptions": False, "inverseSelection": False,
+                "defaultToFirstItem": False,
+            },
+            "defaultDataMask": {"filterState": {}, "extraFormData": {}},
+            "cascadeParentIds": [],
+            "scope": {"rootPath": ["ROOT_ID"], "excluded": []},
+            "description": "",
+        })
+    return filters
+
+
+# --------------------------------------------------------------------------- #
+# Main
+# --------------------------------------------------------------------------- #
 def main():
     from superset.app import create_app
 
@@ -40,633 +777,182 @@ def main():
     with app.app_context():
         from superset.extensions import db
         from superset.models.core import Database
-        from superset.connectors.sqla.models import SqlaTable, TableColumn
+        from superset.connectors.sqla.models import SqlaTable, TableColumn, SqlMetric
         from superset.models.slice import Slice
         from superset.models.dashboard import Dashboard
 
-        # Explicit column definitions for when fetch_metadata fails (schema mismatch, etc.)
-        DATASET_COLUMNS = {
-            "patient_registrations_trend": [("registration_date", "DATE"), ("patient_count", "BIGINT"), ("male_count", "BIGINT"), ("female_count", "BIGINT")],
-            "patient_demographics": [("age_group", "VARCHAR"), ("gender", "VARCHAR"), ("patient_count", "BIGINT")],
-            "patient_location_distribution": [("location", "VARCHAR"), ("patient_count", "BIGINT")],
-            "visit_statistics": [("visit_date", "DATE"), ("visit_type", "VARCHAR"), ("visit_count", "BIGINT"), ("unique_patients", "BIGINT"), ("avg_duration_hours", "FLOAT")],
-            "daily_census": [("census_date", "DATE"), ("inpatient_count", "BIGINT"), ("unique_patients", "BIGINT")],
-            "encounter_types_distribution": [("encounter_type", "VARCHAR"), ("encounter_count", "BIGINT"), ("unique_patients", "BIGINT")],
-            "hourly_visit_pattern": [("hour_of_day", "INTEGER"), ("visit_count", "BIGINT")],
-            "lab_test_volume": [("test_date", "DATE"), ("test_name", "VARCHAR"), ("test_count", "BIGINT"), ("unique_patients", "BIGINT")],
-            "lab_turnaround_time": [("order_date", "DATE"), ("test_name", "VARCHAR"), ("avg_tat_hours", "FLOAT")],
-            "revenue_summary": [("invoice_date", "DATE"), ("total_revenue", "FLOAT"), ("invoice_count", "BIGINT"), ("unique_customers", "BIGINT"), ("avg_invoice_amount", "FLOAT")],
-            "revenue_by_service": [("invoice_date", "DATE"), ("service_category", "VARCHAR"), ("revenue", "FLOAT"), ("invoice_count", "BIGINT")],
-            "outstanding_invoices": [("aging_bucket", "VARCHAR"), ("invoice_count", "BIGINT"), ("outstanding_amount", "FLOAT")],
-            "top_prescribed_drugs": [("drug_name", "VARCHAR"), ("prescription_count", "BIGINT"), ("unique_patients", "BIGINT")],
-            "average_length_of_stay": [("admission_date", "DATE"), ("visit_type", "VARCHAR"), ("visit_count", "BIGINT"), ("avg_los_days", "FLOAT")],
-            "bed_occupancy": [("occupancy_date", "DATE"), ("occupied_beds", "BIGINT"), ("occupancy_rate", "FLOAT")],
-            "provider_productivity": [("provider_name", "VARCHAR"), ("encounter_count", "BIGINT"), ("unique_patients", "BIGINT")],
-            "patient_registrations_daily": [("registration_date", "DATE"), ("patient_count", "BIGINT"), ("male_count", "BIGINT"), ("female_count", "BIGINT")],
-            "visits_summary": [("visit_date", "DATE"), ("visit_type", "VARCHAR"), ("visit_count", "BIGINT"), ("unique_patients", "BIGINT")],
-            "lab_tests_daily": [("test_date", "DATE"), ("test_name", "VARCHAR"), ("test_count", "BIGINT"), ("unique_patients", "BIGINT")],
-            "daily_revenue": [("invoice_date", "DATE"), ("product_category", "VARCHAR"), ("revenue", "FLOAT"), ("invoice_count", "BIGINT")],
-            "near_expiry_medicines": [("drug_name", "VARCHAR"), ("lot_number", "VARCHAR"), ("expiration_date", "DATE"), ("days_until_expiry", "INTEGER"), ("quantity", "FLOAT")],
-            "low_stock_drugs": [("drug_name", "VARCHAR"), ("quantity_on_hand", "FLOAT")],
-        }
+        print("=" * 70)
+        print("NidanEHR — Configurable Hospital Analytics Initialization")
+        print("=" * 70)
 
-        try:
-            print("=" * 70)
-            print("NidanEHR Comprehensive Hospital Dashboard Initialization")
-            print("=" * 70)
-
-            # Step 1: Create database connections
-            print("\nCreating database connections...")
-            databases = {}
-            for key, config in DB_CONFIGS.items():
-                existing = db.session.query(Database).filter_by(database_name=config["name"]).first()
-                if existing:
-                    print(f"  ✓ Database '{config['name']}' already exists")
-                    if existing.allow_run_async:
-                        existing.allow_run_async = False
-                        db.session.commit()
-                        print(f"    → Disabled async (no Celery workers)")
-                    databases[key] = existing
-                else:
-                    database = Database(
-                        database_name=config["name"],
-                        sqlalchemy_uri=config["uri"],
-                        expose_in_sqllab=True,
-                        allow_run_async=False,  # No Celery workers - run queries synchronously
-                        allow_ctas=False,
-                        allow_cvas=False,
-                        allow_dml=False,
-                    )
-                    db.session.add(database)
+        # --- Step 1: database connections --------------------------------- #
+        print("\n[1/4] Database connections")
+        databases = {}
+        for key, config in DB_CONFIGS.items():
+            existing = db.session.query(Database).filter_by(database_name=config["name"]).first()
+            if existing:
+                if existing.allow_run_async:
+                    existing.allow_run_async = False
                     db.session.commit()
-                    print(f"  ✓ Created database '{config['name']}'")
-                    databases[key] = database
-
-            # Step 2: Create datasets (with try/except for schema variations)
-            print("\nCreating datasets...")
-            datasets = {}
-
-            def ensure_dataset_columns(dataset, table_name):
-                """Ensure dataset has required columns (fixes 'Columns missing' when fetch_metadata fails)."""
-                cols = DATASET_COLUMNS.get(table_name)
-                if not cols:
-                    return
-                existing_names = {c.column_name for c in dataset.columns}
-                missing = [(n, t) for n, t in cols if n not in existing_names]
-                if not missing:
-                    return
-                for col_name, col_type in missing:
-                    tc = TableColumn(column_name=col_name, type=col_type, table=dataset)
-                    tc.is_dttm = col_type in ("DATE", "TIMESTAMP", "DATETIME")
-                    db.session.add(tc)
-                db.session.commit()
-                print(f"    → Added {len(missing)} missing column(s) to '{table_name}'")
-
-            def add_dataset(db_key, table_name, sql):
-                database = databases.get(db_key)
-                if not database:
-                    return
-                existing = db.session.query(SqlaTable).filter_by(table_name=table_name, database_id=database.id).first()
-                if existing:
-                    print(f"  ✓ Dataset '{table_name}' already exists")
-                    # Update SQL when it differs (applies schema fixes: entered_date->entry_date, etc.)
-                    new_sql = sql.strip()
-                    if existing.sql != new_sql:
-                        existing.sql = new_sql
-                        db.session.commit()
-                        print(f"    → Updated SQL")
-                    ensure_dataset_columns(existing, table_name)
-                    datasets[table_name] = existing
-                    return
-                try:
-                    dataset = SqlaTable(
-                        table_name=table_name,
-                        sql=sql.strip(),
-                        database_id=database.id,
-                        database=database,
-                        is_sqllab_view=False,
-                    )
-                    db.session.add(dataset)
-                    db.session.commit()
-                    try:
-                        dataset.fetch_metadata()
-                        db.session.commit()
-                    except Exception:
-                        pass
-                    ensure_dataset_columns(dataset, table_name)
-                    print(f"  ✓ Created dataset '{table_name}'")
-                    datasets[table_name] = dataset
-                except Exception as e:
-                    print(f"  ✗ Failed '{table_name}': {e}")
-                    db.session.rollback()
-
-            # --- EXECUTIVE / PATIENT FLOW ---
-            add_dataset("openmrs", "patient_registrations_trend", """
-                SELECT DATE(p.date_created) as registration_date,
-                    COUNT(DISTINCT p.patient_id) as patient_count,
-                    COUNT(DISTINCT CASE WHEN pe.gender = 'M' THEN p.patient_id END) as male_count,
-                    COUNT(DISTINCT CASE WHEN pe.gender = 'F' THEN p.patient_id END) as female_count
-                FROM patient p
-                JOIN person pe ON p.patient_id = pe.person_id
-                WHERE p.voided = 0 AND p.date_created >= DATE_SUB(CURRENT_DATE, INTERVAL 90 DAY)
-                GROUP BY DATE(p.date_created) ORDER BY registration_date DESC
-            """)
-            add_dataset("openmrs", "patient_demographics", """
-                SELECT CASE
-                    WHEN TIMESTAMPDIFF(YEAR, pe.birthdate, CURDATE()) < 5 THEN '0-4'
-                    WHEN TIMESTAMPDIFF(YEAR, pe.birthdate, CURDATE()) BETWEEN 5 AND 14 THEN '5-14'
-                    WHEN TIMESTAMPDIFF(YEAR, pe.birthdate, CURDATE()) BETWEEN 15 AND 24 THEN '15-24'
-                    WHEN TIMESTAMPDIFF(YEAR, pe.birthdate, CURDATE()) BETWEEN 25 AND 44 THEN '25-44'
-                    WHEN TIMESTAMPDIFF(YEAR, pe.birthdate, CURDATE()) BETWEEN 45 AND 64 THEN '45-64'
-                    ELSE '65+' END as age_group,
-                    COALESCE(pe.gender, 'Unknown') as gender,
-                    COUNT(DISTINCT p.patient_id) as patient_count
-                FROM patient p JOIN person pe ON p.patient_id = pe.person_id
-                WHERE p.voided = 0
-                GROUP BY 1, COALESCE(pe.gender, 'Unknown') ORDER BY 1, 2
-            """)
-            add_dataset("openmrs", "patient_location_distribution", """
-                SELECT COALESCE(pa.city_village, 'Unknown') as location,
-                    COUNT(DISTINCT p.patient_id) as patient_count
-                FROM patient p JOIN person pe ON p.patient_id = pe.person_id
-                LEFT JOIN person_address pa ON pe.person_id = pa.person_id AND pa.voided = 0
-                WHERE p.voided = 0
-                GROUP BY pa.city_village ORDER BY patient_count DESC LIMIT 20
-            """)
-
-            # --- VISITS & ENCOUNTERS ---
-            add_dataset("openmrs", "visit_statistics", """
-                SELECT DATE(v.date_started) as visit_date,
-                    COALESCE(vt.name, 'Unknown') as visit_type,
-                    COUNT(DISTINCT v.visit_id) as visit_count,
-                    COUNT(DISTINCT v.patient_id) as unique_patients,
-                    AVG(TIMESTAMPDIFF(SECOND, v.date_started, COALESCE(v.date_stopped, NOW())) / 3600.0) as avg_duration_hours
-                FROM visit v LEFT JOIN visit_type vt ON v.visit_type_id = vt.visit_type_id
-                WHERE v.voided = 0 AND v.date_started >= DATE_SUB(CURRENT_DATE, INTERVAL 90 DAY)
-                GROUP BY DATE(v.date_started), COALESCE(vt.name, 'Unknown') ORDER BY visit_date DESC
-            """)
-            add_dataset("openmrs", "daily_census", """
-                WITH RECURSIVE date_series AS (
-                    SELECT DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY) AS d
-                    UNION ALL
-                    SELECT DATE_ADD(d, INTERVAL 1 DAY) FROM date_series WHERE d < CURRENT_DATE
+                databases[key] = existing
+                print(f"  ✓ {config['name']} (existing)")
+            else:
+                database = Database(
+                    database_name=config["name"], sqlalchemy_uri=config["uri"],
+                    expose_in_sqllab=True, allow_run_async=False,
+                    allow_ctas=False, allow_cvas=False, allow_dml=False,
                 )
-                SELECT ds.d AS census_date,
-                    COUNT(DISTINCT v.visit_id) AS inpatient_count,
-                    COUNT(DISTINCT v.patient_id) AS unique_patients
-                FROM date_series ds
-                LEFT JOIN visit v ON DATE(v.date_started) <= ds.d
-                    AND (v.date_stopped IS NULL OR DATE(v.date_stopped) >= ds.d) AND v.voided = 0
-                GROUP BY ds.d ORDER BY census_date DESC
-            """)
-            add_dataset("openmrs", "encounter_types_distribution", """
-                SELECT COALESCE(et.name, 'Unknown') as encounter_type,
-                    COUNT(e.encounter_id) as encounter_count,
-                    COUNT(DISTINCT e.patient_id) as unique_patients
-                FROM encounter e LEFT JOIN encounter_type et ON e.encounter_type = et.encounter_type_id
-                WHERE e.voided = 0 AND e.encounter_datetime >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)
-                GROUP BY COALESCE(et.name, 'Unknown') ORDER BY encounter_count DESC
-            """)
-            add_dataset("openmrs", "hourly_visit_pattern", """
-                SELECT HOUR(v.date_started) as hour_of_day,
-                    COUNT(DISTINCT v.visit_id) as visit_count
-                FROM visit v WHERE v.voided = 0 AND v.date_started >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)
-                GROUP BY 1 ORDER BY 1
-            """)
-
-            # --- LABORATORY ---
-            add_dataset("openelis", "lab_test_volume", """
-                SELECT DATE(a.entry_date) as test_date,
-                    COALESCE(t.description, 'Unknown') as test_name,
-                    COUNT(a.id) as test_count,
-                    COUNT(DISTINCT sh.patient_id) as unique_patients
-                FROM analysis a
-                LEFT JOIN test t ON a.test_id = t.id
-                LEFT JOIN sample_item si ON a.sampitem_id = si.id
-                LEFT JOIN sample s ON si.samp_id = s.id
-                LEFT JOIN sample_human sh ON s.id = sh.samp_id
-                WHERE a.entry_date >= CURRENT_DATE - INTERVAL '90 days'
-                GROUP BY DATE(a.entry_date), COALESCE(t.description, 'Unknown') ORDER BY test_date DESC
-            """)
-            add_dataset("openelis", "lab_turnaround_time", """
-                SELECT DATE(a.entry_date) as order_date,
-                    COALESCE(t.description, 'Unknown') as test_name,
-                    ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(a.lastupdated, a.entry_date) - a.entry_date))/3600), 2) as avg_tat_hours
-                FROM analysis a
-                LEFT JOIN test t ON a.test_id = t.id
-                WHERE a.entry_date >= CURRENT_DATE - INTERVAL '30 days'
-                GROUP BY DATE(a.entry_date), COALESCE(t.description, 'Unknown') HAVING COUNT(a.id) >= 1
-                ORDER BY order_date DESC
-            """)
-
-            # --- FINANCIAL ---
-            add_dataset("odoo", "revenue_summary", """
-                SELECT DATE(am.invoice_date) as invoice_date,
-                    SUM(am.amount_total) as total_revenue,
-                    COUNT(DISTINCT am.id) as invoice_count,
-                    COUNT(DISTINCT am.partner_id) as unique_customers,
-                    AVG(am.amount_total) as avg_invoice_amount
-                FROM account_move am
-                WHERE am.move_type = 'out_invoice' AND am.state = 'posted'
-                    AND am.invoice_date >= CURRENT_DATE - INTERVAL '90 days'
-                GROUP BY DATE(am.invoice_date) ORDER BY invoice_date DESC
-            """)
-            add_dataset("odoo", "revenue_by_service", """
-                SELECT DATE(am.invoice_date) as invoice_date,
-                    COALESCE(pt.name->>'en_US', pt.name->>'en', 'Other') as service_category,
-                    SUM(aml.price_subtotal) as revenue,
-                    COUNT(DISTINCT am.id) as invoice_count
-                FROM account_move am JOIN account_move_line aml ON am.id = aml.move_id
-                LEFT JOIN product_product pp ON aml.product_id = pp.id
-                LEFT JOIN product_template pt ON pp.product_tmpl_id = pt.id
-                WHERE am.move_type = 'out_invoice' AND am.state = 'posted'
-                    AND am.invoice_date >= CURRENT_DATE - INTERVAL '90 days'
-                GROUP BY DATE(am.invoice_date), COALESCE(pt.name->>'en_US', pt.name->>'en', 'Other') ORDER BY invoice_date DESC
-            """)
-            add_dataset("odoo", "outstanding_invoices", """
-                SELECT CASE
-                    WHEN CURRENT_DATE - am.invoice_date <= 30 THEN '0-30 days'
-                    WHEN CURRENT_DATE - am.invoice_date <= 60 THEN '31-60 days'
-                    WHEN CURRENT_DATE - am.invoice_date <= 90 THEN '61-90 days'
-                    ELSE '90+ days' END as aging_bucket,
-                    COUNT(am.id) as invoice_count, SUM(am.amount_residual) as outstanding_amount
-                FROM account_move am
-                WHERE am.move_type = 'out_invoice' AND am.state = 'posted' AND am.payment_state != 'paid'
-                GROUP BY 1 ORDER BY 1
-            """)
-
-            # --- PHARMACY (OpenMRS orders) ---
-            add_dataset("openmrs", "top_prescribed_drugs", """
-                SELECT COALESCE(cn.name, 'Unknown') as drug_name,
-                    COUNT(o.order_id) as prescription_count,
-                    COUNT(DISTINCT o.patient_id) as unique_patients
-                FROM orders o
-                JOIN drug_order dord ON o.order_id = dord.order_id
-                LEFT JOIN drug d ON dord.drug_inventory_id = d.drug_id
-                LEFT JOIN concept_name cn ON d.concept_id = cn.concept_id AND cn.locale = 'en' AND cn.concept_name_type = 'FULLY_SPECIFIED'
-                WHERE o.voided = 0 AND o.date_activated >= DATE_SUB(CURRENT_DATE, INTERVAL 90 DAY)
-                GROUP BY COALESCE(cn.name, 'Unknown') ORDER BY prescription_count DESC LIMIT 20
-            """)
-
-            # --- QUALITY METRICS ---
-            add_dataset("openmrs", "average_length_of_stay", """
-                SELECT DATE(v.date_started) as admission_date,
-                    COALESCE(vt.name, 'Unknown') as visit_type,
-                    COUNT(v.visit_id) as visit_count,
-                    ROUND(AVG(TIMESTAMPDIFF(SECOND, v.date_started, v.date_stopped) / 86400.0), 2) as avg_los_days
-                FROM visit v LEFT JOIN visit_type vt ON v.visit_type_id = vt.visit_type_id
-                WHERE v.voided = 0 AND v.date_stopped IS NOT NULL
-                    AND v.date_started >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)
-                GROUP BY DATE(v.date_started), COALESCE(vt.name, 'Unknown') ORDER BY admission_date DESC
-            """)
-            add_dataset("openmrs", "bed_occupancy", """
-                WITH RECURSIVE date_series AS (
-                    SELECT DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY) AS d
-                    UNION ALL
-                    SELECT DATE_ADD(d, INTERVAL 1 DAY) FROM date_series WHERE d < CURRENT_DATE
-                )
-                SELECT ds.d AS occupancy_date,
-                    COUNT(DISTINCT v.visit_id) AS occupied_beds,
-                    ROUND(COUNT(DISTINCT v.visit_id) * 100.0 / NULLIF(50, 0), 2) AS occupancy_rate
-                FROM date_series ds
-                LEFT JOIN visit v ON DATE(v.date_started) <= ds.d
-                    AND (v.date_stopped IS NULL OR DATE(v.date_stopped) >= ds.d) AND v.voided = 0
-                GROUP BY ds.d ORDER BY occupancy_date DESC
-            """)
-
-            # --- PROVIDER PRODUCTIVITY ---
-            add_dataset("openmrs", "provider_productivity", """
-                SELECT COALESCE(NULLIF(TRIM(CONCAT(COALESCE(pn.given_name, ''), ' ', COALESCE(pn.family_name, ''))), ''), 'Unknown') as provider_name,
-                    COUNT(DISTINCT e.encounter_id) as encounter_count,
-                    COUNT(DISTINCT e.patient_id) as unique_patients
-                FROM encounter e
-                JOIN encounter_provider ep ON e.encounter_id = ep.encounter_id AND (ep.voided = 0 OR ep.voided IS NULL)
-                LEFT JOIN provider p ON ep.provider_id = p.provider_id
-                LEFT JOIN person_name pn ON p.person_id = pn.person_id AND pn.voided = 0
-                WHERE e.voided = 0 AND e.encounter_datetime >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)
-                GROUP BY pn.given_name, pn.family_name ORDER BY encounter_count DESC
-            """)
-
-            # --- SIMPLER DATASETS (for fallback) ---
-            add_dataset("openmrs", "patient_registrations_daily", """
-                SELECT DATE(p.date_created) as registration_date,
-                    COUNT(DISTINCT p.patient_id) as patient_count,
-                    COUNT(DISTINCT CASE WHEN pe.gender = 'M' THEN p.patient_id END) as male_count,
-                    COUNT(DISTINCT CASE WHEN pe.gender = 'F' THEN p.patient_id END) as female_count
-                FROM patient p JOIN person pe ON p.patient_id = pe.person_id
-                WHERE p.voided = 0 AND p.date_created >= DATE_SUB(CURRENT_DATE, INTERVAL 90 DAY)
-                GROUP BY DATE(p.date_created) ORDER BY registration_date DESC
-            """)
-            add_dataset("openmrs", "visits_summary", """
-                SELECT DATE(v.date_started) as visit_date,
-                    COALESCE(vt.name, 'Unknown') as visit_type,
-                    COUNT(DISTINCT v.visit_id) as visit_count,
-                    COUNT(DISTINCT v.patient_id) as unique_patients
-                FROM visit v LEFT JOIN visit_type vt ON v.visit_type_id = vt.visit_type_id
-                WHERE v.voided = 0 AND v.date_started >= DATE_SUB(CURRENT_DATE, INTERVAL 90 DAY)
-                GROUP BY DATE(v.date_started), COALESCE(vt.name, 'Unknown') ORDER BY visit_date DESC
-            """)
-            add_dataset("openelis", "lab_tests_daily", """
-                SELECT DATE(a.entry_date) as test_date,
-                    COALESCE(t.description, 'Unknown') as test_name,
-                    COUNT(a.id) as test_count,
-                    COUNT(DISTINCT sh.patient_id) as unique_patients
-                FROM analysis a
-                LEFT JOIN test t ON a.test_id = t.id
-                LEFT JOIN sample_item si ON a.sampitem_id = si.id
-                LEFT JOIN sample s ON si.samp_id = s.id
-                LEFT JOIN sample_human sh ON s.id = sh.samp_id
-                WHERE a.entry_date >= CURRENT_DATE - INTERVAL '90 days'
-                GROUP BY DATE(a.entry_date), COALESCE(t.description, 'Unknown') ORDER BY test_date DESC
-            """)
-            add_dataset("odoo", "daily_revenue", """
-                SELECT DATE(am.invoice_date) as invoice_date,
-                    COALESCE(pt.name->>'en_US', pt.name->>'en', 'Other') as product_category,
-                    SUM(aml.price_subtotal) as revenue,
-                    COUNT(DISTINCT am.id) as invoice_count
-                FROM account_move am JOIN account_move_line aml ON am.id = aml.move_id
-                LEFT JOIN product_product pp ON aml.product_id = pp.id
-                LEFT JOIN product_template pt ON pp.product_tmpl_id = pt.id
-                WHERE am.move_type = 'out_invoice' AND am.state = 'posted'
-                    AND am.invoice_date >= CURRENT_DATE - INTERVAL '90 days'
-                GROUP BY DATE(am.invoice_date), COALESCE(pt.name->>'en_US', pt.name->>'en', 'Other') ORDER BY invoice_date DESC
-            """)
-
-            # --- PHARMACY (Odoo stock) ---
-            # Near expiry: requires product_expiry module for expiration_date. Without it, shows drugs with lots (no expiry).
-            add_dataset("odoo", "near_expiry_medicines", """
-                SELECT COALESCE(pt.name->>'en_US', pt.name->>'en', 'Unknown') as drug_name,
-                    sl.name as lot_number,
-                    NULL::date as expiration_date,
-                    NULL::int as days_until_expiry,
-                    SUM(sq.quantity) as quantity
-                FROM stock_quant sq
-                JOIN stock_lot sl ON sq.lot_id = sl.id
-                JOIN product_product pp ON sq.product_id = pp.id
-                JOIN product_template pt ON pp.product_tmpl_id = pt.id
-                JOIN stock_location loc ON sq.location_id = loc.id
-                WHERE pt.clinical_product_type = 'drug'
-                    AND loc.usage = 'internal'
-                    AND sq.quantity > 0
-                GROUP BY pt.id, pt.name, sl.name
-                ORDER BY drug_name, sl.name
-            """)
-            add_dataset("odoo", "low_stock_drugs", """
-                SELECT COALESCE(pt.name->>'en_US', pt.name->>'en', 'Unknown') as drug_name,
-                    SUM(sq.quantity) as quantity_on_hand
-                FROM stock_quant sq
-                JOIN product_product pp ON sq.product_id = pp.id
-                JOIN product_template pt ON pp.product_tmpl_id = pt.id
-                JOIN stock_location loc ON sq.location_id = loc.id
-                WHERE pt.clinical_product_type = 'drug'
-                    AND loc.usage = 'internal'
-                GROUP BY pt.id, pt.name
-                HAVING SUM(sq.quantity) < 20
-                ORDER BY quantity_on_hand ASC
-            """)
-
-            # Step 3: Create charts
-            print("\nCreating charts...")
-            charts = {}
-
-            def add_chart(table_name, slice_name, viz_type, params):
-                dataset = datasets.get(table_name)
-                if not dataset:
-                    return None
-                    
-                # Auto-upgrade legacy charts to modern ECharts
-                if viz_type in ("bar", "dist_bar"):
-                    viz_type = "echarts_timeseries_bar"
-                    if "groupby" in params and params["groupby"]:
-                        params["x_axis"] = params["groupby"][0]
-                        params["groupby"] = []
-                elif viz_type in ("pie", "echarts_pie"):
-                    viz_type = "pie"
-                    # ECharts pie uses 'metric' (singular object) instead of 'metrics' (array)
-                    if "metrics" in params and isinstance(params["metrics"], list) and len(params["metrics"]) > 0:
-                        params["metric"] = params["metrics"][0]
-                        del params["metrics"]
-                    
-                existing = db.session.query(Slice).filter_by(slice_name=slice_name, datasource_id=dataset.id).first()
-                if existing:
-                    print(f"  ✓ Chart '{slice_name}' already exists")
-                    needs_update = False
-                    
-                    if existing.viz_type != viz_type or existing.viz_type in ("bar", "dist_bar", "pie"):
-                        existing.viz_type = viz_type
-                        needs_update = True
-                        
-                    current_params = existing.params or "{}"
-                    try:
-                        if json.loads(current_params) != params:
-                            existing.params = json.dumps(params)
-                            needs_update = True
-                    except Exception:
-                        existing.params = json.dumps(params)
-                        needs_update = True
-                        
-                    if needs_update:
-                        db.session.commit()
-                        print(f"    → Updated chart to {viz_type} and applied params")
-                        
-                    charts[slice_name] = existing
-                    return existing
-                try:
-                    slice_obj = Slice(
-                        slice_name=slice_name,
-                        datasource_id=dataset.id,
-                        datasource_type="table",
-                        viz_type=viz_type,
-                        params=json.dumps(params),
-                    )
-                    db.session.add(slice_obj)
-                    db.session.commit()
-                    print(f"  ✓ Created chart '{slice_name}'")
-                    charts[slice_name] = slice_obj
-                    return slice_obj
-                except Exception as e:
-                    print(f"  ✗ Failed chart '{slice_name}': {e}")
-                    db.session.rollback()
-                    return None
-
-            base_params = {"time_range": "Last 30 days"}
-            add_chart("patient_registrations_trend", "Daily Patient Registrations", "echarts_timeseries", {
-                **base_params, "granularity_sqla": "registration_date",
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "patient_count"}, "aggregate": "SUM", "label": "Patients"}],
-                "groupby": [],
-            })
-            add_chart("patient_demographics", "Patient Gender Distribution", "pie", {
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "patient_count"}, "aggregate": "SUM", "label": "Count"}],
-                "groupby": ["gender"],
-                "adhoc_filters": [],
-                "row_limit": 10000,
-                "show_legend": True,
-                "legend_type": "scroll",
-            })
-            add_chart("patient_demographics", "Patient Age Distribution", "dist_bar", {
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "patient_count"}, "aggregate": "SUM", "label": "Count"}],
-                "groupby": ["age_group"],
-                "adhoc_filters": [],
-                "row_limit": 10000,
-            })
-            add_chart("patient_location_distribution", "Geographic Distribution", "dist_bar", {
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "patient_count"}, "aggregate": "SUM", "label": "Count"}],
-                "groupby": ["location"],
-            })
-            add_chart("visit_statistics", "Visits by Type", "pie", {
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "visit_count"}, "aggregate": "SUM", "label": "Visits"}],
-                "groupby": ["visit_type"],
-            })
-            add_chart("daily_census", "Inpatient Census Trend", "echarts_timeseries", {
-                **base_params, "granularity_sqla": "census_date",
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "inpatient_count"}, "aggregate": "SUM", "label": "Patients"}],
-                "groupby": [],
-            })
-            add_chart("encounter_types_distribution", "Encounter Types", "dist_bar", {
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "encounter_count"}, "aggregate": "SUM", "label": "Count"}],
-                "groupby": ["encounter_type"],
-            })
-            add_chart("hourly_visit_pattern", "Hourly Visit Pattern", "dist_bar", {
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "visit_count"}, "aggregate": "SUM", "label": "Visits"}],
-                "groupby": ["hour_of_day"],
-            })
-            add_chart("lab_test_volume", "Lab Test Volume Trend", "echarts_timeseries", {
-                **base_params, "granularity_sqla": "test_date",
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "test_count"}, "aggregate": "SUM", "label": "Tests"}],
-                "groupby": ["test_name"],
-            })
-            add_chart("lab_turnaround_time", "Lab Turnaround Time", "echarts_timeseries", {
-                **base_params, "granularity_sqla": "order_date",
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "avg_tat_hours"}, "aggregate": "AVG", "label": "Hours"}],
-                "groupby": ["test_name"],
-            })
-            add_chart("revenue_summary", "Daily Revenue Trend", "echarts_timeseries", {
-                **base_params, "granularity_sqla": "invoice_date",
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "total_revenue"}, "aggregate": "SUM", "label": "Revenue"}],
-                "groupby": [],
-            })
-            add_chart("revenue_by_service", "Revenue by Service", "dist_bar", {
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "revenue"}, "aggregate": "SUM", "label": "Revenue"}],
-                "groupby": ["service_category"],
-            })
-            add_chart("outstanding_invoices", "Outstanding Invoices Aging", "dist_bar", {
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "outstanding_amount"}, "aggregate": "SUM", "label": "Amount"}],
-                "groupby": ["aging_bucket"],
-            })
-            add_chart("top_prescribed_drugs", "Top Prescribed Drugs", "dist_bar", {
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "prescription_count"}, "aggregate": "SUM", "label": "Count"}],
-                "groupby": ["drug_name"],
-            })
-            add_chart("near_expiry_medicines", "Near Expiry Medicines", "table", {
-                "all_columns": ["drug_name", "lot_number", "expiration_date", "days_until_expiry", "quantity"],
-                "row_limit": 50,
-            })
-            add_chart("low_stock_drugs", "Low Stock Drugs", "dist_bar", {
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "quantity_on_hand"}, "aggregate": "SUM", "label": "Qty"}],
-                "groupby": ["drug_name"],
-            })
-            add_chart("average_length_of_stay", "Average Length of Stay", "echarts_timeseries", {
-                **base_params, "granularity_sqla": "admission_date",
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "avg_los_days"}, "aggregate": "AVG", "label": "Days"}],
-                "groupby": ["visit_type"],
-            })
-            add_chart("bed_occupancy", "Bed Occupancy Rate", "echarts_timeseries", {
-                **base_params, "granularity_sqla": "occupancy_date",
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "occupancy_rate"}, "aggregate": "AVG", "label": "Rate"}],
-                "groupby": [],
-            })
-            add_chart("provider_productivity", "Provider Productivity", "dist_bar", {
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "encounter_count"}, "aggregate": "SUM", "label": "Encounters"}],
-                "groupby": ["provider_name"],
-            })
-            # Fallback charts for simpler datasets
-            add_chart("patient_registrations_daily", "Patient Registrations (Daily)", "echarts_timeseries", {
-                **base_params, "granularity_sqla": "registration_date",
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "patient_count"}, "aggregate": "SUM", "label": "Patients"}],
-                "groupby": [],
-            })
-            add_chart("visits_summary", "Visits Summary", "pie", {
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "visit_count"}, "aggregate": "SUM", "label": "Visits"}],
-                "groupby": ["visit_type"],
-            })
-            add_chart("lab_tests_daily", "Lab Tests Daily", "echarts_timeseries", {
-                **base_params, "granularity_sqla": "test_date",
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "test_count"}, "aggregate": "SUM", "label": "Tests"}],
-                "groupby": ["test_name"],
-            })
-            add_chart("daily_revenue", "Daily Revenue", "echarts_timeseries", {
-                **base_params, "granularity_sqla": "invoice_date",
-                "metrics": [{"expressionType": "SIMPLE", "column": {"column_name": "revenue"}, "aggregate": "SUM", "label": "Revenue"}],
-                "groupby": [],
-            })
-
-            # Step 4: Create dashboards
-            print("\nCreating dashboards...")
-
-            def create_dashboard(title, chart_names):
-                existing = db.session.query(Dashboard).filter_by(dashboard_title=title).first()
-                if existing:
-                    print(f"  ✓ Dashboard '{title}' already exists")
-                    # Add any new charts that aren't on the dashboard yet
-                    existing_slice_ids = {s.id for s in existing.slices}
-                    added = 0
-                    for name in chart_names:
-                        if name in charts and charts[name] and charts[name].id not in existing_slice_ids:
-                            existing.slices.append(charts[name])
-                            added += 1
-                    if added:
-                        db.session.commit()
-                        print(f"    → Added {added} new chart(s)")
-                    return existing
-                dashboard = Dashboard(dashboard_title=title, slug=title.lower().replace(" ", "-").replace("'", "")[:50], position_json="{}", published=True)
-                db.session.add(dashboard)
-                db.session.flush()
-                for name in chart_names:
-                    if name in charts and charts[name]:
-                        dashboard.slices.append(charts[name])
+                db.session.add(database)
                 db.session.commit()
-                print(f"  ✓ Created dashboard '{title}'")
-                return dashboard
+                databases[key] = database
+                print(f"  ✓ {config['name']} (created)")
 
-            create_dashboard("NidanEHR - Executive Dashboard", [
-                "Daily Patient Registrations", "Daily Revenue Trend", "Inpatient Census Trend",
-                "Visits by Type", "Lab Test Volume Trend", "Patient Gender Distribution",
-            ])
-            create_dashboard("NidanEHR - Clinical Operations", [
-                "Encounter Types", "Provider Productivity", "Average Length of Stay",
-                "Visits Summary", "Patient Age Distribution", "Hourly Visit Pattern",
-            ])
-            create_dashboard("NidanEHR - Financial Performance", [
-                "Daily Revenue Trend", "Revenue by Service", "Outstanding Invoices Aging",
-                "Daily Revenue",
-            ])
-            create_dashboard("NidanEHR - Laboratory Analytics", [
-                "Lab Test Volume Trend", "Lab Turnaround Time", "Lab Tests Daily",
-            ])
-            create_dashboard("NidanEHR - Pharmacy Management", [
-                "Top Prescribed Drugs",
-                "Near Expiry Medicines",
-                "Low Stock Drugs",
-            ])
-            create_dashboard("NidanEHR - Quality Metrics", [
-                "Average Length of Stay", "Bed Occupancy Rate",
-            ])
-            create_dashboard("NidanEHR - Public Health", [
-                "Geographic Distribution", "Patient Gender Distribution", "Patient Age Distribution",
-            ])
+        # --- Step 2: datasets --------------------------------------------- #
+        print("\n[2/4] Datasets (wide facts)")
+        datasets = {}            # table_name -> SqlaTable
+        table_to_dataset = {}    # table_name -> dataset id
 
-            print("\n" + "=" * 70)
-            print("✅ Initialization complete!")
-            print("=" * 70)
-            print("\nAccess: http://localhost/superset/")
-            print("Dashboard: http://localhost/superset/dashboard/list/")
+        def ensure_columns(dataset, columns):
+            existing = {c.column_name: c for c in dataset.columns}
+            for name, ctype, is_dim in columns:
+                is_dttm = ctype in ("DATE", "TIMESTAMP", "DATETIME")
+                col = existing.get(name)
+                if not col:
+                    col = TableColumn(column_name=name, table=dataset)
+                    db.session.add(col)
+                col.type = ctype
+                col.is_dttm = is_dttm
+                col.groupby = bool(is_dim)
+                col.filterable = bool(is_dim) or is_dttm
 
-        except Exception as e:
-            print(f"\n❌ Error: {e}")
-            import traceback
-            traceback.print_exc()
-            sys.exit(1)
+        def ensure_metrics(dataset, metrics):
+            existing = {m.metric_name: m for m in dataset.metrics}
+            for name, expr in metrics:
+                m = existing.get(name)
+                if not m:
+                    m = SqlMetric(metric_name=name, table=dataset)
+                    db.session.add(m)
+                m.expression = expr
+
+        def upsert_dataset(spec):
+            database = databases.get(spec["db"])
+            if not database:
+                return
+            tname, sql = spec["table_name"], spec["sql"].strip()
+            ds = db.session.query(SqlaTable).filter_by(table_name=tname, database_id=database.id).first()
+            created = False
+            if not ds:
+                ds = SqlaTable(table_name=tname, sql=sql, database_id=database.id,
+                               database=database, is_sqllab_view=False)
+                db.session.add(ds)
+                created = True
+            else:
+                ds.sql = sql
+            if spec.get("dttm"):
+                ds.main_dttm_col = spec["dttm"]
+            db.session.commit()
+            ensure_columns(ds, spec["columns"])
+            ensure_metrics(ds, spec["metrics"])
+            db.session.commit()
+            datasets[tname] = ds
+            table_to_dataset[tname] = ds.id
+            print(f"  ✓ {tname} ({'created' if created else 'updated'})")
+
+        for spec in build_dataset_specs():
+            try:
+                upsert_dataset(spec)
+            except Exception as e:
+                db.session.rollback()
+                print(f"  ✗ {spec['table_name']}: {e}")
+
+        # --- Step 3: charts ----------------------------------------------- #
+        print("\n[3/4] Charts")
+        charts = {}
+
+        def upsert_chart(name, table_name, viz_type, params):
+            ds = datasets.get(table_name)
+            if not ds:
+                return
+            params = dict(params)
+            params.setdefault("datasource", f"{ds.id}__table")
+            params["viz_type"] = viz_type
+            existing = db.session.query(Slice).filter_by(
+                slice_name=name, datasource_id=ds.id, datasource_type="table").first()
+            if existing:
+                existing.viz_type = viz_type
+                existing.params = json.dumps(params)
+                db.session.commit()
+                charts[name] = existing
+            else:
+                s = Slice(slice_name=name, datasource_id=ds.id, datasource_type="table",
+                          viz_type=viz_type, params=json.dumps(params))
+                db.session.add(s)
+                db.session.commit()
+                charts[name] = s
+
+        for name, table_name, viz_type, params in build_chart_specs():
+            try:
+                upsert_chart(name, table_name, viz_type, params)
+            except Exception as e:
+                db.session.rollback()
+                print(f"  ✗ chart '{name}': {e}")
+        print(f"  ✓ {len(charts)} charts ready")
+
+        # --- Step 4: dashboards (with universal filters) ------------------ #
+        print("\n[4/4] Dashboards + native filters")
+
+        def upsert_dashboard(spec):
+            title = spec["title"]
+            slices = [charts[n] for n in spec["charts"] if n in charts]
+            if not slices:
+                print(f"  ⚠ {title}: no charts available, skipping")
+                return
+            primary_ds_id = slices[0].datasource_id
+            position = build_position_json(title, slices)
+            native_filters = build_native_filters(
+                title, spec.get("filters", []), table_to_dataset, primary_ds_id)
+            json_metadata = json.dumps({
+                "native_filter_configuration": native_filters,
+                "cross_filters_enabled": True,
+                "color_scheme": "supersetColors",
+                "refresh_frequency": 0,
+                "expanded_slices": {},
+                "label_colors": {},
+                "shared_label_colors": {},
+                "timed_refresh_immune_slices": [],
+                "default_filters": "{}",
+                "filter_scopes": {},
+                "chart_configuration": {},
+            })
+            dash = db.session.query(Dashboard).filter_by(dashboard_title=title).first()
+            if not dash:
+                dash = Dashboard(dashboard_title=title,
+                                 slug=title.lower().replace(" ", "-").replace("·", "").replace("&", "and").replace("--", "-")[:50],
+                                 published=True)
+                db.session.add(dash)
+            dash.slices = slices
+            dash.position_json = json.dumps(position)
+            dash.json_metadata = json_metadata
+            db.session.commit()
+            print(f"  ✓ {title} ({len(slices)} charts, {len(native_filters)} filters)")
+
+        for spec in build_dashboard_specs():
+            try:
+                upsert_dashboard(spec)
+            except Exception as e:
+                db.session.rollback()
+                print(f"  ✗ dashboard '{spec['title']}': {e}")
+
+        print("\n" + "=" * 70)
+        print("✅ Done.  http://localhost/superset/dashboard/list/")
+        print("=" * 70)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
