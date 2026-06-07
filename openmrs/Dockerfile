@@ -77,3 +77,7 @@ COPY properties/ /openmrs/distribution/openmrs_properties/
 
 # Diagnostic script for Initializer troubleshooting
 COPY --chmod=755 check-initializer.sh /openmrs/check-initializer.sh
+
+# Nidan startup (Initializer sync, JDBC URL cleanup, custom OMOD overlay, no-ES).
+# Baked into the image — do not bind-mount over /openmrs/startup.sh (breaks on Windows).
+COPY --chmod=755 startup-custom.sh /openmrs/startup.sh
