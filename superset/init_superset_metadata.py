@@ -37,6 +37,11 @@ from urllib.parse import quote_plus
 
 sys.path.insert(0, "/app")
 
+# Per-chart layout width (in a 12-col grid), populated by the chart helpers and
+# consumed by build_position_json for greedy row packing (competitor-style mix
+# of full-width / 3-col / 2-col rows instead of a fixed 2-column layout).
+CHART_WIDTHS = {}
+
 
 # --------------------------------------------------------------------------- #
 # Connection helpers
@@ -207,12 +212,20 @@ def build_dataset_specs():
                 CASE WHEN ed.dx_rank = 1 THEN 'Primary' ELSE 'Secondary' END AS dx_rank,
                 COALESCE(ed.certainty, 'Unknown') AS certainty,
                 COALESCE(pe.gender, 'U') AS gender,
-                {age_group_mysql('pe.birthdate', 'ed.date_created')} AS age_group
+                {age_group_mysql('pe.birthdate', 'ed.date_created')} AS age_group,
+                COALESCE(pa.city_village, 'Unknown') AS municipality,
+                COALESCE(pa.county_district, 'Unknown') AS district
             FROM encounter_diagnosis ed
             LEFT JOIN concept_name cn ON ed.diagnosis_coded = cn.concept_id
                 AND cn.locale = 'en' AND cn.concept_name_type = 'FULLY_SPECIFIED'
                 AND cn.voided = 0
             JOIN person pe ON ed.patient_id = pe.person_id
+            LEFT JOIN (
+                SELECT person_id, city_village, county_district,
+                       ROW_NUMBER() OVER (PARTITION BY person_id
+                           ORDER BY preferred DESC, person_address_id DESC) AS rn
+                FROM person_address WHERE voided = 0
+            ) pa ON pa.person_id = ed.patient_id AND pa.rn = 1
             WHERE ed.voided = 0
         """,
         "columns": [
@@ -220,6 +233,7 @@ def build_dataset_specs():
             ("diagnosed_at", "TIMESTAMP", False), ("diagnosis", "VARCHAR", True),
             ("dx_rank", "VARCHAR", True), ("certainty", "VARCHAR", True),
             ("gender", "VARCHAR", True), ("age_group", "VARCHAR", True),
+            ("municipality", "VARCHAR", True), ("district", "VARCHAR", True),
         ],
         "metrics": [
             ("Diagnoses", "COUNT(*)"),
@@ -395,32 +409,233 @@ def build_dataset_specs():
         ],
     })
 
-    # ---- Odoo: DRUG STOCK (snapshot, non-temporal) ------------------------ #
+    # ---- Odoo: DRUG STOCK BY LOT (expiry + value, snapshot) -------------- #
+    # product_expiry module is installed -> stock_lot.expiration_date is real.
+    # value-at-risk uses list_price (sale price) as the valuation proxy.
     specs.append({
         "db": "odoo", "table_name": "fct_drug_stock", "dttm": None,
         "sql": """
             SELECT
                 pt.id AS product_id,
                 COALESCE(pt.name->>'en_US', pt.name->>'en', 'Unknown') AS drug_name,
+                COALESCE(pc.name, 'Other') AS drug_category,
                 COALESCE(sl.name, 'No Lot') AS lot_number,
                 COALESCE(loc.complete_name, 'Unknown') AS location,
-                SUM(sq.quantity) AS quantity
+                sl.expiration_date::date AS expiration_date,
+                SUM(sq.quantity) AS quantity,
+                SUM(sq.quantity * COALESCE(pt.list_price, 0)) AS stock_value,
+                (sl.expiration_date::date - CURRENT_DATE) AS days_until_expiry,
+                CASE
+                    WHEN sl.expiration_date IS NULL THEN 'No expiry date'
+                    WHEN sl.expiration_date::date < CURRENT_DATE THEN 'Expired'
+                    WHEN sl.expiration_date::date <= CURRENT_DATE + 30 THEN '<= 30 days'
+                    WHEN sl.expiration_date::date <= CURRENT_DATE + 60 THEN '31-60 days'
+                    WHEN sl.expiration_date::date <= CURRENT_DATE + 90 THEN '61-90 days'
+                    WHEN sl.expiration_date::date <= CURRENT_DATE + 180 THEN '91-180 days'
+                    ELSE '> 180 days' END AS expiry_bucket
             FROM stock_quant sq
             JOIN product_product pp ON sq.product_id = pp.id
             JOIN product_template pt ON pp.product_tmpl_id = pt.id
             JOIN stock_location loc ON sq.location_id = loc.id
+            LEFT JOIN product_category pc ON pt.categ_id = pc.id
             LEFT JOIN stock_lot sl ON sq.lot_id = sl.id
             WHERE pt.clinical_product_type = 'drug'
               AND loc.usage = 'internal'
               AND sq.quantity > 0
-            GROUP BY pt.id, pt.name, sl.name, loc.complete_name
+            GROUP BY pt.id, pt.name, pc.name, sl.name, loc.complete_name, sl.expiration_date
         """,
         "columns": [
             ("product_id", "BIGINT", False), ("drug_name", "VARCHAR", True),
-            ("lot_number", "VARCHAR", True), ("location", "VARCHAR", True),
-            ("quantity", "FLOAT", False),
+            ("drug_category", "VARCHAR", True), ("lot_number", "VARCHAR", True),
+            ("location", "VARCHAR", True), ("expiration_date", "DATE", False),
+            ("quantity", "FLOAT", False), ("stock_value", "FLOAT", False),
+            ("days_until_expiry", "INTEGER", False), ("expiry_bucket", "VARCHAR", True),
         ],
-        "metrics": [("Quantity on Hand", "SUM(quantity)")],
+        "metrics": [
+            ("Quantity on Hand", "SUM(quantity)"),
+            ("Stock Value", "SUM(stock_value)"),
+            ("Lots", "COUNT(*)"),
+            ("SKUs", "COUNT(DISTINCT product_id)"),
+        ],
+    })
+
+    # ---- Odoo: DRUG ON-HAND BY PRODUCT (levels vs reorder) --------------- #
+    # Starts from the product list so out-of-stock items appear; left-joins
+    # on-hand and reorder rules (stock.warehouse.orderpoint).
+    specs.append({
+        "db": "odoo", "table_name": "fct_drug_onhand", "dttm": None,
+        "sql": """
+            SELECT
+                pt.id AS product_id,
+                COALESCE(pt.name->>'en_US', pt.name->>'en', 'Unknown') AS drug_name,
+                COALESCE(pc.name, 'Other') AS drug_category,
+                COALESCE(oh.qty, 0) AS on_hand,
+                COALESCE(oh.qty, 0) * COALESCE(pt.list_price, 0) AS stock_value,
+                op.reorder_level,
+                CASE
+                    WHEN COALESCE(oh.qty, 0) <= 0 THEN 'Out of stock'
+                    WHEN op.reorder_level IS NOT NULL AND COALESCE(oh.qty, 0) <= op.reorder_level THEN 'Below reorder'
+                    WHEN COALESCE(oh.qty, 0) < 20 THEN 'Low (<20)'
+                    ELSE 'OK' END AS stock_status
+            FROM product_template pt
+            LEFT JOIN product_category pc ON pt.categ_id = pc.id
+            LEFT JOIN (
+                SELECT pp.product_tmpl_id AS tmpl_id, SUM(sq.quantity) AS qty
+                FROM stock_quant sq
+                JOIN stock_location l ON sq.location_id = l.id AND l.usage = 'internal'
+                JOIN product_product pp ON sq.product_id = pp.id
+                GROUP BY pp.product_tmpl_id
+            ) oh ON oh.tmpl_id = pt.id
+            LEFT JOIN (
+                SELECT pp.product_tmpl_id AS tmpl_id, MAX(op.product_min_qty) AS reorder_level
+                FROM stock_warehouse_orderpoint op
+                JOIN product_product pp ON op.product_id = pp.id
+                GROUP BY pp.product_tmpl_id
+            ) op ON op.tmpl_id = pt.id
+            WHERE pt.clinical_product_type = 'drug' AND pt.active = true
+        """,
+        "columns": [
+            ("product_id", "BIGINT", False), ("drug_name", "VARCHAR", True),
+            ("drug_category", "VARCHAR", True), ("on_hand", "FLOAT", False),
+            ("stock_value", "FLOAT", False), ("reorder_level", "FLOAT", False),
+            ("stock_status", "VARCHAR", True),
+        ],
+        "metrics": [
+            ("Stock Value", "SUM(stock_value)"),
+            ("On Hand", "SUM(on_hand)"),
+            ("SKUs", "COUNT(DISTINCT product_id)"),
+            ("Out-of-stock SKUs", "SUM(CASE WHEN stock_status = 'Out of stock' THEN 1 ELSE 0 END)"),
+            ("Reorder-alert SKUs", "SUM(CASE WHEN stock_status IN ('Out of stock', 'Below reorder', 'Low (<20)') THEN 1 ELSE 0 END)"),
+        ],
+    })
+
+    # ---- OpenMRS: INPATIENT OUTCOMES (HMIS core) -------------------------- #
+    # Discharge outcome captured as an obs value_coded. We identify outcome
+    # observations by their distinctive value set (matches dhis2 inpatient.sql).
+    # If your concept names differ, extend the IN (...) list below. Neonatal
+    # bands (<=28d) included so this also powers neonatal-mortality reports.
+    OUTCOME_VALUES = ("'Recovered','Cured','Recovered/Cured','Death','Died',"
+                      "'Expired','DOR','DAMA','LAMA','LAMA/DAMA','Referred out',"
+                      "'Referred on request','Stable','Absconded'")
+    specs.append({
+        "db": "openmrs", "table_name": "fct_inpatient_outcomes", "dttm": "outcome_at",
+        "sql": f"""
+            SELECT
+                o.obs_id, o.person_id AS patient_id,
+                o.obs_datetime AS outcome_at,
+                CASE
+                    WHEN cn.name IN ('Referred out', 'Referred on request') THEN 'Referred Out'
+                    WHEN cn.name IN ('DOR', 'DAMA', 'LAMA', 'LAMA/DAMA') THEN 'DOPR/LAMA'
+                    WHEN cn.name IN ('Recovered', 'Cured', 'Recovered/Cured') THEN 'Recovered/Cured'
+                    WHEN cn.name IN ('Death', 'Died', 'Expired') THEN 'Death'
+                    ELSE cn.name END AS outcome,
+                COALESCE(pe.gender, 'U') AS gender,
+                CASE
+                    WHEN TIMESTAMPDIFF(DAY, pe.birthdate, o.obs_datetime) BETWEEN 0 AND 7 THEN '0-7 days'
+                    WHEN TIMESTAMPDIFF(DAY, pe.birthdate, o.obs_datetime) BETWEEN 8 AND 28 THEN '8-28 days'
+                    WHEN TIMESTAMPDIFF(DAY, pe.birthdate, o.obs_datetime) BETWEEN 29 AND 365 THEN '29 days - 1 yr'
+                    WHEN TIMESTAMPDIFF(YEAR, pe.birthdate, o.obs_datetime) BETWEEN 1 AND 4 THEN '01-04 yrs'
+                    WHEN TIMESTAMPDIFF(YEAR, pe.birthdate, o.obs_datetime) BETWEEN 5 AND 14 THEN '05-14 yrs'
+                    WHEN TIMESTAMPDIFF(YEAR, pe.birthdate, o.obs_datetime) BETWEEN 15 AND 19 THEN '15-19 yrs'
+                    WHEN TIMESTAMPDIFF(YEAR, pe.birthdate, o.obs_datetime) BETWEEN 20 AND 29 THEN '20-29 yrs'
+                    WHEN TIMESTAMPDIFF(YEAR, pe.birthdate, o.obs_datetime) BETWEEN 30 AND 39 THEN '30-39 yrs'
+                    WHEN TIMESTAMPDIFF(YEAR, pe.birthdate, o.obs_datetime) BETWEEN 40 AND 49 THEN '40-49 yrs'
+                    WHEN TIMESTAMPDIFF(YEAR, pe.birthdate, o.obs_datetime) BETWEEN 50 AND 59 THEN '50-59 yrs'
+                    WHEN TIMESTAMPDIFF(YEAR, pe.birthdate, o.obs_datetime) BETWEEN 60 AND 69 THEN '60-69 yrs'
+                    ELSE '70+ yrs' END AS age_group,
+                CASE WHEN TIMESTAMPDIFF(DAY, pe.birthdate, o.obs_datetime) <= 28 THEN 'Neonate' ELSE 'Non-neonate' END AS neonatal
+            FROM obs o
+            JOIN concept_name cn ON o.value_coded = cn.concept_id
+                AND cn.locale = 'en' AND cn.concept_name_type = 'FULLY_SPECIFIED' AND cn.voided = 0
+            JOIN person pe ON o.person_id = pe.person_id
+            WHERE o.voided = 0 AND cn.name IN ({OUTCOME_VALUES})
+        """,
+        "columns": [
+            ("obs_id", "BIGINT", False), ("patient_id", "BIGINT", False),
+            ("outcome_at", "TIMESTAMP", False), ("outcome", "VARCHAR", True),
+            ("gender", "VARCHAR", True), ("age_group", "VARCHAR", True),
+            ("neonatal", "VARCHAR", True),
+        ],
+        "metrics": [
+            ("Outcomes", "COUNT(*)"),
+            ("Patients", "COUNT(DISTINCT patient_id)"),
+            ("Deaths", "SUM(CASE WHEN outcome = 'Death' THEN 1 ELSE 0 END)"),
+            ("Mortality %", "SUM(CASE WHEN outcome = 'Death' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0)"),
+        ],
+    })
+
+    # ---- OpenMRS: DATA QUALITY — registration completeness --------------- #
+    specs.append({
+        "db": "openmrs", "table_name": "dq_patient_quality", "dttm": "registered_at",
+        "sql": """
+            SELECT
+                p.patient_id,
+                p.date_created AS registered_at,
+                CASE WHEN pe.gender IN ('M', 'F') THEN 1 ELSE 0 END AS has_gender,
+                CASE WHEN pe.birthdate IS NOT NULL THEN 1 ELSE 0 END AS has_birthdate,
+                CASE WHEN pa.city_village IS NOT NULL AND pa.city_village <> '' THEN 1 ELSE 0 END AS has_address
+            FROM patient p
+            JOIN person pe ON p.patient_id = pe.person_id
+            LEFT JOIN (
+                SELECT person_id, city_village,
+                       ROW_NUMBER() OVER (PARTITION BY person_id
+                           ORDER BY preferred DESC, person_address_id DESC) AS rn
+                FROM person_address WHERE voided = 0
+            ) pa ON pa.person_id = pe.person_id AND pa.rn = 1
+            WHERE p.voided = 0
+        """,
+        "columns": [
+            ("patient_id", "BIGINT", False), ("registered_at", "TIMESTAMP", False),
+            ("has_gender", "INTEGER", False), ("has_birthdate", "INTEGER", False),
+            ("has_address", "INTEGER", False),
+        ],
+        "metrics": [
+            ("Patients", "COUNT(*)"),
+            ("% Gender Complete", "AVG(has_gender) * 100"),
+            ("% Birthdate Complete", "AVG(has_birthdate) * 100"),
+            ("% Address Complete", "AVG(has_address) * 100"),
+        ],
+    })
+
+    # ---- OpenMRS: DATA QUALITY — diagnosis coding ------------------------ #
+    specs.append({
+        "db": "openmrs", "table_name": "dq_diagnosis_coding", "dttm": "diagnosed_at",
+        "sql": """
+            SELECT
+                ed.diagnosis_id,
+                ed.date_created AS diagnosed_at,
+                CASE WHEN ed.diagnosis_coded IS NOT NULL THEN 1 ELSE 0 END AS is_coded
+            FROM encounter_diagnosis ed
+            WHERE ed.voided = 0
+        """,
+        "columns": [
+            ("diagnosis_id", "BIGINT", False), ("diagnosed_at", "TIMESTAMP", False),
+            ("is_coded", "INTEGER", False),
+        ],
+        "metrics": [
+            ("Diagnoses", "COUNT(*)"),
+            ("% Coded", "AVG(is_coded) * 100"),
+        ],
+    })
+
+    # ---- OpenMRS: DATA QUALITY — voided rates (snapshot) ----------------- #
+    specs.append({
+        "db": "openmrs", "table_name": "dq_voided_rates", "dttm": None,
+        "sql": """
+            SELECT 'Patients' AS entity, SUM(voided) AS voided_count, COUNT(*) AS total FROM patient
+            UNION ALL SELECT 'Visits', SUM(voided), COUNT(*) FROM visit
+            UNION ALL SELECT 'Encounters', SUM(voided), COUNT(*) FROM encounter
+            UNION ALL SELECT 'Observations', SUM(voided), COUNT(*) FROM obs
+            UNION ALL SELECT 'Orders', SUM(voided), COUNT(*) FROM orders
+        """,
+        "columns": [
+            ("entity", "VARCHAR", True), ("voided_count", "BIGINT", False),
+            ("total", "BIGINT", False),
+        ],
+        "metrics": [
+            ("Voided", "SUM(voided_count)"),
+            ("Voided %", "SUM(voided_count) * 100.0 / NULLIF(SUM(total), 0)"),
+        ],
     })
 
     return specs
@@ -430,7 +645,8 @@ def build_dataset_specs():
 # CHART helpers — every chart leaves time range/grain to the dashboard filters
 # (time_range="No filter", time_grain default P1D overridden by the grain filter)
 # --------------------------------------------------------------------------- #
-def ts_chart(name, table, metrics, x_axis, groupby=None, viz="echarts_timeseries_line"):
+def ts_chart(name, table, metrics, x_axis, groupby=None, viz="echarts_timeseries_line", width=6):
+    CHART_WIDTHS[name] = width
     return (name, table, viz, {
         "x_axis": x_axis,
         "time_grain_sqla": "P1D",
@@ -445,7 +661,8 @@ def ts_chart(name, table, metrics, x_axis, groupby=None, viz="echarts_timeseries
     })
 
 
-def cat_bar_chart(name, table, metric, dimension, row_limit=25):
+def cat_bar_chart(name, table, metric, dimension, row_limit=25, filters=None, width=4):
+    CHART_WIDTHS[name] = width
     return (name, table, "echarts_timeseries_bar", {
         "x_axis": dimension,
         "metrics": [metric],
@@ -454,11 +671,12 @@ def cat_bar_chart(name, table, metric, dimension, row_limit=25):
         "time_range": "No filter",
         "order_desc": True,
         "show_legend": False,
-        "adhoc_filters": [],
+        "adhoc_filters": filters or [],
     })
 
 
-def pie_chart(name, table, metric, dimension):
+def pie_chart(name, table, metric, dimension, filters=None, width=4):
+    CHART_WIDTHS[name] = width
     return (name, table, "pie", {
         "metric": metric,
         "groupby": [dimension],
@@ -466,25 +684,80 @@ def pie_chart(name, table, metric, dimension):
         "time_range": "No filter",
         "show_legend": True,
         "legendType": "scroll",
-        "adhoc_filters": [],
+        "adhoc_filters": filters or [],
     })
 
 
-def big_number(name, table, metric, subheader=""):
+def adhoc(col, op, val):
+    """Build a SIMPLE adhoc filter dict for baked-in chart cuts."""
+    return {"clause": "WHERE", "subject": col, "operator": op,
+            "comparator": val, "expressionType": "SIMPLE"}
+
+
+def big_number(name, table, metric, subheader="", filters=None, width=3):
+    CHART_WIDTHS[name] = width
     return (name, table, "big_number_total", {
         "metric": metric,
         "time_range": "No filter",
         "subheader": subheader,
-        "adhoc_filters": [],
+        "adhoc_filters": filters or [],
     })
 
 
-def table_chart(name, table, columns, metrics=None, row_limit=100, order_by=None):
+def heatmap_chart(name, table, metric, x_col, y_col, filters=None, width=6):
+    CHART_WIDTHS[name] = width
+    # Superset 4.x: legacy "heatmap" was removed; the registered viz is "heatmap_v2"
+    # (x_axis / groupby[=Y] / metric). groupby is single-select (multi=false).
+    return (name, table, "heatmap_v2", {
+        "x_axis": x_col,
+        "groupby": y_col,
+        "metric": metric,
+        "row_limit": 10000,
+        "time_range": "No filter",
+        "normalize_across": "heatmap",
+        "linear_color_scheme": "blue_white_yellow",
+        "legend_type": "continuous",
+        "sort_x_axis": "alpha_asc",
+        "sort_y_axis": "alpha_asc",
+        "xscale_interval": -1,
+        "yscale_interval": -1,
+        "left_margin": "auto",
+        "bottom_margin": "auto",
+        "value_bounds": [None, None],
+        "y_axis_format": "SMART_NUMBER",
+        "x_axis_time_format": "smart_date",
+        "show_legend": True,
+        "show_percentage": False,
+        "show_values": False,
+        "adhoc_filters": filters or [],
+    })
+
+
+def stacked_bar(name, table, metric, x_col, series_col, filters=None, row_limit=10000, width=6):
+    CHART_WIDTHS[name] = width
+    return (name, table, "echarts_timeseries_bar", {
+        "x_axis": x_col,
+        "metrics": [metric],
+        "groupby": [series_col],
+        "stack": "Stack",
+        "row_limit": row_limit,
+        "time_range": "No filter",
+        "show_legend": True,
+        "adhoc_filters": filters or [],
+    })
+
+
+def table_chart(name, table, columns, metrics=None, row_limit=100, order_by=None,
+                width=6, filters=None, conditional_formatting=None):
+    """order_by: list of (column, ascending_bool). conditional_formatting: list of
+    {column, operator, targetValue, colorScheme} for cell highlighting."""
+    CHART_WIDTHS[name] = width
     params = {
         "query_mode": "aggregate" if metrics else "raw",
         "row_limit": row_limit,
         "time_range": "No filter",
-        "adhoc_filters": [],
+        "adhoc_filters": filters or [],
+        "server_pagination": False,
     }
     if metrics:
         params["groupby"] = columns
@@ -492,7 +765,9 @@ def table_chart(name, table, columns, metrics=None, row_limit=100, order_by=None
     else:
         params["all_columns"] = columns
     if order_by:
-        params["order_by_cols"] = order_by
+        params["order_by_cols"] = [json.dumps([c, asc]) for c, asc in order_by]
+    if conditional_formatting:
+        params["conditional_formatting"] = conditional_formatting
     return (name, table, "table", params)
 
 
@@ -555,12 +830,47 @@ def build_chart_specs():
         pie_chart("Invoices by Payment State", "fct_invoice_lines", "Invoices", "payment_state"),
     ]
 
-    # Pharmacy
+    # Pharmacy — inventory health, expiry control, dispensing
+    EXPIRING_SOON = adhoc("expiry_bucket", "IN", ["<= 30 days", "31-60 days", "61-90 days"])
+    NOT_YET_EXPIRED_90 = [adhoc("days_until_expiry", ">=", 0), adhoc("days_until_expiry", "<=", 90)]
+    IS_EXPIRED = adhoc("expiry_bucket", "==", "Expired")
+    NEEDS_REORDER = adhoc("stock_status", "IN", ["Out of stock", "Below reorder", "Low (<20)"])
     charts += [
-        cat_bar_chart("Top Prescribed Drugs", "fct_drug_orders", "Prescriptions", "drug_name", row_limit=25),
-        ts_chart("Prescription Trend", "fct_drug_orders", ["Prescriptions"], "ordered_at"),
-        table_chart("Stock on Hand", "fct_drug_stock",
-                    ["drug_name", "lot_number", "location"], metrics=["Quantity on Hand"], row_limit=200),
+        # KPI strip
+        big_number("KPI · Total Stock Value", "fct_drug_onhand", "Stock Value"),
+        big_number("KPI · Value Expiring ≤90d", "fct_drug_stock", "Stock Value",
+                   subheader="at risk", filters=[EXPIRING_SOON]),
+        big_number("KPI · Expired Stock Value", "fct_drug_stock", "Stock Value",
+                   subheader="quarantine / write-off", filters=[IS_EXPIRED]),
+        big_number("KPI · Reorder Alerts", "fct_drug_onhand", "Reorder-alert SKUs",
+                   subheader="out / below reorder / low"),
+        # Expiry control — the about-to-expire worklist
+        table_chart("Near-Expiry Medicines (≤90 days)", "fct_drug_stock",
+                    ["drug_name", "lot_number", "location", "expiration_date",
+                     "days_until_expiry", "quantity", "stock_value"],
+                    row_limit=300, width=12, filters=NOT_YET_EXPIRED_90,
+                    order_by=[("days_until_expiry", True)],
+                    conditional_formatting=[
+                        {"column": "days_until_expiry", "operator": "<", "targetValue": 30, "colorScheme": "#e04355"},
+                        {"column": "days_until_expiry", "operator": "<", "targetValue": 60, "colorScheme": "#fcc700"},
+                    ]),
+        cat_bar_chart("Value at Risk by Expiry Window", "fct_drug_stock", "Stock Value",
+                      "expiry_bucket", row_limit=10, width=6),
+        table_chart("Expired Stock (quarantine)", "fct_drug_stock",
+                    ["drug_name", "lot_number", "location", "expiration_date", "quantity", "stock_value"],
+                    row_limit=300, width=6, filters=[IS_EXPIRED],
+                    order_by=[("expiration_date", True)]),
+        # Stock levels & valuation
+        table_chart("Low / Out of Stock (reorder list)", "fct_drug_onhand",
+                    ["drug_name", "drug_category", "on_hand", "reorder_level", "stock_status"],
+                    row_limit=300, width=6, filters=[NEEDS_REORDER],
+                    order_by=[("on_hand", True)]),
+        cat_bar_chart("Stock Value by Category", "fct_drug_onhand", "Stock Value",
+                      "drug_category", row_limit=20, width=6),
+        # Dispensing / prescribing
+        cat_bar_chart("Top Prescribed Drugs", "fct_drug_orders", "Prescriptions", "drug_name",
+                      row_limit=25, width=6),
+        ts_chart("Prescription Trend", "fct_drug_orders", ["Prescriptions"], "ordered_at", width=6),
     ]
 
     # Inpatient / bed management
@@ -569,6 +879,61 @@ def build_chart_specs():
         ts_chart("Admissions Trend", "fct_bed_assignments", ["Admissions"], "assigned_at", groupby=["ward"]),
         cat_bar_chart("Bed Days by Ward", "fct_bed_assignments", "Bed Days", "ward"),
         pie_chart("Beds by Type", "fct_bed_assignments", "Admissions", "bed_type"),
+    ]
+
+    # ===================== NEW DASHBOARDS ============================== #
+
+    # --- Inpatient Outcomes & Mortality (HMIS core) ---
+    charts += [
+        big_number("KPI · Inpatient Deaths", "fct_inpatient_outcomes", "Deaths"),
+        big_number("KPI · Mortality Rate", "fct_inpatient_outcomes", "Mortality %", subheader="% of inpatient outcomes"),
+        stacked_bar("Outcomes by Age Group", "fct_inpatient_outcomes", "Outcomes", "age_group", "outcome"),
+        pie_chart("Outcome Mix", "fct_inpatient_outcomes", "Outcomes", "outcome"),
+        ts_chart("Inpatient Deaths Trend", "fct_inpatient_outcomes", ["Deaths"], "outcome_at"),
+        heatmap_chart("Outcome x Age Heatmap", "fct_inpatient_outcomes", "Outcomes", "age_group", "outcome"),
+    ]
+
+    # --- Maternal & Child Health (neonatal real; rest scaffolded) ---
+    charts += [
+        big_number("KPI · Neonatal Deaths", "fct_inpatient_outcomes", "Deaths",
+                   subheader="age <= 28 days",
+                   filters=[adhoc("neonatal", "==", "Neonate")]),
+        pie_chart("Neonatal Deaths by Sex", "fct_inpatient_outcomes", "Deaths", "gender",
+                  filters=[adhoc("neonatal", "==", "Neonate"), adhoc("outcome", "==", "Death")]),
+        cat_bar_chart("Neonatal Deaths by Age Band", "fct_inpatient_outcomes", "Deaths", "age_group",
+                      filters=[adhoc("neonatal", "==", "Neonate"), adhoc("outcome", "==", "Death")]),
+        ts_chart("Neonatal Deaths Trend", "fct_inpatient_outcomes", ["Deaths"], "outcome_at",
+                 viz="echarts_timeseries_line"),
+    ]
+
+    # --- Disease Surveillance ---
+    charts += [
+        ts_chart("Surveillance · Diagnosis Watch (weekly)", "fct_diagnoses", ["Diagnoses"], "diagnosed_at",
+                 groupby=["diagnosis"], width=12),
+        heatmap_chart("Diagnosis x Age Heatmap", "fct_diagnoses", "Diagnoses", "age_group", "diagnosis"),
+        cat_bar_chart("Diagnoses by District", "fct_diagnoses", "Diagnoses", "district", row_limit=30),
+        heatmap_chart("Diagnosis x District Heatmap", "fct_diagnoses", "Diagnoses", "district", "diagnosis"),
+    ]
+
+    # --- Equity & Free Care (payment proxy + scaffold) ---
+    charts += [
+        pie_chart("Invoices by Payment State", "fct_invoice_lines", "Invoices", "payment_state"),
+        ts_chart("Billed vs Outstanding Trend", "fct_outstanding_ar", ["Billed", "Outstanding"], "invoiced_at"),
+        cat_bar_chart("Outstanding by Aging", "fct_outstanding_ar", "Outstanding", "aging_bucket"),
+    ]
+
+    # --- Data Quality & Governance ---
+    charts += [
+        big_number("DQ · % Gender Complete", "dq_patient_quality", "% Gender Complete"),
+        big_number("DQ · % Birthdate Complete", "dq_patient_quality", "% Birthdate Complete"),
+        big_number("DQ · % Address Complete", "dq_patient_quality", "% Address Complete"),
+        big_number("DQ · % Diagnoses Coded", "dq_diagnosis_coding", "% Coded"),
+        ts_chart("Registration Completeness Trend", "dq_patient_quality",
+                 ["% Gender Complete", "% Birthdate Complete", "% Address Complete"], "registered_at", width=12),
+        ts_chart("Diagnosis Coding Trend", "dq_diagnosis_coding", ["% Coded"], "diagnosed_at"),
+        cat_bar_chart("Voided Rate by Entity", "dq_voided_rates", "Voided %", "entity", row_limit=20),
+        table_chart("Voided Counts", "dq_voided_rates", ["entity"],
+                    metrics=["Voided", "Voided %"], row_limit=20),
     ]
 
     return charts
@@ -592,6 +957,7 @@ def build_dashboard_specs():
         },
         {
             "title": "NidanEHR · Patient Flow & Demographics",
+            "public": True,
             "charts": ["Gender Distribution", "Age Distribution", "Top Municipalities",
                        "Patients by District", "Visits by Hour of Day", "Visits by Status"],
             "filters": [("fct_patients", "gender", "Gender"),
@@ -601,6 +967,7 @@ def build_dashboard_specs():
         },
         {
             "title": "NidanEHR · Clinical Operations",
+            "roles": ["Clinical"],
             "charts": ["Encounter Types", "Provider Productivity", "Encounters by Location",
                        "Avg Length of Stay"],
             "filters": [("fct_encounters", "encounter_type", "Encounter Type"),
@@ -609,6 +976,7 @@ def build_dashboard_specs():
         },
         {
             "title": "NidanEHR · Morbidity & Public Health",
+            "public": True,
             "charts": ["Top Diagnoses", "Morbidity by Age Group", "Morbidity by Gender",
                        "Diagnosis Trend"],
             "filters": [("fct_diagnoses", "diagnosis", "Diagnosis"),
@@ -618,6 +986,7 @@ def build_dashboard_specs():
         },
         {
             "title": "NidanEHR · Laboratory Analytics",
+            "roles": ["Lab"],
             "charts": ["Lab Test Volume", "Top Tests", "Turnaround Time Trend", "Tests by Status"],
             "filters": [("fct_lab_orders", "test_section", "Test Section"),
                         ("fct_lab_orders", "test_name", "Test"),
@@ -625,6 +994,7 @@ def build_dashboard_specs():
         },
         {
             "title": "NidanEHR · Financial Performance",
+            "roles": ["Finance"],
             "charts": ["Revenue by Category Trend", "Revenue by Category", "Top Revenue Products",
                        "AR Aging", "Invoices by Payment State"],
             "filters": [("fct_invoice_lines", "product_category", "Service Category"),
@@ -632,15 +1002,94 @@ def build_dashboard_specs():
         },
         {
             "title": "NidanEHR · Pharmacy Management",
-            "charts": ["Top Prescribed Drugs", "Prescription Trend", "Stock on Hand"],
-            "filters": [("fct_drug_orders", "drug_name", "Drug")],
+            "roles": ["Pharmacy"],
+            "note": ("**Inventory health, expiry control & dispensing.** Expiry/stock data "
+                     "comes from Odoo (product_expiry is installed). Charts are empty until "
+                     "the pharmacy receives stock into internal locations **with lot + expiry "
+                     "tracking enabled** and configures **reorder rules** (min qty) per drug."),
+            "charts": ["KPI · Total Stock Value", "KPI · Value Expiring ≤90d",
+                       "KPI · Expired Stock Value", "KPI · Reorder Alerts",
+                       "Near-Expiry Medicines (≤90 days)", "Value at Risk by Expiry Window",
+                       "Expired Stock (quarantine)", "Low / Out of Stock (reorder list)",
+                       "Stock Value by Category", "Top Prescribed Drugs", "Prescription Trend"],
+            "filters": [("fct_drug_stock", "drug_name", "Drug"),
+                        ("fct_drug_stock", "drug_category", "Category"),
+                        ("fct_drug_stock", "expiry_bucket", "Expiry Window"),
+                        ("fct_drug_stock", "location", "Location"),
+                        ("fct_drug_onhand", "stock_status", "Stock Status")],
         },
         {
             "title": "NidanEHR · Inpatient & Bed Management",
+            "roles": ["Clinical"],
             "charts": ["KPI · Currently Admitted", "Admissions Trend", "Bed Days by Ward", "Beds by Type"],
             "filters": [("fct_bed_assignments", "ward", "Ward"),
                         ("fct_bed_assignments", "bed_type", "Bed Type"),
                         ("fct_bed_assignments", "bed_status", "Bed Status")],
+        },
+
+        # ===================== NEW DASHBOARDS ============================= #
+        {
+            "title": "NidanEHR · Inpatient Outcomes & Mortality",
+            "roles": ["Clinical"],
+            "note": ("**Source:** discharge-outcome `obs` (same concept the federal HMIS "
+                     "Hospital Indoor report uses). If outcomes look empty, verify the "
+                     "outcome concept's answer names against `fct_inpatient_outcomes` SQL."),
+            "charts": ["KPI · Inpatient Deaths", "KPI · Mortality Rate", "Outcome Mix",
+                       "Outcomes by Age Group", "Outcome x Age Heatmap", "Inpatient Deaths Trend"],
+            "filters": [("fct_inpatient_outcomes", "outcome", "Outcome"),
+                        ("fct_inpatient_outcomes", "age_group", "Age Group"),
+                        ("fct_inpatient_outcomes", "gender", "Gender"),
+                        ("fct_inpatient_outcomes", "neonatal", "Neonatal")],
+        },
+        {
+            "title": "NidanEHR · Maternal & Child Health",
+            "roles": ["Clinical"],
+            "note": ("**Neonatal mortality is live** (from discharge outcomes). "
+                     "⚠️ _Pending data capture for full MNCH:_ ANC visits, deliveries & mode, "
+                     "PNC, immunization, and family planning require coded `obs`/encounter types "
+                     "to be mapped — add datasets once those concepts are confirmed."),
+            "charts": ["KPI · Neonatal Deaths", "Neonatal Deaths by Sex",
+                       "Neonatal Deaths by Age Band", "Neonatal Deaths Trend"],
+            "filters": [("fct_inpatient_outcomes", "gender", "Gender"),
+                        ("fct_inpatient_outcomes", "age_group", "Age Band")],
+        },
+        {
+            "title": "NidanEHR · Disease Surveillance",
+            "public": True,
+            "note": ("Use the **Diagnosis** filter as a watchlist (multi-select the diseases to "
+                     "monitor), then set **Time Grain = Week**. ⚠️ _A notifiable/communicable "
+                     "disease classification (ICD grouping) is not yet mapped_ — add it to enable "
+                     "automatic communicable-vs-NCD splits and outbreak thresholds."),
+            "charts": ["Surveillance · Diagnosis Watch (weekly)", "Diagnosis x Age Heatmap",
+                       "Diagnoses by District", "Diagnosis x District Heatmap"],
+            "filters": [("fct_diagnoses", "diagnosis", "Diagnosis (watchlist)"),
+                        ("fct_diagnoses", "district", "District"),
+                        ("fct_diagnoses", "age_group", "Age Group"),
+                        ("fct_diagnoses", "gender", "Gender")],
+        },
+        {
+            "title": "NidanEHR · Equity & Free Care",
+            "roles": ["Finance"],
+            "note": ("⚠️ _Scaffold using billing payment-state as a proxy._ The federal HMIS "
+                     "requires beneficiary-category reporting (Ultra-poor, FCHV, Senior >60, "
+                     "Disabled, GBV, Helpless) and **amount of cost exempted**. These need a "
+                     "coded free-care / payer category captured at registration or billing, plus "
+                     "the reporting mart to join clinical ↔ billing. Charts here are placeholders "
+                     "until that field exists."),
+            "charts": ["Invoices by Payment State", "Billed vs Outstanding Trend",
+                       "Outstanding by Aging"],
+            "filters": [("fct_invoice_lines", "payment_state", "Payment State"),
+                        ("fct_outstanding_ar", "aging_bucket", "Aging Bucket")],
+        },
+        {
+            "title": "NidanEHR · Data Quality & Governance",
+            "note": ("Monitors capture quality — reports are only as good as the data behind them. "
+                     "Track completeness, diagnosis coding, and voided rates over time."),
+            "charts": ["DQ · % Gender Complete", "DQ · % Birthdate Complete",
+                       "DQ · % Address Complete", "DQ · % Diagnoses Coded",
+                       "Registration Completeness Trend", "Diagnosis Coding Trend",
+                       "Voided Rate by Entity", "Voided Counts"],
+            "filters": [],
         },
     ]
 
@@ -653,8 +1102,8 @@ def _hash_id(prefix, *parts):
     return f"{prefix}-{h}"
 
 
-def build_position_json(title, slices):
-    """Grid layout: KPI/big-number charts compact, others 2-per-row."""
+def build_position_json(title, slices, note=None):
+    """Grid layout: optional markdown banner, KPI row, then 2-per-row charts."""
     position = {
         "DASHBOARD_VERSION_KEY": "v2",
         "ROOT_ID": {"type": "ROOT", "id": "ROOT_ID", "children": ["GRID_ID"]},
@@ -662,20 +1111,53 @@ def build_position_json(title, slices):
         "HEADER_ID": {"type": "HEADER", "id": "HEADER_ID", "meta": {"text": title}},
     }
     rows = []
+
+    if note:
+        md_row = _hash_id("ROW", title, "noterow")
+        md_id = _hash_id("MARKDOWN", title, "note")
+        position[md_id] = {
+            "type": "MARKDOWN", "id": md_id, "children": [],
+            "meta": {"width": 12, "height": 18, "code": note},
+            "parents": ["ROOT_ID", "GRID_ID", md_row],
+        }
+        position[md_row] = {
+            "type": "ROW", "id": md_row, "children": [md_id],
+            "meta": {"background": "BACKGROUND_TRANSPARENT"},
+            "parents": ["ROOT_ID", "GRID_ID"],
+        }
+        rows.append(md_row)
     kpis = [s for s in slices if s.viz_type == "big_number_total"]
     others = [s for s in slices if s.viz_type != "big_number_total"]
 
-    def add_row(members, width, height):
+    fallback_w = {"big_number_total": 3, "pie": 4, "heatmap_v2": 6, "table": 6}
+
+    def width_for(s):
+        w = CHART_WIDTHS.get(s.slice_name) or fallback_w.get(s.viz_type, 6)
+        return max(2, min(12, w))
+
+    def height_for(width, is_kpi):
+        if is_kpi:
+            return 38
+        if width >= 12:
+            return 60
+        if width >= 6:
+            return 52
+        return 48
+
+    def add_row(members):
+        """members: list of (slice, width)."""
         if not members:
             return
         row_id = _hash_id("ROW", title, len(rows))
+        is_kpi = all(s.viz_type == "big_number_total" for s, _ in members)
+        row_h = max(height_for(w, is_kpi) for _, w in members)
         children = []
-        for s in members:
+        for s, w in members:
             cid = _hash_id("CHART", s.id)
             position[cid] = {
                 "type": "CHART", "id": cid, "children": [],
                 "meta": {"chartId": s.id, "sliceName": s.slice_name,
-                         "width": width, "height": height},
+                         "width": w, "height": row_h},
                 "parents": ["ROOT_ID", "GRID_ID", row_id],
             }
             children.append(cid)
@@ -686,12 +1168,20 @@ def build_position_json(title, slices):
         }
         rows.append(row_id)
 
-    # KPI row: up to 4 across
-    for i in range(0, len(kpis), 4):
-        add_row(kpis[i:i + 4], width=3, height=40)
-    # Other charts: 2 across
-    for i in range(0, len(others), 2):
-        add_row(others[i:i + 2], width=6, height=52)
+    def pack(items):
+        """Greedy bin-packing into 12-col rows -> mixed full/3-col/2-col rows."""
+        row, used = [], 0
+        for s in items:
+            w = width_for(s)
+            if row and used + w > 12:
+                add_row(row)
+                row, used = [], 0
+            row.append((s, w))
+            used += w
+        add_row(row)
+
+    pack(kpis)     # KPI strip(s) first
+    pack(others)   # then everything else, packed by width
 
     position["GRID_ID"]["children"] = rows
     return position
@@ -898,8 +1388,46 @@ def main():
                 print(f"  ✗ chart '{name}': {e}")
         print(f"  ✓ {len(charts)} charts ready")
 
-        # --- Step 4: dashboards (with universal filters) ------------------ #
-        print("\n[4/4] Dashboards + native filters")
+        # --- Step 4a: RBAC roles ------------------------------------------ #
+        # Custom hospital roles cloned from Gamma's base perms; per-dashboard
+        # access is then granted via the DASHBOARD_RBAC feature flag by
+        # attaching roles to dashboards (below). Admin bypasses RBAC (sees all).
+        print("\n[4/4] RBAC roles + dashboards + native filters")
+        from superset.extensions import security_manager as sm
+
+        STAFF_ROLES = ["Clinical", "Lab", "Pharmacy", "Finance"]
+        PUBLIC_ROLE_NAMES = ["Public"] + STAFF_ROLES  # public dashboards: everyone
+
+        role_cache = {}
+
+        def get_role(name):
+            if name in role_cache:
+                return role_cache[name]
+            role = sm.find_role(name)
+            if not role:
+                role = sm.add_role(name)
+            # Clone Gamma's base permissions into custom staff roles so they can
+            # log in and render dashboards (Public is handled by PUBLIC_ROLE_LIKE).
+            if name in STAFF_ROLES:
+                gamma = sm.find_role("Gamma")
+                if gamma:
+                    role.permissions = list(gamma.permissions)
+            db.session.commit()
+            role_cache[name] = role
+            return role
+
+        for rn in STAFF_ROLES:
+            get_role(rn)
+        print(f"  ✓ roles ready: {', '.join(['Admin'] + STAFF_ROLES + ['Public'])}")
+
+        def roles_for(spec):
+            if spec.get("public"):
+                names = PUBLIC_ROLE_NAMES
+            elif spec.get("roles"):
+                names = spec["roles"]
+            else:
+                names = []  # admin-only (no roles attached -> only Admin sees it)
+            return [get_role(n) for n in names]
 
         def upsert_dashboard(spec):
             title = spec["title"]
@@ -908,7 +1436,7 @@ def main():
                 print(f"  ⚠ {title}: no charts available, skipping")
                 return
             primary_ds_id = slices[0].datasource_id
-            position = build_position_json(title, slices)
+            position = build_position_json(title, slices, note=spec.get("note"))
             native_filters = build_native_filters(
                 title, spec.get("filters", []), table_to_dataset, primary_ds_id)
             json_metadata = json.dumps({
@@ -933,8 +1461,13 @@ def main():
             dash.slices = slices
             dash.position_json = json.dumps(position)
             dash.json_metadata = json_metadata
+            roles = roles_for(spec)
+            dash.roles = roles
             db.session.commit()
-            print(f"  ✓ {title} ({len(slices)} charts, {len(native_filters)} filters)")
+            access = ("Admin only" if not roles
+                      else ("Public + staff" if spec.get("public")
+                            else "+".join(r.name for r in roles)))
+            print(f"  ✓ {title} ({len(slices)} charts, {len(native_filters)} filters) — {access}")
 
         for spec in build_dashboard_specs():
             try:

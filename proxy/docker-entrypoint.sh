@@ -19,7 +19,11 @@ fi
 # Template the nginx configuration with environment variables
 # Set default OpenELIS context path if not provided
 export OPENELIS_CONTEXT_PATH="${OPENELIS_CONTEXT_PATH:-/api/OpenELIS-Global/}"
+export DASHBOARD_ODOO_URL="${DASHBOARD_ODOO_URL:-http://localhost:8069}"
 envsubst '${GATEWAY_DOMAIN} ${OPENELIS_CONTEXT_PATH}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+
+INDEX_TEMPLATE="${INDEX_HTML_TEMPLATE:-/etc/nginx/templates/index.html.template}"
+envsubst '${DASHBOARD_ODOO_URL}' < "${INDEX_TEMPLATE}" > /usr/share/nginx/html/index.html
 
 # Execute the original entrypoint
 exec "$@"

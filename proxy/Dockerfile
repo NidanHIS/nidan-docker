@@ -9,7 +9,7 @@ COPY nginx.conf /etc/nginx/nginx.conf.template
 # Script to template nginx config at runtime
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-COPY index.html /usr/share/nginx/html/index.html
+COPY index.html.template /etc/nginx/templates/index.html.template
 COPY 502.html /usr/share/nginx/html/502.html
 COPY assets/ /usr/share/nginx/html/assets/
 COPY nidan-logo.png /usr/share/nginx/html/nidan-logo.png

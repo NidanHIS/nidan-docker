@@ -33,6 +33,7 @@ services:
       - OPENELIS_DOMAIN=${OPENELIS_DOMAIN}
       # OpenELIS context path (must match the backend SERVER_SERVLET_CONTEXT_PATH)
       - OPENELIS_CONTEXT_PATH=${OPENELIS_CONTEXT_PATH:-/api/OpenELIS-Global/}
+      - DASHBOARD_ODOO_URL=${DASHBOARD_ODOO_URL:-http://localhost:8069}
     networks:
       - nidan-network
     depends_on:
@@ -165,7 +166,7 @@ services:
     volumes:
       - odoo-data:/var/lib/odoo
       # Mount custom addons (including nidan_connector) for dev
-      - ${ODOO_EXTRA_ADDONS_HOST_PATH:-../odoo_19_addons}:/mnt/extra-addons
+      - ${ODOO_ADDONS_PATH:-../odoo_19_addons}:/mnt/extra-addons
       # Mount the private/closed-source addons for live editing in dev
       - ${ODOO_PRIVATE_ADDONS_HOST_PATH:-../nidan_odoo_extra_addons}:/mnt/private-addons
       # odoo.conf template so addons_path includes /mnt/private-addons

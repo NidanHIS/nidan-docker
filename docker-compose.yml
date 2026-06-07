@@ -40,13 +40,15 @@ services:
       - OPENELIS_DOMAIN=${OPENELIS_DOMAIN}
       # OpenELIS context path (must match the backend SERVER_SERVLET_CONTEXT_PATH)
       - OPENELIS_CONTEXT_PATH=${OPENELIS_CONTEXT_PATH:-/api/OpenELIS-Global/}
+      # Odoo card URL on the gateway dashboard (index.html)
+      - DASHBOARD_ODOO_URL=${DASHBOARD_ODOO_URL:-http://localhost:8069}
     networks:
       - nidan-network
     volumes:
       - certbot-etc:/etc/letsencrypt
       - certbot-www:/var/www/certbot
       - ./proxy/nginx.conf:/etc/nginx/nginx.conf.template:ro
-      - ./proxy/index.html:/usr/share/nginx/html/index.html:ro
+      - ./proxy/index.html.template:/etc/nginx/templates/index.html.template:ro
       - ./proxy/nidan-logo.png:/usr/share/nginx/html/nidan-logo.png:ro
       - ./proxy/trigonal-logo.png:/usr/share/nginx/html/trigonal-logo.png:ro
       - ./proxy/502.html:/usr/share/nginx/html/502.html:ro
@@ -223,9 +225,9 @@ services:
     volumes:
       - odoo-data:/var/lib/odoo
       # Addons come from the image (baked at /mnt/extra-addons + /mnt/private-addons).
-      - ${ODOO_ADDONS_PATH:-../odoo_19_addons}:/mnt/extra-addons
+      # - ${ODOO_ADDONS_PATH}:/mnt/extra-addons:ro
       # Live-mount the closed-source addons so the current source (not the baked copy) is used.
-      - ${ODOO_PRIVATE_ADDONS_HOST_PATH:-../nidan_odoo_extra_addons}:/mnt/private-addons
+      # - ${ODOO_PRIVATE_ADDONS_HOST_PATH}:/mnt/private-addons:ro
       # odoo.conf from git (read-only). Entrypoint copies to container; runtime changes stay in container.
       - ./odoo/odoo.conf:/mnt/odoo.conf.template:ro
     networks:

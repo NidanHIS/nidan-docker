@@ -81,7 +81,27 @@ FEATURE_FLAGS = {
     "ENABLE_CUSTOM_FORM_DATA": True,
     "KV_STORE": True,
     "ENABLE_PERMISSION_V2": True,
+    # Per-dashboard role-based access control (hospital RBAC: lab/pharmacy/etc.)
+    "DASHBOARD_RBAC": True,
 }
+
+# ---------------------------------------------------------------------------
+# Theme — force LIGHT mode for the hospital setting (no dark toggle).
+# Superset 6: setting THEME_DARK = None forces a single (light) theme for all.
+# ---------------------------------------------------------------------------
+THEME_DEFAULT = {"algorithm": "default"}  # light
+THEME_DARK = None                          # disables dark mode + OS-preference switching
+ENABLE_UI_THEME_ADMINISTRATION = False     # admins can't switch the system theme away from light
+
+# ---------------------------------------------------------------------------
+# Role-based access
+# ---------------------------------------------------------------------------
+# Anonymous (not-logged-in) visitors get the Public role, used for the public
+# dashboards / embedded monitor screens. PUBLIC_ROLE_LIKE grants Public the
+# base perms needed to render a dashboard; DASHBOARD_RBAC then restricts which
+# dashboards Public can actually see (only those with the Public role attached).
+AUTH_ROLE_PUBLIC = "Public"
+PUBLIC_ROLE_LIKE = "Gamma"
 
 # Enable all built-in chart types
 DEFAULT_VIZ_TYPE = "table"

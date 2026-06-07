@@ -37,7 +37,12 @@ done in Superset, not in the SQL.
 | `fct_lab_orders` | OpenELIS | analysis (test) |
 | `fct_invoice_lines` | Odoo | invoice line (revenue) |
 | `fct_outstanding_ar` | Odoo | open invoice (AR aging) |
-| `fct_drug_stock` | Odoo | stock quant (snapshot) |
+| `fct_drug_stock` | Odoo | stock by lot (expiry + value, snapshot) |
+| `fct_drug_onhand` | Odoo | stock by product vs reorder level (snapshot) |
+| `fct_inpatient_outcomes` | OpenMRS | discharge-outcome obs (age/sex banded) |
+| `dq_patient_quality` | OpenMRS | registration completeness flags |
+| `dq_diagnosis_coding` | OpenMRS | coded vs uncoded diagnoses |
+| `dq_voided_rates` | OpenMRS | voided record rates by entity |
 
 ### 2. Universal filters on every dashboard
 
@@ -63,8 +68,67 @@ spec + chart spec + reference it from a dashboard.
 | Morbidity & Public Health | top diagnoses, age/sex-disaggregated morbidity |
 | Laboratory Analytics | volume, turnaround time, status |
 | Financial Performance | revenue by category/product, AR aging, payment state |
-| Pharmacy Management | top drugs, prescription trend, stock on hand |
+| Pharmacy Management | near-expiry & expired worklists, value-at-risk, low/out-of-stock vs reorder, valuation, top drugs, prescription trend |
 | Inpatient & Bed Management | admissions, bed days/ward, bed types |
+| **Inpatient Outcomes & Mortality** | outcome mix, age×sex, mortality rate, deaths trend (HMIS) |
+| **Maternal & Child Health** | neonatal mortality live; ANC/delivery/immunization scaffolded |
+| **Disease Surveillance** | diagnosis watchlist (weekly), age & district heatmaps |
+| **Equity & Free Care** | payment-state proxy; beneficiary-category scaffolded |
+| **Data Quality & Governance** | completeness, diagnosis coding, voided rates |
+
+Dashboards marked _scaffold_ carry a markdown banner naming the data-capture
+dependency that must be satisfied before they become fully live (see Roadmap).
+New datasets backing these: `fct_inpatient_outcomes` (discharge-outcome obs),
+`dq_patient_quality`, `dq_diagnosis_coding`, `dq_voided_rates`.
+
+## Access control (role-based dashboards)
+
+`DASHBOARD_RBAC` is enabled. Each dashboard is seeded with the roles allowed to
+see it; **Admin bypasses RBAC and sees everything**. Roles `Clinical`, `Lab`,
+`Pharmacy`, `Finance` are auto-created (cloned from Gamma's base permissions);
+`Public` is the anonymous (not-logged-in) role.
+
+| Dashboard | Visible to |
+|---|---|
+| Patient Flow & Demographics · Morbidity & Public Health · Disease Surveillance | **Public** (anyone, incl. not logged in) + all staff |
+| Laboratory Analytics | Lab |
+| Pharmacy Management | Pharmacy |
+| Clinical Operations · Inpatient & Bed Mgmt · Inpatient Outcomes · MNCH | Clinical |
+| Financial Performance · Equity & Free Care | Finance |
+| Executive Overview · Data Quality & Governance | Admin only |
+
+So a lab user (role `Lab`) sees the public boards **plus** Laboratory Analytics;
+pharmacy sees public **plus** Pharmacy; etc. — exactly the layering requested.
+
+**Assigning people to roles:** Settings → List Users → edit user → set role(s),
+or map Keycloak groups → Superset roles once SSO is wired. To change a
+dashboard's access, edit its `roles`/`public` tag in `build_dashboard_specs()`
+and re-seed (or set roles in the dashboard's *Edit properties* dialog).
+
+> Security note: `PUBLIC_ROLE_LIKE = "Gamma"` lets anonymous users render the
+> public dashboards. If Superset is exposed to the public internet, harden the
+> `Public` role (keep dashboard-view perms, drop chart/dataset *list* menu perms).
+
+## Theme & layout
+
+- **Light mode is forced** (`THEME_DARK = None`, theme admin UI disabled) — no
+  dark toggle, appropriate for clinical/monitor displays.
+- Dashboards use **width-based row packing** (not a fixed 2-column grid): KPIs in
+  a top strip, then a greedy mix of full-width / 3-col / 2-col rows. Per-chart
+  width is set in the chart helpers (`width=` arg, 12-col grid).
+
+## Public display / embedding
+
+Public dashboards can be shown on a lobby monitor or embedded in the hospital
+website (same origin, via the `/superset` gateway path) — no login needed:
+
+```
+http://<host>/superset/dashboard/patient-flow-and-demographics/?standalone=1
+```
+
+`standalone=1` renders chromeless (no top nav); add `&standalone=3` to also hide
+the filter bar for a clean kiosk view. Set an auto-refresh interval from the
+dashboard's *⋯ → Set auto-refresh interval* menu for live monitors.
 
 ## Database connections (from env vars)
 

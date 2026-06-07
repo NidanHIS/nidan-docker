@@ -231,7 +231,7 @@
             </a>
 
             <!-- Odoo -->
-            <a href="${DASHBOARD_ODOO_URL:-http://localhost:8069}" target="_blank" class="card" id="card-odoo">
+            <a href="${DASHBOARD_ODOO_URL}" target="_blank" class="card" id="card-odoo">
                 <div class="status-badge status-checking" id="status-odoo">Checking...</div>
                 <div class="icon">📊</div>
                 <div class="title">ERP & Inventory</div>
