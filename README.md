@@ -70,7 +70,7 @@ docker-compose build odoo
 *   Add custom modules to `odoo/addons/`.
 
 ### 4. Nginx Gateway
-Rebuild the proxy if you change `nginx.conf` or the dashboard `index.html`.
+Rebuild the proxy if you change `nginx.conf` or the dashboard `index.html.template`.
 ```bash
 docker-compose build gateway
 ```
