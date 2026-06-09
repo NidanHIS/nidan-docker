@@ -1,0 +1,86 @@
+# SSL disabled (enable and point to real keystores in production)
+server.ssl.enabled=false
+server.ssl.enabled=false
+server.ssl.key-store=file:/etc/openelis-global/keystore
+server.ssl.key-store-password=kspass
+server.ssl.key-password=kspass
+server.ssl.trust-store=file:/etc/openelis-global/truststore
+server.ssl.trust-store-password=kspass
+
+encryption.general.password=kspass
+
+# FHIR disabled - using REST API only
+org.openelisglobal.fhirstore.uri=
+org.openelisglobal.fhirstore.username=
+org.openelisglobal.fhirstore.password=
+org.openelisglobal.fhir.subscriber.allowHTTP=true
+
+# Odoo Integration (fill when available)
+org.openelisglobal.odoo.baseUrl=
+org.openelisglobal.odoo.database=
+org.openelisglobal.odoo.username=
+org.openelisglobal.odoo.password=
+
+# Remote FHIR server/Consolidated Server
+org.openelisglobal.remote.source.uri=
+org.openelisglobal.remote.source.updateStatus=true
+org.openelisglobal.remote.source.identifier=Practitioner/*
+org.openelisglobal.remote.poll.frequency=120000
+org.openelisglobal.task.useBasedOn=true
+
+org.openelisglobal.fhir.subscriber=
+org.openelisglobal.fhir.subscriber.resources=Task,Patient,ServiceRequest,DiagnosticReport,Observation,Specimen,Practitioner,Encounter
+
+# Facility list placeholders
+org.openelisglobal.facilitylist.fhirstore=  
+org.openelisglobal.facilitylist.authurl=  
+org.openelisglobal.facilitylist.username=  
+org.openelisglobal.facilitylist.password=  
+org.openelisglobal.facilitylist.auth= 
+facilitylist.schedule.fixedRate=864000000
+
+# Provider FHIR server placeholders
+org.openelisglobal.providerlist.fhirstore=
+org.openelisglobal.requester.identifier=Practitioner/f9badd80-ab76-11e2-9e96-0800200c9a66
+org.openelisglobal.providerlist.poll.frequency=3600000
+org.openelisglobal.requester.lastName=Dr. Mauritius
+org.openelisglobal.requester.firstName=Felix
+org.openelisglobal.requester.phone=230 5123 1234
+
+# Paging properties
+org.openelisglobal.paging.patients.pageSize=99
+org.openelisglobal.paging.results.pageSize=99
+org.openelisglobal.paging.validation.pageSize=99
+org.openelisglobal.paging.displaylist.pageSize=99
+
+# Auto create Programmes from Questionnaire Resources under programs directory
+org.openelisglobal.program.autocreate=true
+
+# Help URLs
+org.openelisglobal.help.manual.url=https://uwdigi.atlassian.net/wiki/spaces/OG/folder/261455874
+org.openelisglobal.help.tutorials.url=https://video.openelis-global.org
+org.openelisglobal.help.release-notes.url=https://roadmap.openelis-global.org
+
+# OCL import
+org.openelisglobal.ocl.import.autocreate=false
+org.openelisglobal.ocl.import.default.testsection=Hematology
+org.openelisglobal.ocl.import.default.sampletype=Whole Blood
+
+# Locale
+org.openelisglobal.odoo.map.testname.locale=en
+
+org.openelisglobal.middleware.test.sync.enabled=true
+org.openelisglobal.middleware.test.sync.url=${CIS_BASE_URL}/openelis/catalog/lab-test-definition
+
+
+# OCL cleanup - removes seeded demo tests/panels before import
+org.openelisglobal.ocl.import.cleanup.enabled=true
+# WARNING: force=true will delete ALL tests/panels even with patient data - USE WITH CAUTION
+org.openelisglobal.ocl.import.cleanup.force=true
+
+
+# Middleware Result Sync Configuration
+
+org.openelisglobal.middleware.result.sync.enabled=true
+org.openelisglobal.middleware.result.sync.url=${CIS_BASE_URL}/openelis/lab-result
+org.openelisglobal.middleware.result.sync.secret=${OPENELIS_MIDDLEWARE_SYNC_SECRET}

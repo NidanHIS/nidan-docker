@@ -140,8 +140,8 @@ services:
       retries: 3
 
   openmrs-db:
-    #image: mariadb:10.11
-    image: trigonaltechnology/openmrs-db:latest
+    image: mariadb:10.11
+    # image: trigonaltechnology/openmrs-db:latest
     container_name: nidan-openmrs-db
     # Debezium/CIS: row-based binlog events for wide rows must fit max_allowed_packet (error 1236 if too small).
     command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --log-bin=mysql-bin --binlog_format=ROW --server-id=1 --binlog_row_image=FULL --max-allowed-packet=512M
@@ -224,9 +224,9 @@ services:
     volumes:
       - odoo-data:/var/lib/odoo
       # Addons come from the image (baked at /mnt/extra-addons + /mnt/private-addons).
-      # - ${ODOO_ADDONS_PATH}:/mnt/extra-addons:ro
-      # Live-mount the closed-source addons so the current source (not the baked copy) is used.
-      # - ${ODOO_PRIVATE_ADDONS_HOST_PATH}:/mnt/private-addons:ro
+      - ${ODOO_ADDONS_PATH:-../odoo_19_addons}:/mnt/extra-addons
+      # Mount the private/closed-source addons for live editing in dev
+      - ${ODOO_PRIVATE_ADDONS_HOST_PATH:-../nidan_odoo_extra_addons}:/mnt/private-addons
       # odoo.conf from git (read-only). Entrypoint copies to container; runtime changes stay in container.
       - ./odoo/odoo.conf:/mnt/odoo.conf.template:ro
     networks:
@@ -501,15 +501,9 @@ services:
       start_period: 45s
     restart: unless-stopped
 
-  # CIS / OIS: build from ../nidan-middleware/integration (Maven runs in Docker).
-  #   docker compose build nidan-cis nidan-ois
-  #   docker compose up --build nidan-cis nidan-ois
-  # Set NIDAN_CIS_IMAGE / NIDAN_OIS_IMAGE to registry tags to use prebuilt images without local build.
   nidan-cis:
-    # build:
-    #   context: ../nidan-middleware/integration
-    #   dockerfile: Dockerfile.cis
-    image: ${NIDAN_CIS_IMAGE:-nidan-cis:local}
+    # image: ${NIDAN_CIS_IMAGE:-nidan-cis:local}
+    image: nidan-cis:local
     container_name: nidan-cis
     ports:
       - "${CIS_PORT:-8081}:${CIS_PORT:-8081}"
@@ -555,6 +549,12 @@ services:
       - OPENMRS_BASE_URL=${OPENMRS_BASE_URL:-http://openmrs-backend:8080/openmrs}
       - OPENMRS_USERNAME=${OPENMRS_USERNAME:-admin}
       - OPENMRS_PASSWORD=${OPENMRS_PASSWORD:-Admin123}
+      # Sync-account provisioning (CIS creates the account in OpenMRS + OpenELIS on startup).
+      # NIDAN_SYNC_* = the account CIS authenticates as; OPENMRS_ADMIN_* = real admin used only to create it.
+      - NIDAN_SYNC_USERNAME=${NIDAN_SYNC_USERNAME:-nidan-sync}
+      - NIDAN_SYNC_PASSWORD=${NIDAN_SYNC_PASSWORD:-}
+      - OPENMRS_ADMIN_USERNAME=${OPENMRS_ADMIN_USERNAME:-admin}
+      - OPENMRS_ADMIN_PASSWORD=${OPENMRS_ADMIN_PASSWORD:-Admin123}
       - OPENMRS_IDENTIFIER_TYPE_UUID=${OPENMRS_IDENTIFIER_TYPE_UUID:-05a29f94-c0ed-11e2-94be-8c13b969e334}
       - OPENMRS_DEFAULT_LOCATION_UUID=${OPENMRS_DEFAULT_LOCATION_UUID:-44c3efb0-2583-4c80-a79e-1f756a03c0a1}
       - OPENMRS_FHIR_EXTENSION_URL=${OPENMRS_FHIR_EXTENSION_URL:-http://fhir.openmrs.org/ext/patient/identifier#location}
@@ -581,6 +581,12 @@ services:
       # - OPENELIS_ORDER_BUNDLE_PATH=${OPENELIS_ORDER_BUNDLE_PATH:-/fhir/tasks}
       - OPENELIS_USERNAME=${OPENELIS_USERNAME:-admin}
       - OPENELIS_PASSWORD=${OPENELIS_PASSWORD:-adminADMIN!}
+      # OpenELIS DB — CIS seeds the sync account directly (OpenELIS has no user REST API)
+      - OPENELIS_DB_HOST=${OPENELIS_DB_HOST:-nidan-openelis-db}
+      - OPENELIS_DB_PORT=${OPENELIS_DB_PORT:-5432}
+      - OPENELIS_DB_NAME=${OPENELIS_DB_NAME:-clinlims}
+      - OPENELIS_DB_USER=${OPENELIS_DB_USER:-clinlims}
+      - OPENELIS_DB_PASSWORD=${OPENELIS_DB_PASSWORD:-clinlims}
       #- "JAVA_TOOL_OPTIONS=-Djavax.net.ssl.trustStore=/etc/ssl/certs/openelis-truststore.p12 -Djavax.net.ssl.trustStorePassword=openelisTrust123"
       # Integration
       - INTEGRATION_SOURCE_SYSTEM=${INTEGRATION_SOURCE_SYSTEM:-CIS}
@@ -629,7 +635,8 @@ services:
       start_period: 60s
 
   nidan-ois:
-    image: ${NIDAN_OIS_IMAGE:-nidan-ois:local}
+    # image: ${NIDAN_OIS_IMAGE:-nidan-ois:local}
+    image: nidan-ois:local
     container_name: nidan-ois
     ports:
       - "${OIS_PORT:-8082}:${OIS_PORT:-8082}"
@@ -658,6 +665,9 @@ services:
       - ODOO_DATABASE=${ODOO_DB_NAME:-nidan}
       - ODOO_USERNAME=${ODOO_USERNAME:-nidan}
       - ODOO_PASSWORD=${ODOO_PASSWORD:-nidan}
+      # Sync-account provisioning (OIS creates the account in Odoo on startup, via JSON-RPC)
+      - NIDAN_SYNC_USERNAME=${NIDAN_SYNC_USERNAME:-nidan-sync}
+      - NIDAN_SYNC_PASSWORD=${NIDAN_SYNC_PASSWORD:-}
       # Integration
       - OIS_WEBHOOK_SECRET=${OIS_WEBHOOK_SECRET:-sample}
       - SKIP_SOURCE_SYSTEMS_FOR_ODOO=${SKIP_SOURCE_SYSTEMS_FOR_ODOO:-ODOO}

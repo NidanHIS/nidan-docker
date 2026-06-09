@@ -78,16 +78,14 @@ EOSQL
         fi
     fi
 
-    # Copy update-admin script if it exists
-    if [ -f /entrypoint.sh.update-admin.sh ]; then
+    # One-time admin password / web.base.url setup (sentinel persists in odoo-data volume).
+    ADMIN_SENTINEL="/var/lib/odoo/.admin-initialized"
+    if [ ! -f "$ADMIN_SENTINEL" ] && [ -f /entrypoint.sh.update-admin.sh ] && [ -n "$ODOO_ADMIN_PASSWORD" ] && [ "$ODOO_ADMIN_PASSWORD" != "admin" ]; then
         cp /entrypoint.sh.update-admin.sh /tmp/update-admin.sh
         chmod +x /tmp/update-admin.sh
         chown odoo:odoo /tmp/update-admin.sh
-    fi
-    
-    # Run admin password update only once (first init). Uses sentinel in odoo-data volume.
-    ADMIN_SENTINEL="/var/lib/odoo/.admin-initialized"
-    if [ ! -f "$ADMIN_SENTINEL" ] && [ -f /tmp/update-admin.sh ] && [ -n "$ODOO_ADMIN_PASSWORD" ] && [ "$ODOO_ADMIN_PASSWORD" != "admin" ]; then
+        touch "$ADMIN_SENTINEL"
+        chown odoo:odoo "$ADMIN_SENTINEL"
         echo "First run: admin password will be set in background..."
         gosu odoo /tmp/update-admin.sh &
     fi
