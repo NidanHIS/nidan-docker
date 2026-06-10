@@ -6,6 +6,7 @@
     "@kenyaemr/esm-bed-orders-app": "kenyaemr-esm-bed-orders-app-4.0.5.tgz",
     "@trigonal/esm-patient-report-app": "trigonal-esm-patient-report-app-1.0.0.tgz",
     "@openmrs/esm-patient-orders-fast-app": "openmrs-esm-patient-orders-fast-app-12.0.1.tgz",
+    "@openmrs/esm-paywall-app": "openmrs-esm-paywall-app-1.0.0.tgz.tgz",
     "@openmrs/esm-orderset-app": "openmrs-esm-orderset-app-12.0.1.tgz",
     "@openmrs/esm-nidan-core-app": "openmrs-esm-nidan-core-app-1.0.0.tgz",
     "@openmrs/esm-active-visits-app": "next",
