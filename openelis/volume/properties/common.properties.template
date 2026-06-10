@@ -69,18 +69,21 @@ org.openelisglobal.ocl.import.default.sampletype=Whole Blood
 # Locale
 org.openelisglobal.odoo.map.testname.locale=en
 
-org.openelisglobal.middleware.test.sync.enabled=true
-org.openelisglobal.middleware.test.sync.url=${CIS_BASE_URL}/openelis/catalog/lab-test-definition
 
 
-# OCL cleanup - removes seeded demo tests/panels before import
-org.openelisglobal.ocl.import.cleanup.enabled=true
-# WARNING: force=true will delete ALL tests/panels even with patient data - USE WITH CAUTION
-org.openelisglobal.ocl.import.cleanup.force=true
+# External Catalog Inbound Configuration
+org.openelisglobal.external.catalog.inbound.enabled=false
 
+# ── Middleware sync (URLs/secrets injected via CATALINA_OPTS -D from .env) ───────────────────
+# Defaults below are overridden at runtime; edit .env to change, not here.
+org.openelisglobal.middleware.test.sync.enabled=false
+org.openelisglobal.middleware.test.sync.url=
+org.openelisglobal.middleware.test.sync.secret=
 
-# Middleware Result Sync Configuration
+org.openelisglobal.middleware.result.sync.enabled=
+org.openelisglobal.middleware.result.sync.url=
+org.openelisglobal.middleware.result.sync.secret=
 
-org.openelisglobal.middleware.result.sync.enabled=true
-org.openelisglobal.middleware.result.sync.url=${CIS_BASE_URL}/openelis/lab-result
-org.openelisglobal.middleware.result.sync.secret=${OPENELIS_MIDDLEWARE_SYNC_SECRET}
+# Nidan Test Order — sample collection notification to CIS middleware
+org.openelisglobal.nidan.testorder.enabled=
+org.openelisglobal.nidan.testorder.url=
