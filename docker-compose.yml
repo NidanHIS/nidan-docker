@@ -372,7 +372,7 @@ services:
 
   # OpenELIS backend (Tomcat) - FIXED with HTTP enabled
   openelis:
-    image: trigonaltechnology/openelis-global-2:qa
+    image: trigonaltechnology/openelis-global-2:latest
     platform: linux/amd64
     container_name: nidan-openelis
     ports:
@@ -396,6 +396,10 @@ services:
           -Dorg.openelisglobal.middleware.result.sync.secret=${OPENELIS_MIDDLEWARE_SYNC_SECRET:-change-me}
           -Dorg.openelisglobal.nidan.testorder.enabled=${OPENELIS_NIDAN_TESTORDER_ENABLED:-true}
           -Dorg.openelisglobal.nidan.testorder.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/sample-collected
+          -Dorg.openelisglobal.nidan.paywall.enabled=${OPENELIS_NIDAN_PAYWALL_ENABLED:-true}
+          -Dorg.openelisglobal.nidan.paywall.odoo.url=${NIDANCORE_ODOO_URL:-http://odoo:8069}
+          -Dorg.openelisglobal.nidan.paywall.odoo.secret=${NIDAN_ODOO_SECRET}
+          -Dorg.openelisglobal.nidan.paywall.insurance.bypass=${OPENELIS_NIDAN_PAYWALL_INSURANCE_BYPASS:-true}
       # Disable Odoo integration
       - ODOO_ENABLED=false
       - ORG_OPENELISGLOBAL_ODOO_ENABLED=false

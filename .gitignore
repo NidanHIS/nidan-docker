@@ -19,6 +19,7 @@ openelis/volume/properties/TotalSystemConfiguration.properties
 openelis/volume/properties/SystemConfiguration.properties
 openelis/volume/properties/ChangedSystemConfiguration.properties
 openelis/volume/configuration/backend/ocl-checksums.properties
+openelis/volume/configuration/backend/tests-checksums.properties
 
 # Middleware build artifacts (JAR files)
 middleware/*/target/
