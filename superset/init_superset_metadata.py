@@ -409,6 +409,97 @@ def build_dataset_specs():
         ],
     })
 
+    # ---- Odoo: POS PAYMENTS (tender grain) -------------------------------- #
+    # One row per pos.payment tender line. Drives "payment method vs amount"
+    # and "discount provided": the nidan_pos_discount module models program
+    # discounts as POS payment methods flagged is_nidan_program_discount, so
+    # discounts are just tender lines we split out via payment_kind.
+    # pos.payment.method.name is translate=True -> jsonb, hence the ->> extract.
+    specs.append({
+        "db": "odoo", "table_name": "fct_pos_payments", "dttm": "paid_at",
+        "sql": """
+            SELECT
+                pp.id AS payment_id,
+                pp.payment_date AS paid_at,
+                pp.pos_order_id,
+                po.partner_id,
+                COALESCE(NULLIF(TRIM(ppm.name->>'en_US'), ''),
+                         NULLIF(TRIM(ppm.name->>'en'), ''), 'Unknown') AS payment_method,
+                CASE WHEN COALESCE(ppm.is_nidan_program_discount, false)
+                     THEN 'Discount' ELSE 'Payment' END AS payment_kind,
+                CASE
+                    WHEN ppm.discount_funding_type = 'hospital' THEN 'Hospital-funded'
+                    WHEN ppm.discount_funding_type = 'claimable' THEN 'Externally funded'
+                    ELSE 'n/a' END AS discount_funding,
+                pp.amount AS amount
+            FROM pos_payment pp
+            JOIN pos_order po ON pp.pos_order_id = po.id
+            LEFT JOIN pos_payment_method ppm ON pp.payment_method_id = ppm.id
+            WHERE po.state NOT IN ('draft', 'cancel')
+        """,
+        "columns": [
+            ("payment_id", "BIGINT", False), ("paid_at", "TIMESTAMP", False),
+            ("pos_order_id", "BIGINT", False), ("partner_id", "BIGINT", False),
+            ("payment_method", "VARCHAR", True), ("payment_kind", "VARCHAR", True),
+            ("discount_funding", "VARCHAR", True), ("amount", "FLOAT", False),
+        ],
+        "metrics": [
+            ("Amount", "SUM(amount)"),
+            ("Payments", "COUNT(payment_id)"),
+            ("Orders", "COUNT(DISTINCT pos_order_id)"),
+        ],
+    })
+
+    # ---- Odoo: INSURANCE CLAIMS (claim header grain) --------------------- #
+    # From nidan_insurance_management.insurance.claim. insurance_type is stored
+    # as the insurance.type *code* (char), joined to insurance_type for the
+    # human-readable scheme name (case-insensitive: claims may carry lowercase
+    # 'hib' while the type code is 'HIB'). claimed = claim_amount (billed to
+    # insurer), settled = paid_amount (actually paid by the insurer).
+    specs.append({
+        "db": "odoo", "table_name": "fct_insurance_claims", "dttm": "claimed_at",
+        "sql": """
+            SELECT
+                ic.id AS claim_id,
+                ic.claim_date AS claimed_at,
+                ic.patient_id,
+                COALESCE(NULLIF(TRIM(it.name), ''), ic.insurance_type, 'Unknown') AS insurance_type,
+                CASE ic.state
+                    WHEN 'draft' THEN 'Draft'
+                    WHEN 'submitted' THEN 'Submitted'
+                    WHEN 'under_review' THEN 'Under Review'
+                    WHEN 'approved' THEN 'Approved'
+                    WHEN 'partially_approved' THEN 'Partially Approved'
+                    WHEN 'rejected' THEN 'Rejected'
+                    WHEN 'paid' THEN 'Paid'
+                    WHEN 'cancelled' THEN 'Cancelled'
+                    ELSE ic.state END AS claim_status,
+                ic.claim_amount AS claimed_amount,
+                ic.approved_amount AS approved_amount,
+                ic.paid_amount AS settled_amount,
+                ic.gross_claim_amount AS gross_amount
+            FROM insurance_claim ic
+            LEFT JOIN (
+                SELECT DISTINCT ON (LOWER(code)) LOWER(code) AS lcode, name
+                FROM insurance_type
+                ORDER BY LOWER(code), active DESC, id DESC
+            ) it ON it.lcode = LOWER(ic.insurance_type)
+        """,
+        "columns": [
+            ("claim_id", "BIGINT", False), ("claimed_at", "TIMESTAMP", False),
+            ("patient_id", "BIGINT", False), ("insurance_type", "VARCHAR", True),
+            ("claim_status", "VARCHAR", True), ("claimed_amount", "FLOAT", False),
+            ("approved_amount", "FLOAT", False), ("settled_amount", "FLOAT", False),
+            ("gross_amount", "FLOAT", False),
+        ],
+        "metrics": [
+            ("Claims", "COUNT(claim_id)"),
+            ("Claimed Amount", "SUM(claimed_amount)"),
+            ("Approved Amount", "SUM(approved_amount)"),
+            ("Settled Amount", "SUM(settled_amount)"),
+        ],
+    })
+
     # ---- Odoo: DRUG STOCK BY LOT (expiry + value, snapshot) -------------- #
     # product_expiry module is installed -> stock_lot.expiration_date is real.
     # value-at-risk uses list_price (sale price) as the valuation proxy.
@@ -747,6 +838,26 @@ def stacked_bar(name, table, metric, x_col, series_col, filters=None, row_limit=
     })
 
 
+def multi_metric_bar(name, table, metrics, dimension, filters=None, row_limit=50,
+                     stack=False, width=6):
+    """Categorical bar with several metrics side-by-side (grouped) or stacked.
+    e.g. claimed vs settled amount per insurance type."""
+    CHART_WIDTHS[name] = width
+    params = {
+        "x_axis": dimension,
+        "metrics": metrics,
+        "groupby": [],
+        "row_limit": row_limit,
+        "time_range": "No filter",
+        "order_desc": True,
+        "show_legend": True,
+        "adhoc_filters": filters or [],
+    }
+    if stack:
+        params["stack"] = "Stack"
+    return (name, table, "echarts_timeseries_bar", params)
+
+
 def table_chart(name, table, columns, metrics=None, row_limit=100, order_by=None,
                 width=6, filters=None, conditional_formatting=None):
     """order_by: list of (column, ascending_bool). conditional_formatting: list of
@@ -828,6 +939,18 @@ def build_chart_specs():
         cat_bar_chart("Top Revenue Products", "fct_invoice_lines", "Revenue", "product", row_limit=25),
         cat_bar_chart("AR Aging", "fct_outstanding_ar", "Outstanding", "aging_bucket"),
         pie_chart("Invoices by Payment State", "fct_invoice_lines", "Invoices", "payment_state"),
+        # a. Payment method vs amount (POS tenders, excluding program discounts)
+        cat_bar_chart("Payment Method vs Amount", "fct_pos_payments", "Amount", "payment_method",
+                      filters=[adhoc("payment_kind", "==", "Payment")], width=6),
+        # b. Insurance type vs claimed vs settled amount
+        multi_metric_bar("Insurance · Claimed vs Settled", "fct_insurance_claims",
+                         ["Claimed Amount", "Settled Amount"], "insurance_type", width=6),
+        # c. Insurance type vs number of claims, grouped (stacked) by status
+        stacked_bar("Insurance Claims by Status", "fct_insurance_claims", "Claims",
+                    "insurance_type", "claim_status", width=6),
+        # d. Discount program vs discount amount provided
+        cat_bar_chart("Discount vs Discount Provided", "fct_pos_payments", "Amount", "payment_method",
+                      filters=[adhoc("payment_kind", "==", "Discount")], width=6),
     ]
 
     # Pharmacy — inventory health, expiry control, dispensing
@@ -996,9 +1119,14 @@ def build_dashboard_specs():
             "title": "NidanEHR · Financial Performance",
             "roles": ["Finance"],
             "charts": ["Revenue by Category Trend", "Revenue by Category", "Top Revenue Products",
-                       "AR Aging", "Invoices by Payment State"],
+                       "AR Aging", "Invoices by Payment State",
+                       "Payment Method vs Amount", "Insurance · Claimed vs Settled",
+                       "Insurance Claims by Status", "Discount vs Discount Provided"],
             "filters": [("fct_invoice_lines", "product_category", "Service Category"),
-                        ("fct_invoice_lines", "payment_state", "Payment State")],
+                        ("fct_invoice_lines", "payment_state", "Payment State"),
+                        ("fct_pos_payments", "payment_method", "Payment Method"),
+                        ("fct_insurance_claims", "insurance_type", "Insurance Type"),
+                        ("fct_insurance_claims", "claim_status", "Claim Status")],
         },
         {
             "title": "NidanEHR · Pharmacy Management",

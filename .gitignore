@@ -31,6 +31,10 @@ middleware/*/target/**
 
 **/.DS_Store
 
+# Python bytecode cache (e.g. superset/__pycache__ from init_superset_metadata.py)
+__pycache__/
+*.py[cod]
+
 gateway-truststore.p12
 gateway.pem
 OpenELIS-Global.war

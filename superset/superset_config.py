@@ -87,10 +87,16 @@ FEATURE_FLAGS = {
 
 # ---------------------------------------------------------------------------
 # Theme — force LIGHT mode for the hospital setting (no dark toggle).
-# Superset 6: setting THEME_DARK = None forces a single (light) theme for all.
+# Superset 6: an empty dark theme forces a single (light) theme for all.
+# NOTE: do NOT use THEME_DARK = None here. When deployed under a sub-path
+# (APPLICATION_ROOT = /superset), superset/app.py iterates THEME_DEFAULT and
+# THEME_DARK and calls .get("token") on each — None crashes app creation
+# ("'NoneType' object has no attribute 'get'"). An empty dict {} is treated
+# identically to None by get_theme_bootstrap_data/_process_theme (both yield
+# no custom dark theme → light only) but survives the app.py token loop.
 # ---------------------------------------------------------------------------
 THEME_DEFAULT = {"algorithm": "default"}  # light
-THEME_DARK = None                          # disables dark mode + OS-preference switching
+THEME_DARK = {}                            # disables dark mode + OS-preference switching (None crashes sub-path deploys)
 ENABLE_UI_THEME_ADMINISTRATION = False     # admins can't switch the system theme away from light
 
 # ---------------------------------------------------------------------------
@@ -152,3 +158,43 @@ class SupersetIndexView(IndexView):
 
 
 FAB_INDEX_VIEW = "superset_config.SupersetIndexView"
+
+
+# ---------------------------------------------------------------------------
+# Sub-path nav fix (logout/login/menu links double-prefixed → /superset/superset/…)
+# ---------------------------------------------------------------------------
+# Under APPLICATION_ROOT=/superset, the backend builds every menu_data URL with
+# url_for(), which already includes the app-root prefix (e.g. "/superset/logout/",
+# "/superset/dashboard/list/"). The O3 frontend then prepends `application_root`
+# AGAIN via a non-idempotent helper, yielding "/superset/superset/logout/" etc.
+# (user_info_url works only because upstream ships it relative — "/user_info/".)
+#
+# The frontend contract is "menu URLs are relative; the client adds the root".
+# So strip exactly ONE leading app-root from menu_data URLs and let the frontend
+# re-add it once. Stripping a single leading occurrence is correct even for
+# Superset-blueprint routes (url_for("Superset.welcome") = app_root + "/superset/
+# welcome/" → strip → "/superset/welcome/" → frontend → "/superset/superset/
+# welcome/"), and is a no-op for already-relative URLs ("/user_info/").
+def FLASK_APP_MUTATOR(app):  # noqa: N802 (Superset config hook name)
+    from superset.views import base as superset_base
+
+    app_root = (app.config.get("APPLICATION_ROOT") or "/").rstrip("/")
+    if not app_root:
+        return  # served at "/", nothing to strip
+
+    url_keys = {"url", "path", "user_logout_url", "user_login_url", "user_info_url"}
+    prefix = app_root + "/"
+
+    def strip_root(obj):
+        if isinstance(obj, dict):
+            return {
+                k: (v[len(app_root):] if k in url_keys and isinstance(v, str)
+                    and v.startswith(prefix) else strip_root(v))
+                for k, v in obj.items()
+            }
+        if isinstance(obj, list):
+            return [strip_root(v) for v in obj]
+        return obj
+
+    original_menu_data = superset_base.menu_data
+    superset_base.menu_data = lambda user: strip_root(original_menu_data(user))

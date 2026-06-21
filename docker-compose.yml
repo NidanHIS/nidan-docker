@@ -830,8 +830,15 @@ services:
       SUPERSET_WEBSERVER_ADDRESS: '0.0.0.0'
       SUPERSET_WEBSERVER_PORT: '8088'
 
-      # Tell Superset it's behind a reverse proxy at /superset/
-      SCRIPT_NAME: /superset
+      # Tell Superset it's behind a reverse proxy at /superset/.
+      # Use SUPERSET_APP_ROOT (Superset 6 AppRootMiddleware), NOT the legacy
+      # gunicorn SCRIPT_NAME env: with SCRIPT_NAME set, gunicorn strips
+      # "/superset" and then AppRootMiddleware (active because APPLICATION_ROOT
+      # = /superset) tries to strip it again, so every /superset/* route 404s.
+      # SUPERSET_APP_ROOT drives the app prefix AND the base-image healthcheck
+      # (curl http://localhost:$SUPERSET_PORT/$SUPERSET_APP_ROOT/health).
+      SUPERSET_APP_ROOT: /superset
+      SUPERSET_PORT: '8088'
       # Fix health check path issue
       SUPERSET_HEALTH_CHECK_ENDPOINT: /health
 
