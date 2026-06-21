@@ -213,7 +213,7 @@
 <body>
     <div class="main-content">
         <!-- Nidan Logo -->
-        <img src="nidan-logo.png" alt="NidanEHR" class="brand-logo">
+        <img src="nidan-logo.webp" alt="NidanEHR" class="brand-logo">
 
         <div class="grid">
             <!-- OpenMRS -->

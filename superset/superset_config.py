@@ -95,9 +95,50 @@ FEATURE_FLAGS = {
 # identically to None by get_theme_bootstrap_data/_process_theme (both yield
 # no custom dark theme → light only) but survives the app.py token loop.
 # ---------------------------------------------------------------------------
-THEME_DEFAULT = {"algorithm": "default"}  # light
+THEME_DEFAULT = {
+    "algorithm": "default",  # light
+    # Brand logo via the THEME path (not the legacy APP_ICON fallback): only this
+    # path applies a height (brandLogoHeight) to the navbar logo. The APP_ICON
+    # fallback renders the raw image at natural size, which blows out the layout.
+    # brandLogoUrl must reach the frontend as "/static/..." (leading slash): the
+    # client's URL helper prepends the app root ONLY to leading-slash paths
+    # (→ /superset/static/...); a relative "static/..." is left alone and resolves
+    # against the current page (→ /superset/dashboard/list/static/... 404).
+    # It stays "/static/..." (not double-prefixed to /superset/static/...) because
+    # APP_ICON below is kept off "/static/", which makes Superset skip its
+    # server-side theme-token prefixing — see the APP_ICON note.
+    "token": {
+        "brandLogoUrl": "/static/assets/images/nidan-logo.webp",
+        "brandLogoAlt": "NidanHIS",
+        "brandLogoHref": "/",
+        "brandLogoHeight": "30px",
+        "brandLogoMargin": "8px 0",
+    },
+}
 THEME_DARK = {}                            # disables dark mode + OS-preference switching (None crashes sub-path deploys)
 ENABLE_UI_THEME_ADMINISTRATION = False     # admins can't switch the system theme away from light
+
+# ---------------------------------------------------------------------------
+# Branding (rebrandable) — logo + favicon are baked into the image's static dir
+# by the Dockerfile (COPY nidan-logo.webp / favicon.ico). To rebrand for a
+# hospital: replace nidan-docker/superset/nidan-logo.webp and favicon.ico, then
+# rebuild the Superset image.
+#   - APP_ICON paths starting with "/static/" are auto-prefixed with the app
+#     root (→ /superset/static/...) by Superset, so keep it relative here.
+#   - FAVICONS hrefs get the static-assets prefix prepended in spa.html, so they
+#     also stay relative here (don't add /superset).
+# ---------------------------------------------------------------------------
+import mimetypes
+mimetypes.add_type("image/webp", ".webp")  # base image's mimetypes doesn't know .webp → would serve as octet-stream
+
+APP_NAME = "NidanHIS"
+# Keep APP_ICON already app-root-prefixed (NOT starting with "/static/"). When
+# APP_ICON starts with "/static/", Superset auto-prepends the app root to APP_ICON
+# AND to every theme brandLogoUrl/brandLogoHref — which then get prefixed a second
+# time on the client (→ /superset/superset/... 404). Pre-prefixing APP_ICON makes
+# Superset skip that whole block, so the theme tokens above stay single-prefixed.
+APP_ICON = APPLICATION_ROOT + "/static/assets/images/nidan-logo.webp"
+FAVICONS = [{"href": "/static/assets/images/nidan-favicon.ico", "type": "image/x-icon"}]
 
 # ---------------------------------------------------------------------------
 # Role-based access
@@ -182,7 +223,10 @@ def FLASK_APP_MUTATOR(app):  # noqa: N802 (Superset config hook name)
     if not app_root:
         return  # served at "/", nothing to strip
 
-    url_keys = {"url", "path", "user_logout_url", "user_login_url", "user_info_url"}
+    # "icon" = brand logo (APP_ICON): the frontend prepends application_root to
+    # brand.icon too, so it must be shipped relative or it becomes
+    # /superset/superset/static/...nidan-logo.webp (404).
+    url_keys = {"url", "path", "icon", "user_logout_url", "user_login_url", "user_info_url"}
     prefix = app_root + "/"
 
     def strip_root(obj):
