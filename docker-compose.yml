@@ -384,22 +384,7 @@ services:
       - DEFAULT_PW=${OPENELIS_DEFAULT_ADMIN_PASSWORD:-adminADMIN!}
       - TZ=${OPENELIS_TZ:-UTC}
       # Database connection
-      - CATALINA_OPTS=
-          -Ddatasource.url=jdbc:postgresql://openelis-db:5432/clinlims
-          -Ddatasource.username=clinlims
-          -Ddatasource.password=${OPENELIS_DB_PASSWORD:-changeme}
-          -Dorg.openelisglobal.middleware.test.sync.enabled=${OPENELIS_MIDDLEWARE_TEST_SYNC_ENABLED:-false}
-          -Dorg.openelisglobal.middleware.test.sync.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/catalog/lab-test-definition
-          -Dorg.openelisglobal.middleware.test.sync.secret=${OPENELIS_MIDDLEWARE_SYNC_SECRET:-change-me}
-          -Dorg.openelisglobal.middleware.result.sync.enabled=${OPENELIS_MIDDLEWARE_RESULT_SYNC_ENABLED:-true}
-          -Dorg.openelisglobal.middleware.result.sync.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/lab-result
-          -Dorg.openelisglobal.middleware.result.sync.secret=${OPENELIS_MIDDLEWARE_SYNC_SECRET:-change-me}
-          -Dorg.openelisglobal.nidan.testorder.enabled=${OPENELIS_NIDAN_TESTORDER_ENABLED:-true}
-          -Dorg.openelisglobal.nidan.testorder.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/sample-collected
-          -Dorg.openelisglobal.nidan.paywall.enabled=${OPENELIS_NIDAN_PAYWALL_ENABLED:-true}
-          -Dorg.openelisglobal.nidan.paywall.odoo.url=${NIDANCORE_ODOO_URL:-http://odoo:8069}
-          -Dorg.openelisglobal.nidan.paywall.odoo.secret=${NIDAN_ODOO_SECRET}
-          -Dorg.openelisglobal.nidan.paywall.insurance.bypass=${OPENELIS_NIDAN_PAYWALL_INSURANCE_BYPASS:-true}
+      - CATALINA_OPTS= -Ddatasource.url=jdbc:postgresql://openelis-db:5432/clinlims -Ddatasource.username=clinlims -Ddatasource.password=${OPENELIS_DB_PASSWORD:-changeme} -Dorg.openelisglobal.middleware.test.sync.enabled=${OPENELIS_MIDDLEWARE_TEST_SYNC_ENABLED:-false} -Dorg.openelisglobal.middleware.test.sync.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/catalog/lab-test-definition -Dorg.openelisglobal.middleware.test.sync.secret=${OPENELIS_MIDDLEWARE_SYNC_SECRET:-change-me} -Dorg.openelisglobal.middleware.result.sync.enabled=${OPENELIS_MIDDLEWARE_RESULT_SYNC_ENABLED:-true} -Dorg.openelisglobal.middleware.result.sync.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/lab-result -Dorg.openelisglobal.middleware.result.sync.secret=${OPENELIS_MIDDLEWARE_SYNC_SECRET:-change-me} -Dorg.openelisglobal.nidan.testorder.enabled=${OPENELIS_NIDAN_TESTORDER_ENABLED:-true} -Dorg.openelisglobal.nidan.testorder.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/sample-collected -Dorg.openelisglobal.nidan.paywall.enabled=${OPENELIS_NIDAN_PAYWALL_ENABLED:-true} -Dorg.openelisglobal.nidan.paywall.odoo.url=${NIDANCORE_ODOO_URL:-http://odoo:8069} -Dorg.openelisglobal.nidan.paywall.odoo.secret=${NIDAN_ODOO_SECRET} -Dorg.openelisglobal.nidan.paywall.insurance.bypass=${OPENELIS_NIDAN_PAYWALL_INSURANCE_BYPASS:-true}
       # Disable Odoo integration
       - ODOO_ENABLED=false
       - ORG_OPENELISGLOBAL_ODOO_ENABLED=false
@@ -518,8 +503,7 @@ services:
     restart: unless-stopped
 
   nidan-cis:
-    # image: ${NIDAN_CIS_IMAGE:-nidan-cis:local}
-    image: nidan-cis:local
+    image: ${NIDAN_CIS_IMAGE:-nidan-cis:local}
     container_name: nidan-cis
     ports:
       - "${CIS_PORT:-8081}:${CIS_PORT:-8081}"
@@ -651,8 +635,7 @@ services:
       start_period: 60s
 
   nidan-ois:
-    # image: ${NIDAN_OIS_IMAGE:-nidan-ois:local}
-    image: nidan-ois:local
+    image: ${NIDAN_OIS_IMAGE:-nidan-ois:local}
     container_name: nidan-ois
     ports:
       - "${OIS_PORT:-8082}:${OIS_PORT:-8082}"
