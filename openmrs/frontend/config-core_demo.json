@@ -5,6 +5,14 @@
     "extensionSlots": {
       "action-menu-patient-chart-items-slot": {
         "order": ["order-basket-action-menu"]
+      },
+      "patient-chart-summary-dashboard-slot": {
+        "add": [
+          "attachments-overview-widget",
+          "patient-orders-dashboard",
+          "allergies-details-widget",
+          "immunization-overview-widget"
+        ]
       }
     }
   },
