@@ -93,3 +93,7 @@ org.openelisglobal.nidan.paywall.enabled=
 org.openelisglobal.nidan.paywall.odoo.url=
 org.openelisglobal.nidan.paywall.odoo.secret=
 org.openelisglobal.nidan.paywall.insurance.bypass=
+
+# Nidan CIS Retry — dead-letter retry trigger from ELIS header button
+org.openelisglobal.nidan.cisretry.list.url=
+org.openelisglobal.nidan.cisretry.retry.url=

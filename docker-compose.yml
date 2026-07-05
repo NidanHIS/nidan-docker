@@ -140,8 +140,8 @@ services:
       retries: 3
 
   openmrs-db:
-    image: mariadb:10.11
-    # image: trigonaltechnology/openmrs-db:latest
+    #image: mariadb:10.11
+    image: trigonaltechnology/openmrs-db:latest
     container_name: nidan-openmrs-db
     # Debezium/CIS: row-based binlog events for wide rows must fit max_allowed_packet (error 1236 if too small).
     command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --log-bin=mysql-bin --binlog_format=ROW --server-id=1 --binlog_row_image=FULL --max-allowed-packet=512M
@@ -384,8 +384,27 @@ services:
     environment:
       - DEFAULT_PW=${OPENELIS_DEFAULT_ADMIN_PASSWORD:-adminADMIN!}
       - TZ=${OPENELIS_TZ:-UTC}
-      # Database connection
-      - CATALINA_OPTS=-Ddatasource.url=jdbc:postgresql://openelis-db:5432/clinlims -Ddatasource.username=clinlims -Ddatasource.password=${OPENELIS_DB_PASSWORD:-changeme} -Dorg.openelisglobal.middleware.test.sync.enabled=${OPENELIS_MIDDLEWARE_TEST_SYNC_ENABLED:-false} -Dorg.openelisglobal.middleware.test.sync.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/catalog/lab-test-definition -Dorg.openelisglobal.middleware.test.sync.secret=${OPENELIS_MIDDLEWARE_SYNC_SECRET:-change-me} -Dorg.openelisglobal.middleware.result.sync.enabled=${OPENELIS_MIDDLEWARE_RESULT_SYNC_ENABLED:-true} -Dorg.openelisglobal.middleware.result.sync.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/lab-result -Dorg.openelisglobal.middleware.result.sync.secret=${OPENELIS_MIDDLEWARE_SYNC_SECRET:-change-me} -Dorg.openelisglobal.nidan.testorder.enabled=${OPENELIS_NIDAN_TESTORDER_ENABLED:-true} -Dorg.openelisglobal.nidan.testorder.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/sample-collected -Dorg.openelisglobal.nidan.paywall.enabled=${OPENELIS_NIDAN_PAYWALL_ENABLED:-true} -Dorg.openelisglobal.nidan.paywall.odoo.url=${NIDANCORE_ODOO_URL:-http://odoo:8069} -Dorg.openelisglobal.nidan.paywall.odoo.secret=${NIDAN_ODOO_SECRET} -Dorg.openelisglobal.nidan.paywall.insurance.bypass=${OPENELIS_NIDAN_PAYWALL_INSURANCE_BYPASS:-true}
+      # JVM system properties injected into Tomcat via CATALINA_OPTS.
+      # Each -D flag maps 1:1 to a property key in common.properties.
+      # Groups: database | middleware sync | nidan test order | nidan paywall | nidan cis retry
+      - CATALINA_OPTS=
+          -Ddatasource.url=jdbc:postgresql://openelis-db:5432/clinlims
+          -Ddatasource.username=clinlims
+          -Ddatasource.password=${OPENELIS_DB_PASSWORD:-changeme}
+          -Dorg.openelisglobal.middleware.test.sync.enabled=${OPENELIS_MIDDLEWARE_TEST_SYNC_ENABLED:-false}
+          -Dorg.openelisglobal.middleware.test.sync.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/catalog/lab-test-definition
+          -Dorg.openelisglobal.middleware.test.sync.secret=${OPENELIS_MIDDLEWARE_SYNC_SECRET:-change-me}
+          -Dorg.openelisglobal.middleware.result.sync.enabled=${OPENELIS_MIDDLEWARE_RESULT_SYNC_ENABLED:-true}
+          -Dorg.openelisglobal.middleware.result.sync.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/lab-result
+          -Dorg.openelisglobal.middleware.result.sync.secret=${OPENELIS_MIDDLEWARE_SYNC_SECRET:-change-me}
+          -Dorg.openelisglobal.nidan.testorder.enabled=${OPENELIS_NIDAN_TESTORDER_ENABLED:-true}
+          -Dorg.openelisglobal.nidan.testorder.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/sample-collected
+          -Dorg.openelisglobal.nidan.paywall.enabled=${OPENELIS_NIDAN_PAYWALL_ENABLED:-true}
+          -Dorg.openelisglobal.nidan.paywall.odoo.url=${NIDANCORE_ODOO_URL:-http://odoo:8069}
+          -Dorg.openelisglobal.nidan.paywall.odoo.secret=${NIDAN_ODOO_SECRET}
+          -Dorg.openelisglobal.nidan.paywall.insurance.bypass=${OPENELIS_NIDAN_PAYWALL_INSURANCE_BYPASS:-true}
+          -Dorg.openelisglobal.nidan.cisretry.list.url=${CIS_BASE_URL:-http://nidan-cis:8081}/api/dead-letters
+          -Dorg.openelisglobal.nidan.cisretry.retry.url=${CIS_BASE_URL:-http://nidan-cis:8081}/api/dead-letters/retry
       # Disable Odoo integration
       - ODOO_ENABLED=false
       - ORG_OPENELISGLOBAL_ODOO_ENABLED=false
