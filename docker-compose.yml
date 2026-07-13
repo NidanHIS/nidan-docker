@@ -879,6 +879,8 @@ services:
       - superset-home:/app/superset_home
       - ./superset/superset_config.py:/app/pythonpath/superset_config.py:ro
       - ./superset/init_superset_metadata.py:/app/pythonpath/init_superset_metadata.py:ro
+      - ./superset/pager.js:/app/pythonpath/pager.js:ro
+      - ./superset/scroller.js:/app/pythonpath/scroller.js:ro
       - ./superset/docker-entrypoint.sh:/app/docker-entrypoint.sh:ro
       - ./superset/metadata:/app/superset_metadata:ro
     restart: unless-stopped

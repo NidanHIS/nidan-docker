@@ -561,6 +561,7 @@ def build_dataset_specs():
                 COALESCE(pt.name->>'en_US', pt.name->>'en', 'Unknown') AS drug_name,
                 COALESCE(pc.name, 'Other') AS drug_category,
                 COALESCE(oh.qty, 0) AS on_hand,
+                COALESCE(pt.list_price, 0) AS unit_price,
                 COALESCE(oh.qty, 0) * COALESCE(pt.list_price, 0) AS stock_value,
                 op.reorder_level,
                 CASE
@@ -588,8 +589,8 @@ def build_dataset_specs():
         "columns": [
             ("product_id", "BIGINT", False), ("drug_name", "VARCHAR", True),
             ("drug_category", "VARCHAR", True), ("on_hand", "FLOAT", False),
-            ("stock_value", "FLOAT", False), ("reorder_level", "FLOAT", False),
-            ("stock_status", "VARCHAR", True),
+            ("unit_price", "FLOAT", False), ("stock_value", "FLOAT", False),
+            ("reorder_level", "FLOAT", False), ("stock_status", "VARCHAR", True),
         ],
         "metrics": [
             ("Stock Value", "SUM(stock_value)"),
@@ -985,8 +986,8 @@ def build_chart_specs():
                     order_by=[("expiration_date", True)]),
         # Stock levels & valuation
         table_chart("Low / Out of Stock (reorder list)", "fct_drug_onhand",
-                    ["drug_name", "drug_category", "on_hand", "reorder_level", "stock_status"],
-                    row_limit=300, width=6, filters=[NEEDS_REORDER],
+                    ["drug_name", "drug_category", "on_hand", "unit_price", "stock_status"],
+                    row_limit=300, width=12, filters=[NEEDS_REORDER],
                     order_by=[("on_hand", True)]),
         cat_bar_chart("Stock Value by Category", "fct_drug_onhand", "Stock Value",
                       "drug_category", row_limit=20, width=6),
@@ -1146,6 +1147,19 @@ def build_dashboard_specs():
                         ("fct_drug_stock", "location", "Location"),
                         ("fct_drug_onhand", "stock_status", "Stock Status")],
         },
+        # ── Dedicated low stock monitor
+        {
+            "title": "NidanEHR · Stock Reorder Monitor",
+            "roles": ["Pharmacy"],
+            "charts": [
+                "Low / Out of Stock (reorder list)",
+            ],
+            "filters": [
+                ("fct_drug_onhand", "drug_name",     "Drug"),
+                ("fct_drug_onhand", "drug_category", "Category"),
+                ("fct_drug_onhand", "stock_status",  "Stock Status"),
+            ],
+        },
         {
             "title": "NidanEHR · Inpatient & Bed Management",
             "roles": ["Clinical"],
@@ -1267,7 +1281,7 @@ def build_position_json(title, slices, note=None):
         if is_kpi:
             return 38
         if width >= 12:
-            return 60
+            return 80   # full-width charts get more vertical room
         if width >= 6:
             return 52
         return 48

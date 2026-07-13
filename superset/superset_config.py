@@ -202,6 +202,46 @@ FAB_INDEX_VIEW = "superset_config.SupersetIndexView"
 
 
 # ---------------------------------------------------------------------------
+# JS loader — reads a JS file from the same directory as this config and wraps
+# it in a <script> tag.
+# ---------------------------------------------------------------------------
+def _load_js(name: str, script_id: str) -> str:
+    """Read *name* (relative to this file's directory) and wrap in a <script> tag."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), name)
+    with open(path, encoding="utf-8") as fh:
+        content = fh.read()
+    return f'<script id="{script_id}">\n{content}\n</script>\n'
+
+_AUTOSCROLL_JS = _load_js("scroller.js", "__nidan_scroller__")
+
+
+def inject_scroller_js(response):
+    if "text/html" not in (response.content_type or ""):
+        return response
+    body = response.get_data(as_text=True)
+    if "</body>" not in body:
+        return response
+
+    from flask import request, g
+    nonce = getattr(request, "csp_nonce", None) or \
+            getattr(request, "_csp_nonce", None) or \
+            getattr(g, "csp_nonce", None)
+    nonce_attr = f' nonce="{nonce}"' if nonce else ""
+
+    combined = ""
+
+    if "__nidan_scroller__" not in body:
+        combined += _AUTOSCROLL_JS.replace(
+            '<script id="__nidan_scroller__">',
+            f'<script id="__nidan_scroller__"{nonce_attr}>', 1
+        )
+
+    if combined:
+        response.set_data(body.replace("</body>", combined + "</body>", 1))
+    return response
+
+
+# ---------------------------------------------------------------------------
 # Sub-path nav fix (logout/login/menu links double-prefixed → /superset/superset/…)
 # ---------------------------------------------------------------------------
 # Under APPLICATION_ROOT=/superset, the backend builds every menu_data URL with
@@ -242,3 +282,6 @@ def FLASK_APP_MUTATOR(app):  # noqa: N802 (Superset config hook name)
 
     original_menu_data = superset_base.menu_data
     superset_base.menu_data = lambda user: strip_root(original_menu_data(user))
+
+    # Register the scroller for every HTML response
+    app.after_request(inject_scroller_js)
