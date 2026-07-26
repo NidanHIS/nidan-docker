@@ -103,7 +103,7 @@ services:
     volumes:
       - openmrs-data:/openmrs/data
       # Optional dev: mount locally-built OMODs (startup.sh copies *.omod into data/modules on start).
-      - ./openmrs/custom_modules:/openmrs/custom_modules:ro
+      # - ./openmrs/custom_modules:/openmrs/custom_modules:ro
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/openmrs/" ]
       interval: 30s
