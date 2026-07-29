@@ -182,5 +182,14 @@
       "2": { "shiftStartTime": "13:00", "shiftEndTime": "17:00" },
       "3": { "shiftStartTime": "17:00", "shiftEndTime": "06:00" }
     }
+  },
+  "@openmrs/esm-home-app": {
+    "extensionSlots": {
+      "homepage-dashboard-slot": {
+        "remove": [
+          "patient-lists-dashboard-link"
+        ]
+      }
+    }
   }
 }
