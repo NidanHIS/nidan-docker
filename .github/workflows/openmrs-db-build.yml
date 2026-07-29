@@ -24,7 +24,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_BASE: trigonaltechnology
+  IMAGE_BASE: bhalubanghospital
 
 jobs:
   build-and-deploy:
