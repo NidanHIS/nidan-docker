@@ -8,7 +8,7 @@
 #
 ### Content clone stage
 FROM alpine:3.19 AS content-clone
-ARG CONTENT_REPO_URL="https://github.com/NidanHIS/openmrs-content-referenceapplication-demo.git"
+ARG CONTENT_REPO_URL="https://github.com/Bhalubang-Hospital/openmrs-content-referenceapplication-demo.git"
 ARG CONTENT_REPO_REF="main"
 ARG CACHE_BUST
 RUN apk add --no-cache git && \
