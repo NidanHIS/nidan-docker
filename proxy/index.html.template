@@ -278,6 +278,49 @@
                 <img src="assets/images/odoo_logo.svg" alt="Odoo" title="Odoo" class="platform-logo">
             </div>
         </div>
+            <!-- Demo Credentials -->
+            <div class="nidan-platforms-content">
+                <h2>Demo Credentials</h2>
+                <p>Use the following credentials to access the demo environment.</p>
+            
+                <table border="1" cellpadding="10" cellspacing="0" style="margin:auto;">
+                    <tr>
+                        <th>Application</th>
+                        <th>Username</th>
+                        <th>Password</th>
+                    </tr>
+                    <tr>
+                        <td>Odoo ERP</td>
+                        <td><code>nidan</code></td>
+                        <td><code>nidan</code></td>
+                    </tr>
+                    <tr>
+                        <td>OpenMRS</td>
+                        <td><code>admin</code></td>
+                        <td><code>Admin123</code></td>
+                    </tr>
+                    <tr>
+                        <td>OpenELIS</td>
+                        <td><code>admin</code></td>
+                        <td><code>adminADMIN!</code></td>
+                    </tr>
+                    <tr>
+                        <td>Superset</td>
+                        <td><code>admin</code></td>
+                        <td><code>admin</code></td>
+                    </tr>
+                    <tr>
+                        <td>DHIS2 Integration</td>
+                        <td><code>admin</code></td>
+                        <td><code>Admin123</code></td>
+                    </tr>
+                    <tr>
+                        <td>Radiology (Orthanc)</td>
+                        <td><code>nidan</code></td>
+                        <td><code>nidan</code></td>
+                    </tr>
+                </table>
+            </div>
     </div>
 
     <!-- Footer -->
