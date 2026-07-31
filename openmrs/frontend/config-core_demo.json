@@ -205,5 +205,19 @@
         ]
       }
     }
+  },
+  "@openmrs/esm-primary-navigation-app": {
+    "extensionSlots": {
+      "user-panel-slot": {
+        "add": [
+          "location-changer"
+        ]
+      },
+      "top-nav-info-slot": {
+        "remove": [
+          "location-changer"
+        ]
+      }
+    }
   }
 }
