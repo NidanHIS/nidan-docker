@@ -11,12 +11,12 @@ on:
       - main
     paths:
       - 'superset/**'
-  pull_request:
-    branches:
-      - dev
-      - main
-    paths:
-      - 'superset/**'
+#  pull_request:
+#    branches:
+#      - dev
+#      - main
+#    paths:
+#      - 'superset/**'
 
 concurrency:
   group: superset-${{ github.ref }}
@@ -45,7 +45,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
-        if: github.event_name != 'pull_request'
+        # if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -67,7 +67,7 @@ jobs:
           context: superset
           file: superset/Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true # push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=superset
