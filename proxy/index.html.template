@@ -1,426 +1,507 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NidanEHR Services</title>
-    <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
-    <style>
-       :root {
-            --bs-primary: #4a90e2;
-             --nidan-global-color-secondary: #008080;
-                 --nidan-global-color-white: #ffffff;
-                 
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NidanEHR Services Portal</title>
+  <style>
+    /* ==========================================================================
+       1. Global Styles & CSS Variables
+       ========================================================================== */
+    :root {
+      --bg-color: #dbe3ea;
+      --card-bg: #ffffff;
+      --card-hover-bg: #f8fafc;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --primary-teal: #008080;
+      
+      --footer-bg: #008080;
+      --footer-text: #ffffff;
+      --footer-muted: rgba(255, 255, 255, 0.85);
 
-        @supports ( color: color( display-p3 0 0 0 / 1 ) ) {
-            :root {
-                 --nidan-global-color-secondary: color(display-p3 0.000000 0.501961 0.501961 / 1.000000);
-                  --nidan-global-color-white: color(display-p3 1.000000 1.000000 1.000000 / 1.000000);
-            }
-        }
-        .header{
-            display:grid;
-            align-items: center;
-            justify-content:center;
-            width:100%;
-            margin:40px 0 60px;
-            grid-template-columns: repeat(3, 1fr);
-        }
-        
+      --status-online: #10b981;
+      --status-checking: #f59e0b;
+      --border-color: #e2e8f0;
+      --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.03);
+      --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+      --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
 
-        .header-content{
-            text-align:center;
-        }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-        .brand-logo{
-            width:220px;
-            height:auto;
-        }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
 
-        .header-title{
-            font-size:1.5rem;
-            font-weight:700;
-            color:#008080;
-            margin-bottom:6px;
-        }
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 2rem;
+      width: 100%;
+    }
 
-        .header-sub{
-            font-size:1.2rem;
-            font-weight:600;
-        }
+    main {
+      padding: 2rem 0 4rem;
+      flex-grow: 1;
+    }
 
-        .header-sub-2{
-            font-size:1rem;
-            color:#666;
-            margin-top:4px;
-        }
+    /* ==========================================================================
+       2. Header Styling
+       ========================================================================== */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+      width: 100%;
+      margin: 20px 0 40px;
+    }
 
-        .header-location{
-            font-size:1.8rem;
-            font-weight:700;
-            margin-top:12px;
-            color:#222;
-        }
+    .brand-logo {
+      width: 150px;
+      height: auto;
+      flex-shrink: 0;
+    }
 
-        .alt-location{
-            color:#777;
-            margin-top:6px;
-        }
+    .header-content {
+      text-align: left;
+    }
 
-        @media (max-width:768px){
+    .header-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--primary-teal);
+      margin-bottom: 2px;
+    }
 
-            .header{
-                flex-direction:column;
-                text-align:center;
-                gap:25px;
-                padding:30px 20px;
-            }
+    .header-sub {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
 
-            .header-right{
-                text-align:center;
-            }
+    .header-sub-2 {
+      font-size: 0.95rem;
+      color: #666;
+      margin-top: 2px;
+    }
 
-            .brand-logo{
-                max-width:150px;
-            }
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: #f4f6f8;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 0;
-        }
+    .header-location {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-top: 8px;
+      color: #222;
+    }
 
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-        }
+    .alt-location {
+      color: #777;
+      margin-top: 2px;
+    }
 
-        .brand-logo {
-            max-width: 140px;
-            margin-bottom: 80px;
-            margin-top: 40px;
-            height: auto;
-        }
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+        margin: 20px 0;
+      }
 
-        .grid {
-            display:grid;
-            grid-template-columns:repeat(4,1fr);
-            gap:20px;
-            max-width:1200px;
-            width:100%;
-        }
+      .header-content {
+        text-align: center;
+      }
 
-        .card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-            text-decoration: none;
-            color: #333;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-            transition: transform 0.2s, box-shadow 0.2s;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+      .brand-logo {
+        max-width: 120px;
+      }
+    }
 
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
-        }
+    /* ==========================================================================
+       3. Hero & Cards Grid Layout
+       ========================================================================== */
+    .hero-container {
+      text-align: center;
+      margin-bottom: 3rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
 
-        .icon {
-            font-size: 3rem;
-            margin-bottom: 15px;
-        }
+    .hero-title {
+      font-size: 2.1rem;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.025em;
+      line-height: 1.25;
+      position: relative;
+      display: inline-block;
+    }
 
-        .title {
-            font-size: 1rem;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
+    .hero-title::after {
+      content: '';
+      display: block;
+      width: 60px;
+      height: 4px;
+      background-color: var(--primary-teal);
+      border-radius: 2px;
+      margin: 0.85rem auto 0;
+    }
 
-        .desc {
-            font-size: 0.9rem;
-            color: #7f8c8d;
-        }
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+    }
 
-        .status-badge {
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            margin-bottom: 10px;
-            width: fit-content;
-        }
+    .card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 1.75rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      border: 1px solid transparent;
+      box-shadow: var(--shadow-sm);
+      transition: var(--transition-smooth);
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      height: 100%;
+    }
 
-        .status-online {
-            background-color: #e8f5e9;
-            color: #2e7d32;
-        }
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: var(--shadow-md);
+      border-color: rgba(0, 128, 128, 0.2);
+      background: var(--card-hover-bg);
+    }
 
-        .status-offline {
-            background-color: #ffebee;
-            color: #c62828;
-        }
+    /* Status Badges */
+    .status-badge {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      margin-bottom: 1.25rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+    }
 
-        .status-checking {
-            background-color: #fff3e0;
-            color: #ef6c00;
-        }
+    .status-badge.status-checking {
+      background-color: rgba(245, 158, 11, 0.1);
+      color: var(--status-checking);
+    }
 
-        .card.offline  .icon{
-            pointer-events: none;
-        }
-        .nidan-platforms-content{
-            padding-bottom: 50px;
-            padding-top: 100px;
-            text-align: center;
-        }
-        .nidan-platforms-content h2 {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
-        }
-        .nidan-platforms-content p {
-            font-size: 1rem;
-            color: #7f8c8d;
-            margin-bottom: 30px;
-        }
-        .nidan-platforms {
-            display: flex;
-            gap: 1rem 2rem;
-            align-items: center;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        .nidan-platforms > img {
-             opacity: 0.85;
-            filter: grayscale(1);
-            max-width: 120px;
-            height: inherit;
-        }
-        .nidan-platforms > img:hover,
-        .nidan-platforms > img:focus {
-            filter: none;
-        }
+    .status-badge.status-online {
+      background-color: rgba(16, 185, 129, 0.1);
+      color: var(--status-online);
+    }
 
-        /* Footer Styling */
-        footer {
-            width: 100%;
-            background:var(--nidan-global-color-secondary);
-            color:  var(--nidan-global-color-white);
-            padding: 30px 0;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            margin-top: auto;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
+    .icon-wrapper {
+      width: 80px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+      transition: var(--transition-smooth);
+    }
 
-        .footer-content {
-            max-width: 1200px;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-        }
+    .card:hover .icon-wrapper {
+      transform: scale(1.06);
+    }
 
-        .footer-text {
-            font-size: 0.85rem;
-            margin: 0;
-            letter-spacing: 0.5px;
-        }
+    .icon-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
 
-        .footer-logo-container {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      line-height: 1.3;
+      margin-bottom: 0.5rem;
+    }
 
-        .footer-logo {
-            height: 35px;
-            opacity: 0.95;
-            transition: opacity 0.3s;
-        }
+    .card-description {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+      margin-top: auto;
+    }
 
-        .footer-logo:hover {
-            opacity: 1;
-        }
+    /* ==========================================================================
+       4. Powered By Tech Card
+       ========================================================================== */
+    .tech-card {
+      align-items: center;
+      text-align: center;
+      grid-column: 1 / -1;
+      padding: 2rem 1.5rem;
+      cursor: default;
+    }
 
-        .footer-copyright {
-            font-size: 0.75rem;
-            margin-top: 5px;
-        }
+    .tech-card:hover {
+      transform: none;
+      box-shadow: var(--shadow-sm);
+      border-color: transparent;
+      background: var(--card-bg);
+    }
 
-        /* Mobile adjustment */
-        @media (max-width:900px){
-            .grid{
-                grid-template-columns:repeat(2,1fr);
-            }
-        }
+    .tech-card .card-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 0.5rem;
+    }
 
-        @media (max-width: 600px) {
-            .grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    .tech-card h4 {
+      font-size: 0.95rem;
+      font-weight: 400;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      line-height: 1.4;
+      max-width: 700px;
+    }
+
+    .tech-list {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem 2.5rem;
+      width: 100%;
+    }
+
+    .tech-logo {
+      max-height: 42px;
+      width: auto;
+      object-fit: contain;
+      filter: grayscale(15%);
+      transition: var(--transition-smooth);
+    }
+
+    .tech-logo:hover {
+      filter: grayscale(0%);
+      transform: scale(1.08);
+    }
+
+    /* ==========================================================================
+       5. Footer
+       ========================================================================== */
+    footer {
+      background-color: var(--footer-bg);
+      padding: 1.25rem 0;
+      color: var(--footer-text);
+      font-size: 0.875rem;
+    }
+
+    .footer-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-content span {
+      color: var(--footer-muted);
+    }
+
+    .footer-content strong {
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    @media (max-width: 640px) {
+      .footer-content {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+      }
+    }
+  </style>
 </head>
-
 <body>
-    <div class="main-content">
-        <div class="header">
-            <img src="assets/images/nepal-gov-logo.png" alt="NidanEHR" class="brand-logo">
-            <div class="header-content">
-                <div class="header-title">Lumbini Province Government</div>
-                <div class="header-sub">Ministry of health</div>
-                <div class="header-sub-2">Health Directorate</div>
-                <div class="header-location">Bhalubang Hospital</div>
-                <div class="alt-location">Bhalubang, Dang</div>
-            </div>
-            <div>
-                
-            </div>
+
+  <!-- Main Content Area -->
+  <main>
+    <div class="container">
+      
+      <!-- Side-by-Side Header -->
+      <header class="header">
+        <img src="assets/images/nepal-gov-logo.png" alt="Nepal Government Logo" class="brand-logo">
+        <div class="header-content">
+          <div class="header-title">Lumbini Province Government</div>
+          <div class="header-sub">Ministry of Health</div>
+          <div class="header-sub-2">Health Directorate</div>
+          <div class="header-location">Bhalubang Hospital</div>
+          <div class="alt-location">Bhalubang, Dang</div>
         </div>
-        <div class="grid">
-            <!-- Odoo -->
-            <a href="${DASHBOARD_ODOO_URL}" target="_blank" class="card" id="card-odoo">
-                <div class="status-badge status-checking" id="status-odoo">Checking...</div>
-                <div class="icon">📊</div>
-                <div class="title">Patient Registration & Billing</div>
-            </a>
-            
-            <!-- OpenMRS -->
-            <a href="/openmrs/spa/index.html" target="_blank" class="card" id="card-openmrs">
-                <div class="status-badge status-checking" id="status-openmrs">Checking...</div>
-                <div class="icon">🏥</div>
-                <div class="title">Electronic Health Record</div>
-            </a>
+      </header>
 
-            <!-- OpenELIS -->
-            <a href="/openelis" target="_blank" class="card" id="card-openelis">
-                <div class="status-badge status-checking" id="status-openelis">Checking...</div>
-                <div class="icon">🔬</div>
-                <div class="title">Laboratory Information System</div>
-            </a>
+      <!-- Hero Section -->
+      <div class="hero-container">
+        <h1 class="hero-title">Welcome to NidanEHR Services Portal</h1>
+      </div>
 
-            <!-- Orthanc -->
-            <a href="/orthanc-container/ui/app/index.html#/" target="_blank" class="card" id="card-orthanc">
-                <div class="status-badge status-checking" id="status-orthanc">Checking...</div>
-                <div class="icon">🦴</div>
-                <div class="title">PPACS & Diagnostic Imaging</div>
-            </a>
+      <!-- Grid of Services -->
+      <div class="cards-grid">
 
-            <!-- Middleware UI -->
-            <a href="/cis/dead-letters/index.html" target="_blank" class="card" id="card-cis">
-                <div class="status-badge status-checking" id="status-cis">Checking...</div>
-                <div class="icon">�</div>
-                <div class="title">Integration & Error Management</div>
-                <div class="desc"></div>
-            </a>
+        <!-- Card 1: Patient Registration & Billing (Odoo) -->
+        <a href="${DASHBOARD_ODOO_URL}" target="_blank" class="card" id="card-odoo">
+          <div class="status-badge status-checking" id="status-odoo">Checking...</div>
+          <div class="icon-wrapper">
+            <img src="assets/images/billing.png" alt="Patient Registration & Billing Icon" />
+          </div>
+          <h2 class="card-title">Patient Registration & Billing</h2>
+        </a>
 
-            <!-- Superset -->
-            <a href="/superset/" target="_blank" class="card" id="card-superset">
-                <div class="status-badge status-checking" id="status-superset">Checking...</div>
-                <div class="icon">📈</div>
-                <div class="title">Analytics & Business Intelligence</div>
-            </a>
+        <!-- Card 2: Electronic Health Record (OpenMRS) -->
+        <a href="/openmrs/spa/index.html" target="_blank" class="card" id="card-openmrs">
+          <div class="status-badge status-checking" id="status-openmrs">Checking...</div>
+          <div class="icon-wrapper">
+            <img src="assets/images/emr.png" alt="Electronic Health Record Icon" />
+          </div>
+          <h2 class="card-title">Electronic Health Record</h2>
+        </a>
 
-            <!-- DHIS2 -->
-            <a href="/dhis2/" target="_blank" class="card" id="card-dhis2">
-                <div class="status-badge status-checking" id="status-dhis2">Checking...</div>
-                <div class="icon">📡</div>
-                <div class="title">Federal & Provincial HMIS Reporting</div>
-            </a>
+        <!-- Card 3: Laboratory Information System (OpenELIS) -->
+        <a href="/openelis" target="_blank" class="card" id="card-openelis">
+          <div class="status-badge status-checking" id="status-openelis">Checking...</div>
+          <div class="icon-wrapper">
+            <img src="assets/images/lab.png" alt="Laboratory Information System Icon" />
+          </div>
+          <h2 class="card-title">Laboratory Information System</h2>
+        </a>
 
+        <!-- Card 4: PACS & Diagnostic Imaging (Orthanc) -->
+        <a href="/orthanc-container/ui/app/index.html#/" target="_blank" class="card" id="card-orthanc">
+          <div class="status-badge status-checking" id="status-orthanc">Checking...</div>
+          <div class="icon-wrapper">
+            <img src="assets/images/pacs.png" alt="PACS & Diagnostic Imaging Icon" />
+          </div>
+          <h2 class="card-title">Radiology & Diagnostic Imaging</h2>
+        </a>
+
+        <!-- Card 5: Integration & Error Management (Middleware) -->
+        <a href="/cis/dead-letters/index.html" target="_blank" class="card" id="card-cis">
+          <div class="status-badge status-checking" id="status-cis">Checking...</div>
+          <div class="icon-wrapper">
+            <img src="assets/images/crisis.png" alt="Integration & Error Management Icon" />
+          </div>
+          <h2 class="card-title">Integration & Error Management</h2>
+          <p class="card-description">Integration & eemps error data</p>
+        </a>
+
+        <!-- Card 6: Analytics & Business Intelligence (Superset) -->
+        <a href="/superset/" target="_blank" class="card" id="card-superset">
+          <div class="status-badge status-checking" id="status-superset">Checking...</div>
+          <div class="icon-wrapper">
+            <img src="assets/images/analytics.png" alt="Analytics & Business Intelligence Icon" />
+          </div>
+          <h2 class="card-title">Analytics & Business Intelligence</h2>
+        </a>
+
+        <!-- Card 7: Federal & Provincial HMIS Reporting (DHIS2) -->
+        <a href="/dhis2/" target="_blank" class="card" id="card-dhis2">
+          <div class="status-badge status-checking" id="status-dhis2">Checking...</div>
+          <div class="icon-wrapper">
+            <img src="assets/images/dhis2-report.png" alt="HMIS Reporting Icon" />
+          </div>
+          <h2 class="card-title">Federal & Provincial HMIS Reporting</h2>
+        </a>
+
+        <!-- Tech Stack Block -->
+        <div class="card tech-card">
+          <h2 class="card-title">Powered by Industry-Leading Technologies</h2>
+          <p>Leveraging powerful open-source and enterprise technologies to deliver reliable, scalable solutions.</p>
+          <div class="tech-list">
+            <img src="assets/images/openmrs_logo.svg" alt="OpenMRS" class="tech-logo" />
+            <img src="assets/images/OpenElisGlobalLogo.png" alt="OpenELIS Global" class="tech-logo" />
+            <img src="assets/images/dhis2-logo.svg" alt="DHIS2" class="tech-logo" />
+            <img src="assets/images/OrthancLogo.png" alt="Orthanc" class="tech-logo" />
+            <img src="assets/images/odoo_logo.svg" alt="Odoo" class="tech-logo" />
+          </div>
         </div>
 
-        <div class="nidan-platforms-content">
-            <h2>Powered by Industry-Leading Technologies</h2>
-            <p>Leveraging powerful open-source and enterprise technologies to deliver reliable, scalable solutions.</p>
-            <div class="nidan-platforms">
-                <img src="assets/images/openmrs_logo.svg" alt="OpenMRS" title="OpenMRS" class="platform-logo">
-                <img src="assets/images/OpenElisGlobalLogo.png" alt="OpenELIS" title="OpenELIS" class="platform-logo">
-                <img src="assets/images/dhis2-logo.svg" alt="DHIS2" title="DHIS2" class="platform-logo">
-                <img src="assets/images/OrthancLogo.png" alt="Orthanc" title="Orthanc" class="platform-logo">
-                <img src="assets/images/odoo_logo.svg" alt="Odoo" title="Odoo" class="platform-logo">
-            </div>
-        </div>
+      </div>
     </div>
+  </main>
 
-    <!-- Footer -->
-    <footer>
-        <div class="footer-content">
-            <p class="footer-text">Powered by</p>
+  <!-- Footer -->
+  <footer>
+    <div class="container footer-content">
+      <span>Powered by <a href="https://trigonaltechnology.com/">            
             <div class="footer-logo-container">
                 <img src="trigonal-logo.png" alt="Trigonal Technology" class="footer-logo">
             </div>
-            <p class="footer-copyright">© 2026 NidanEHR. All rights reserved.</p>
-        </div>
-    </footer>
+            <strong>Trigonal Technology</strong>
+      </a></span>
+      <span>© 2026 NidanEHR. All rights reserved.</span>
+    </div>
+  </footer>
 
-    <script>
-        const services = [
-            { id: 'openmrs', url: '/openmrs/spa/config.json' },
-            { id: 'openelis', url: '/openelis/' },
-            { id: 'odoo', url: '/odoo-health/' },
-            { id: 'orthanc', url: '/auth-ping/orthanc' },
-            { id: 'cis', url: '/cis/actuator/health' },
-            { id: 'superset', url: '/superset/' },
-            { id: 'dhis2', url: '/dhis2/auth/login' }
-        ];
+  <script>
+      const services = [
+          { id: 'openmrs', url: '/openmrs/spa/config.json' },
+          { id: 'openelis', url: '/openelis/' },
+          { id: 'odoo', url: '/odoo-health/' },
+          { id: 'orthanc', url: '/auth-ping/orthanc' },
+          { id: 'cis', url: '/cis/actuator/health' },
+          { id: 'superset', url: '/superset/' },
+          { id: 'dhis2', url: '/dhis2/auth/login' }
+      ];
 
-        async function checkHealth() {
-            for (const service of services) {
-                const card = document.getElementById(`card-${service.id}`);
-                const statusBadge = document.getElementById(`status-${service.id}`);
-                if (!card || !statusBadge) continue;
+      async function checkHealth() {
+          for (const service of services) {
+              const card = document.getElementById(`card-${service.id}`);
+              const statusBadge = document.getElementById(`status-${service.id}`);
+              if (!card || !statusBadge) continue;
 
-                try {
-                    const response = await fetch(service.url, { method: 'GET', cache: 'no-cache' });
-                    // NGINX returns 502/503/504 when the upstream container is down or starting
-                    if (response.status === 502 || response.status === 503 || response.status === 504) {
-                        setOffline(card, statusBadge);
-                    } else {
-                        // Any other status (including 401/404 redirects) means the backend container answered
-                        setOnline(card, statusBadge);
-                    }
-                } catch (error) {
-                    setOffline(card, statusBadge);
-                }
-            }
-        }
+              try {
+                  const response = await fetch(service.url, { method: 'GET', cache: 'no-cache' });
+                  // NGINX returns 502/503/504 when the upstream container is down or starting
+                  if (response.status === 502 || response.status === 503 || response.status === 504) {
+                      setOffline(card, statusBadge);
+                  } else {
+                      // Any other status (including 401/404 redirects) means the backend container answered
+                      setOnline(card, statusBadge);
+                  }
+              } catch (error) {
+                  setOffline(card, statusBadge);
+              }
+          }
+      }
 
-        function setOnline(card, badge) {
-            card.classList.remove('offline');
-            badge.className = 'status-badge status-online';
-            badge.innerText = 'Online';
-        }
+      function setOnline(card, badge) {
+          card.classList.remove('offline');
+          badge.className = 'status-badge status-online';
+          badge.innerText = 'Online';
+      }
 
-        function setOffline(card, badge) {
-            card.classList.add('offline');
-            badge.className = 'status-badge status-offline';
-            badge.innerText = 'Offline';
-        }
+      function setOffline(card, badge) {
+          card.classList.add('offline');
+          badge.className = 'status-badge status-offline';
+          badge.innerText = 'Offline';
+      }
 
-        // Run immediately, then poll every 15 seconds
-        checkHealth();
-        setInterval(checkHealth, 15000);
-    </script>
+      // Run immediately, then poll every 15 seconds
+      checkHealth();
+      setInterval(checkHealth, 15000);
+  </script>
 </body>
-
 </html>
