@@ -59,54 +59,62 @@
     /* ==========================================================================
        2. Header Styling
        ========================================================================== */
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 2rem;
-      width: 100%;
-      margin: 20px 0 40px;
-    }
+        .header {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 2rem;
+          width: 100%;
+          margin: 20px 0 40px;
+          /* Added background color, padding, and subtle styling */
+          background-color: #ffffff;
+          padding: 1.5rem 2rem;
+          border-radius: 12px;
+          box-shadow: var(--shadow-sm);
+          border: 1px solid var(--border-color);
+        }
 
-    .brand-logo {
-      width: 150px;
-      height: auto;
-      flex-shrink: 0;
-    }
+        .brand-logo {
+          width: 120px; /* Adjust as needed */
+          height: auto;
+          flex-shrink: 0;
+        }
 
-    .header-content {
-      text-align: left;
-    }
+        .header-content {
+          text-align: left;
+        }
 
-    .header-title {
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: var(--primary-teal);
-      margin-bottom: 2px;
-    }
+        .header-title {
+          font-size: 1.4rem;
+          font-weight: 700;
+          color: var(--primary-teal);
+          margin-bottom: 2px;
+        }
 
-    .header-sub {
-      font-size: 1.1rem;
-      font-weight: 600;
-    }
+        .header-sub {
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: #334155;
+        }
 
-    .header-sub-2 {
-      font-size: 0.95rem;
-      color: #666;
-      margin-top: 2px;
-    }
+        .header-sub-2 {
+          font-size: 0.95rem;
+          color: #64748b;
+          margin-top: 2px;
+        }
 
-    .header-location {
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin-top: 8px;
-      color: #222;
-    }
+        .header-location {
+          font-size: 1.3rem;
+          font-weight: 700;
+          margin-top: 6px;
+          color: #0f172a;
+        }
 
-    .alt-location {
-      color: #777;
-      margin-top: 2px;
-    }
+        .alt-location {
+          color: #64748b;
+          font-size: 0.9rem;
+          margin-top: 2px;
+        }
 
     @media (max-width: 768px) {
       .header {
@@ -252,7 +260,7 @@
       align-items: center;
       text-align: center;
       grid-column: 1 / -1;
-      padding: 2rem 1.5rem;
+      padding: 1.5rem 1rem;
       cursor: default;
     }
 
@@ -264,19 +272,18 @@
     }
 
     .tech-card .card-title {
-      font-size: 1.3rem;
-      font-weight: 700;
+      font-size: 1.1rem;
+      font-weight: 600;
       color: var(--text-main);
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.25rem;
     }
 
-    .tech-card h4 {
-      font-size: 0.95rem;
-      font-weight: 400;
+    .tech-card p {
+      font-size: 0.85rem;
       color: var(--text-muted);
-      margin-bottom: 1.5rem;
+      margin-bottom: 1rem;
       line-height: 1.4;
-      max-width: 700px;
+      max-width: 600px;
     }
 
     .tech-list {
@@ -284,47 +291,56 @@
       flex-wrap: wrap;
       align-items: center;
       justify-content: center;
-      gap: 1.5rem 2.5rem;
+      gap: 1rem 2rem; /* Reduced gap */
       width: 100%;
     }
 
     .tech-logo {
-      max-height: 42px;
+      max-height: 24px; /* Reduced height for a subtle appearance */
       width: auto;
       object-fit: contain;
-      filter: grayscale(15%);
+      filter: grayscale(100%); /* Pure black and white by default */
+      opacity: 0.6; /* Slightly translucent */
       transition: var(--transition-smooth);
     }
 
     .tech-logo:hover {
-      filter: grayscale(0%);
-      transform: scale(1.08);
+      filter: grayscale(0%); /* Full color on hover */
+      opacity: 1;
+      transform: scale(1.05); /* Subtle scale effect */
     }
 
     /* ==========================================================================
        5. Footer
        ========================================================================== */
-    footer {
-      background-color: var(--footer-bg);
-      padding: 1.25rem 0;
-      color: var(--footer-text);
-      font-size: 0.875rem;
-    }
+       footer {
+         background-color: var(--footer-bg);
+         padding: 1.25rem 0;
+         color: var(--footer-text);
+         font-size: 0.875rem;
+       }
 
-    .footer-content {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+       .footer-content {
+         display: flex;
+         justify-content: space-between;
+         align-items: center;
+       }
 
-    .footer-content span {
-      color: var(--footer-muted);
-    }
+       .footer-brand-link {
+         display: inline-flex;
+         align-items: center;
+         gap: 0.4rem;
+         text-decoration: none;
+         color: inherit;
+         vertical-align: middle;
+       }
 
-    .footer-content strong {
-      color: #ffffff;
-      font-weight: 600;
-    }
+       .footer-logo {
+         height: 1.1em; /* Matches the text line-height */
+         width: auto;
+         display: inline-block;
+         vertical-align: middle;
+       }
 
     @media (max-width: 640px) {
       .footer-content {
@@ -443,18 +459,18 @@
   </main>
 
   <!-- Footer -->
-  <footer>
-    <div class="container footer-content">
-      <span>Powered by <a href="https://trigonaltechnology.com/">            
-            <div class="footer-logo-container">
-                <img src="trigonal-logo.png" alt="Trigonal Technology" class="footer-logo">
-            </div>
+    <footer>
+      <div class="container footer-content">
+        <span>
+          Powered by 
+          <a href="https://trigonaltechnology.com/" target="_blank" class="footer-brand-link">
+            <img src="trigonal-logo.png" alt="Trigonal Technology" class="footer-logo">
             <strong>Trigonal Technology</strong>
-      </a></span>
-      <span>© 2026 NidanEHR. All rights reserved.</span>
-    </div>
-  </footer>
-
+          </a>
+        </span>
+        <span>© 2026 NidanEHR. All rights reserved.</span>
+      </div>
+    </footer>
   <script>
       const services = [
           { id: 'openmrs', url: '/openmrs/spa/config.json' },
