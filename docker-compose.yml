@@ -120,7 +120,7 @@ services:
     #     NIDAN_CALENDAR_BUNDLE: "1.0.0-v9"   # bump after repacking the tgz
     # Vanilla upstream SPA (no BS calendar): dockerfile: Dockerfile.vanilla
     profiles: ["openmrs","nidanehr-standard"]
-    image: trigonaltechnology/openmrs-frontend:latest
+    image: bhalubang/openmrs-frontend:latest
     container_name: nidan-openmrs-frontend
     environment:
       - SPA_PATH=/openmrs/spa
