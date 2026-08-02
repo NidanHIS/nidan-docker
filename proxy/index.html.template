@@ -57,64 +57,67 @@
     }
 
     /* ==========================================================================
-       2. Header Styling
+       2. Centered Clean Header (No Box Background)
        ========================================================================== */
-        .header {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 2rem;
-          width: 100%;
-          margin: 20px 0 40px;
-          /* Added background color, padding, and subtle styling */
-          background-color: #ffffff;
-          padding: 1.5rem 2rem;
-          border-radius: 12px;
-          box-shadow: var(--shadow-sm);
-          border: 1px solid var(--border-color);
-        }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+      width: 100%;
+      margin: 20px 0 40px;
+      background: transparent; /* Background removed */
+      padding: 0;
+      box-shadow: none;
+      border: none;
+    }
 
-        .brand-logo {
-          width: 120px; /* Adjust as needed */
-          height: auto;
-          flex-shrink: 0;
-        }
+    .brand-logo {
+      width: 130px;
+      height: auto;
+      flex-shrink: 0;
+      filter: none; /* Removed white invert filter */
+    }
 
-        .header-content {
-          text-align: left;
-        }
+    .header-content {
+      text-align: left;
+      border-left: none;
+      padding-left: 0;
+    }
 
-        .header-title {
-          font-size: 1.4rem;
-          font-weight: 700;
-          color: var(--primary-teal);
-          margin-bottom: 2px;
-        }
+    .header-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--primary-teal);
+      margin-bottom: 2px;
+      text-transform: none;
+      letter-spacing: normal;
+    }
 
-        .header-sub {
-          font-size: 1.1rem;
-          font-weight: 600;
-          color: #334155;
-        }
+    .header-sub {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #334155;
+    }
 
-        .header-sub-2 {
-          font-size: 0.95rem;
-          color: #64748b;
-          margin-top: 2px;
-        }
+    .header-sub-2 {
+      font-size: 0.95rem;
+      color: #64748b;
+      margin-top: 2px;
+    }
 
-        .header-location {
-          font-size: 1.3rem;
-          font-weight: 700;
-          margin-top: 6px;
-          color: #0f172a;
-        }
+    .header-location {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-top: 8px;
+      color: #222;
+    }
 
-        .alt-location {
-          color: #64748b;
-          font-size: 0.9rem;
-          margin-top: 2px;
-        }
+    .alt-location {
+      color: #777;
+      margin-top: 2px;
+      font-size: 0.9rem;
+    }
 
     @media (max-width: 768px) {
       .header {
@@ -126,6 +129,8 @@
 
       .header-content {
         text-align: center;
+        border-top: none;
+        padding-top: 0;
       }
 
       .brand-logo {
@@ -291,56 +296,56 @@
       flex-wrap: wrap;
       align-items: center;
       justify-content: center;
-      gap: 1rem 2rem; /* Reduced gap */
+      gap: 1rem 2rem;
       width: 100%;
     }
 
     .tech-logo {
-      max-height: 24px; /* Reduced height for a subtle appearance */
+      max-height: 24px;
       width: auto;
       object-fit: contain;
-      filter: grayscale(100%); /* Pure black and white by default */
-      opacity: 0.6; /* Slightly translucent */
+      filter: grayscale(100%);
+      opacity: 0.6;
       transition: var(--transition-smooth);
     }
 
     .tech-logo:hover {
-      filter: grayscale(0%); /* Full color on hover */
+      filter: grayscale(0%);
       opacity: 1;
-      transform: scale(1.05); /* Subtle scale effect */
+      transform: scale(1.05);
     }
 
     /* ==========================================================================
        5. Footer
        ========================================================================== */
-       footer {
-         background-color: var(--footer-bg);
-         padding: 1.25rem 0;
-         color: var(--footer-text);
-         font-size: 0.875rem;
-       }
+    footer {
+      background-color: var(--footer-bg);
+      padding: 1.25rem 0;
+      color: var(--footer-text);
+      font-size: 0.875rem;
+    }
 
-       .footer-content {
-         display: flex;
-         justify-content: space-between;
-         align-items: center;
-       }
+    .footer-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
 
-       .footer-brand-link {
-         display: inline-flex;
-         align-items: center;
-         gap: 0.4rem;
-         text-decoration: none;
-         color: inherit;
-         vertical-align: middle;
-       }
+    .footer-brand-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      text-decoration: none;
+      color: inherit;
+      vertical-align: middle;
+    }
 
-       .footer-logo {
-         height: 1.1em; /* Matches the text line-height */
-         width: auto;
-         display: inline-block;
-         vertical-align: middle;
-       }
+    .footer-logo {
+      height: 1.1em;
+      width: auto;
+      display: inline-block;
+      vertical-align: middle;
+    }
 
     @media (max-width: 640px) {
       .footer-content {
@@ -357,7 +362,7 @@
   <main>
     <div class="container">
       
-      <!-- Side-by-Side Header -->
+      <!-- Side-by-Side Centered Header (Clean & Background-Free) -->
       <header class="header">
         <img src="assets/images/nepal-gov-logo.png" alt="Nepal Government Logo" class="brand-logo">
         <div class="header-content">
@@ -459,18 +464,19 @@
   </main>
 
   <!-- Footer -->
-    <footer>
-      <div class="container footer-content">
-        <span>
-          Powered by 
-          <a href="https://trigonaltechnology.com/" target="_blank" class="footer-brand-link">
-            <img src="trigonal-logo.png" alt="Trigonal Technology" class="footer-logo">
-            <strong>Trigonal Technology</strong>
-          </a>
-        </span>
-        <span>© 2026 NidanEHR. All rights reserved.</span>
-      </div>
-    </footer>
+  <footer>
+    <div class="container footer-content">
+      <span>
+        Powered by 
+        <a href="https://trigonaltechnology.com/" target="_blank" class="footer-brand-link">
+          <img src="trigonal-logo.png" alt="Trigonal Technology" class="footer-logo">
+          <strong>Trigonal Technology</strong>
+        </a>
+      </span>
+      <span>© 2026 NidanEHR. All rights reserved.</span>
+    </div>
+  </footer>
+
   <script>
       const services = [
           { id: 'openmrs', url: '/openmrs/spa/config.json' },
@@ -490,11 +496,9 @@
 
               try {
                   const response = await fetch(service.url, { method: 'GET', cache: 'no-cache' });
-                  // NGINX returns 502/503/504 when the upstream container is down or starting
                   if (response.status === 502 || response.status === 503 || response.status === 504) {
                       setOffline(card, statusBadge);
                   } else {
-                      // Any other status (including 401/404 redirects) means the backend container answered
                       setOnline(card, statusBadge);
                   }
               } catch (error) {
@@ -515,7 +519,6 @@
           badge.innerText = 'Offline';
       }
 
-      // Run immediately, then poll every 15 seconds
       checkHealth();
       setInterval(checkHealth, 15000);
   </script>
