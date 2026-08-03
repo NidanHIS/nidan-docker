@@ -12,6 +12,21 @@
           "patient-orders-dashboard",
           "allergies-details-widget",
           "immunization-overview-widget"
+        ],
+        "order": [
+          "vitals-overview-widget",
+          "biometrics-overview-widget",
+          "active-forms-overview-widget",
+          "visit-overview-widget",
+          "encounter-overview-widget",
+          "diagnosis-overview-widget",
+          "conditions-overview-widget",
+          "active-medications-widget",
+          "past-medications-widget",
+          "allergies-details-widget",
+          "patient-orders-dashboard",
+          "immunization-overview-widget",
+          "attachments-overview-widget"
         ]
       }
     }
@@ -59,7 +74,9 @@
     "defaultFacilityUrl": ""
   },
   "@openmrs/esm-styleguide": {
-    "Brand color #1": "#005d5d"
+    "Brand color #3": "#0082A8",
+    "Brand color #1": "#006D8F",
+    "Brand color #2": "#003B5C"
   },
   "@kenyaemr/esm-imaging-orders-app": {
     "radiologyConceptSetUuid": "cd9f116c-517d-439e-847d-d8d257434083",
@@ -115,7 +132,7 @@
       }
     ]
   },
-  "openmrs/esm-orderset-app": {
+  "@openmrs/esm-orderset-app": {
     "labConceptSetUuid": "1748a953-d12e-4be1-914c-f6b096c6cdef",
     "radiologyConceptSetUuid": "cd9f116c-517d-439e-847d-d8d257434083",
     "procedureConceptSetUuid": "0c3019b0-9bd3-4bc7-8e2c-e6230c31ed18",
@@ -181,6 +198,29 @@
       "1": { "shiftStartTime": "06:00", "shiftEndTime": "13:00" },
       "2": { "shiftStartTime": "13:00", "shiftEndTime": "17:00" },
       "3": { "shiftStartTime": "17:00", "shiftEndTime": "06:00" }
+    }
+  },
+  "@openmrs/esm-home-app": {
+    "extensionSlots": {
+      "homepage-dashboard-slot": {
+        "remove": [
+          "patient-lists-dashboard-link"
+        ]
+      }
+    }
+  },
+  "@openmrs/esm-primary-navigation-app": {
+    "extensionSlots": {
+      "user-panel-slot": {
+        "add": [
+          "location-changer"
+        ]
+      },
+      "top-nav-info-slot": {
+        "remove": [
+          "location-changer"
+        ]
+      }
     }
   }
 }

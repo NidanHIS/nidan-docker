@@ -49,11 +49,11 @@
         }
 
         .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            max-width: calc(100% - 40px);
-            width: 100%;
+            display:grid;
+            grid-template-columns:repeat(4,1fr);
+            gap:20px;
+            max-width:1200px;
+            width:100%;
         }
 
         .card {
@@ -202,18 +202,115 @@
         }
 
         /* Mobile adjustment */
+        @media (max-width:900px){
+            .grid{
+                grid-template-columns:repeat(2,1fr);
+            }
+        }
+
         @media (max-width: 600px) {
             .grid {
                 grid-template-columns: 1fr;
             }
         }
+
+        /*  Credetial CSS      */
+        .credential-card{
+            background:linear-gradient(135deg,#008080,#006666);
+            color:#fff;
+        }
+
+        .credential-card .desc{
+            color:#fff;
+            opacity:.9;
+        }
+
+        .credential-modal{
+            position:fixed;
+            inset:0;
+            background:rgba(0,0,0,.55);
+            display:none;
+            align-items:center;
+            justify-content:center;
+            padding:30px;
+            z-index:9999;
+        }
+
+        .credential-modal.active{
+            display:flex;
+        }
+
+        .credential-content{
+            background:#fff;
+            width:min(900px,100%);
+            border-radius:16px;
+            padding:35px;
+            position:relative;
+            max-height:90vh;
+            overflow:auto;
+        }
+
+        .close-btn{
+            position:absolute;
+            right:20px;
+            top:15px;
+            border:none;
+            background:none;
+            font-size:32px;
+            cursor:pointer;
+        }
+
+        .credential-grid{
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+            gap:20px;
+            margin-top:30px;
+        }
+
+        .credential-item{
+            border:1px solid #e6e6e6;
+            border-radius:12px;
+            padding:18px;
+            background:#fafafa;
+        }
+
+        .credential-item h3{
+            margin:0 0 15px;
+            color:#008080;
+            font-size:18px;
+        }
+
+        .credential-item span{
+            display:block;
+            font-size:13px;
+            color:#777;
+            margin-top:10px;
+        }
+
+        .credential-item code{
+            display:block;
+            background:#f0f3f5;
+            border-radius:6px;
+            padding:8px 10px;
+            margin-top:4px;
+            font-weight:600;
+        }
     </style>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-M4W6335Z1L"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-M4W6335Z1L');
+</script>
 </head>
 
 <body>
     <div class="main-content">
         <!-- Nidan Logo -->
-        <img src="assets/images/nidan-logo.webp" alt="NidanEHR" class="brand-logo">
+        <img src="assets/images/nidanehr-logo.png" alt="NidanEHR" class="brand-logo">
 
         <div class="grid">
             <!-- OpenMRS -->
@@ -265,6 +362,13 @@
                 <div class="icon">📡</div>
                 <div class="title">Federal & Provincial HMIS Reporting</div>
             </a>
+
+            <!-- Demo Credentials -->
+            <a href="#" class="card credential-card" id="credentialBtn">
+                <div class="icon">🔑</div>
+                <div class="title">Demo Credentials</div>
+                <div class="desc">Click here to view login details</div>
+            </a>
         </div>
 
         <div class="nidan-platforms-content">
@@ -278,6 +382,76 @@
                 <img src="assets/images/odoo_logo.svg" alt="Odoo" title="Odoo" class="platform-logo">
             </div>
         </div>
+            <!-- Demo Credentials -->
+            <div class="credential-modal" id="credentialModal">
+
+                <div class="credential-content">
+
+                    <button class="close-btn" id="closeCredential">&times;</button>
+
+                    <h2>Demo Credentials</h2>
+                    <p>Select the application and use the credentials below.</p>
+
+                    <div class="credential-grid">
+
+                        <div class="credential-item">
+                            <h3>🏢 Odoo ERP</h3>
+                            <span>Username</span>
+                            <code>nidan</code>
+
+                            <span>Password</span>
+                            <code>nidan</code>
+                        </div>
+
+                        <div class="credential-item">
+                            <h3>🏥 OpenMRS</h3>
+                            <span>Username</span>
+                            <code>admin</code>
+
+                            <span>Password</span>
+                            <code>Admin123</code>
+                        </div>
+
+                        <div class="credential-item">
+                            <h3>🔬 OpenELIS</h3>
+                            <span>Username</span>
+                            <code>admin</code>
+
+                            <span>Password</span>
+                            <code>adminADMIN!</code>
+                        </div>
+
+                        <div class="credential-item">
+                            <h3>📊 Superset</h3>
+                            <span>Username</span>
+                            <code>admin</code>
+
+                            <span>Password</span>
+                            <code>admin</code>
+                        </div>
+
+                        <div class="credential-item">
+                            <h3>📡 DHIS2</h3>
+                            <span>Username</span>
+                            <code>admin</code>
+
+                            <span>Password</span>
+                            <code>Admin123</code>
+                        </div>
+
+                        <div class="credential-item">
+                            <h3>🦴 Orthanc</h3>
+                            <span>Username</span>
+                            <code>nidan</code>
+
+                            <span>Password</span>
+                            <code>nidan</code>
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
     </div>
 
     <!-- Footer -->
@@ -338,6 +512,27 @@
         // Run immediately, then poll every 15 seconds
         checkHealth();
         setInterval(checkHealth, 15000);
+    </script>
+    <!-- credential scripts -->
+    <script>
+        const credentialBtn = document.getElementById("credentialBtn");
+        const credentialModal = document.getElementById("credentialModal");
+        const closeCredential = document.getElementById("closeCredential");
+
+        credentialBtn.addEventListener("click", function(e){
+            e.preventDefault();
+            credentialModal.classList.add("active");
+        });
+
+        closeCredential.addEventListener("click", function(){
+            credentialModal.classList.remove("active");
+        });
+
+        credentialModal.addEventListener("click", function(e){
+            if(e.target === credentialModal){
+                credentialModal.classList.remove("active");
+            }
+        });
     </script>
 </body>
 
