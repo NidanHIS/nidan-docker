@@ -52,7 +52,7 @@
     }
 
     main {
-      padding: 1.25rem 0 2.5rem;
+      padding: 1rem 0 2rem;
       flex-grow: 1;
     }
 
@@ -65,7 +65,7 @@
       justify-content: center;
       gap: 1.25rem;
       width: 100%;
-      margin: 10px 0 20px;
+      margin: 10px 0 15px;
       background: transparent;
       padding: 0;
       box-shadow: none;
@@ -73,7 +73,7 @@
     }
 
     .brand-logo {
-      width: 100px;
+      width: 95px;
       height: auto;
       flex-shrink: 0;
       filter: none;
@@ -107,7 +107,7 @@
     }
 
     .header-location {
-      font-size: 1.3rem;
+      font-size: 1.25rem;
       font-weight: 700;
       margin-top: 4px;
       color: #222;
@@ -134,23 +134,23 @@
       }
 
       .brand-logo {
-        max-width: 90px;
+        max-width: 85px;
       }
     }
 
     /* ==========================================================================
-       3. Hero & Cards Grid Layout (4 cards on Row 1, 3 cards on Row 2)
+       3. Hero & Square Cards Grid Layout
        ========================================================================== */
     .hero-container {
       text-align: center;
-      margin-bottom: 2rem;
+      margin-bottom: 1.5rem;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
 
     .hero-title {
-      font-size: 1.75rem;
+      font-size: 1.65rem;
       font-weight: 800;
       color: #0f172a;
       letter-spacing: -0.025em;
@@ -166,48 +166,34 @@
       height: 3px;
       background-color: var(--primary-teal);
       border-radius: 2px;
-      margin: 0.6rem auto 0;
+      margin: 0.5rem auto 0;
     }
 
-    /* 12-column grid layout for explicit 4-card then 3-card structure */
+    /* Hide Welcome Title on displays <= 12 inches (~1024px screen width) */
+    @media (max-width: 1440px) {
+      .hero-container {
+        display: none !important;
+      }
+    }
+
+    /* Strict 4-column grid layout */
     .cards-grid {
       display: grid;
-      grid-template-columns: repeat(12, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 1.25rem;
+      max-width: 1080px;
+      margin: 0 auto;
     }
 
-    /* First 4 cards take 3 columns each (4 x 3 = 12 total) */
-    .cards-grid .card:nth-child(-n+4) {
-      grid-column: span 3;
-    }
-
-    /* Last 3 cards take 4 columns each (3 x 4 = 12 total) */
-    .cards-grid .card:nth-child(n+5) {
-      grid-column: span 4;
-    }
-
-    /* Responsive adjustments for tablet and mobile screens */
-    @media (max-width: 1024px) {
-      .cards-grid .card:nth-child(-n+4),
-      .cards-grid .card:nth-child(n+5) {
-        grid-column: span 6; /* 2 cards per row on tablet */
-      }
-    }
-
-    @media (max-width: 640px) {
-      .cards-grid .card:nth-child(-n+4),
-      .cards-grid .card:nth-child(n+5) {
-        grid-column: span 12; /* 1 card per row on mobile */
-      }
-    }
-
+    /* Square Card Configuration */
     .card {
       background: var(--card-bg);
       border-radius: 12px;
-      padding: 1.25rem 1rem;
+      padding: 1rem;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       text-align: center;
       position: relative;
       border: 1px solid transparent;
@@ -216,7 +202,8 @@
       cursor: pointer;
       text-decoration: none;
       color: inherit;
-      height: 100%;
+      aspect-ratio: 1 / 1;
+      width: 100%;
     }
 
     .card:hover {
@@ -228,16 +215,16 @@
 
     /* Status Badges */
     .status-badge {
-      font-size: 0.7rem;
+      font-size: 0.65rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      padding: 0.2rem 0.6rem;
+      padding: 0.2rem 0.55rem;
       border-radius: 9999px;
-      margin-bottom: 0.85rem;
+      margin-bottom: 0.5rem;
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
+      gap: 0.3rem;
     }
 
     .status-badge.status-checking {
@@ -251,12 +238,12 @@
     }
 
     .icon-wrapper {
-      width: 56px;
-      height: 56px;
+      width: 48px;
+      height: 48px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 0.85rem;
+      margin-bottom: 0.5rem;
       transition: var(--transition-smooth);
     }
 
@@ -271,17 +258,50 @@
     }
 
     .card-title {
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       font-weight: 600;
-      line-height: 1.3;
-      margin-bottom: 0.35rem;
+      line-height: 1.25;
+      margin-bottom: 0.25rem;
     }
 
     .card-description {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
-      line-height: 1.35;
-      margin-top: auto;
+      line-height: 1.2;
+    }
+
+    /* --------------------------------------------------------------------------
+       Spacious Layout for Desktop/Large Screens (>= 1025px)
+       -------------------------------------------------------------------------- */
+    @media (min-width: 1025px) {
+      main {
+        padding: 2rem 0 3.5rem;
+      }
+
+      .header {
+        margin-bottom: 2rem;
+      }
+
+      .hero-container {
+        margin-bottom: 3rem;
+      }
+    }
+
+    /* Responsive scaling for mobile & tablets */
+    @media (max-width: 900px) {
+      .cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 550px) {
+      .cards-grid {
+        grid-template-columns: 1fr;
+      }
+      .card {
+        aspect-ratio: auto;
+        padding: 1.25rem 1rem;
+      }
     }
 
     /* ==========================================================================
@@ -289,7 +309,7 @@
        ========================================================================== */
     footer {
       background-color: var(--footer-bg);
-      padding: 1.25rem 0;
+      padding: 1rem 0;
       color: var(--footer-text);
       font-size: 0.85rem;
     }
@@ -305,7 +325,7 @@
       display: flex;
       flex-direction: column;
       align-items: flex-start;
-      gap: 0.5rem;
+      gap: 0.35rem;
     }
 
     .footer-right {
@@ -313,7 +333,8 @@
       flex-direction: column;
       align-items: flex-end;
       text-align: right;
-      gap: 0.3rem;
+      gap: 0.25rem;
+      flex-shrink: 0;
     }
 
     .footer-brand-link {
@@ -335,11 +356,11 @@
       display: flex;
       flex-direction: column;
       align-items: flex-start;
-      gap: 0.3rem;
+      gap: 0.25rem;
     }
 
     .tech-powerhouse-title {
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 600;
       letter-spacing: 0.02em;
       color: var(--footer-text);
@@ -349,7 +370,7 @@
       display: flex;
       align-items: center;
       gap: 0.6rem;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
     }
 
     .tech-logo-small {
@@ -371,17 +392,22 @@
       font-size: 0.75rem;
     }
 
-    @media (max-width: 640px) {
+    @media (max-width: 768px) {
       .footer-content {
         flex-direction: column;
         text-align: center;
-        gap: 1.25rem;
+        gap: 1rem;
       }
 
       .footer-left,
       .footer-right {
         align-items: center;
         text-align: center;
+      }
+
+      .tech-list-small {
+        flex-wrap: wrap;
+        justify-content: center;
       }
     }
   </style>
@@ -404,7 +430,7 @@
         </div>
       </header>
 
-      <!-- Hero Section -->
+      <!-- Hero Section (Hidden on screens <= 12 inches) -->
       <div class="hero-container">
         <h1 class="hero-title">Welcome to NidanEHR Services Portal</h1>
       </div>
@@ -412,7 +438,7 @@
       <!-- Grid of Services -->
       <div class="cards-grid">
 
-        <!-- Card 1: Patient Registration & Billing (Odoo) -->
+        <!-- Row 1: Cards 1 to 4 -->
         <a href="${DASHBOARD_ODOO_URL}" target="_blank" class="card" id="card-odoo">
           <div class="status-badge status-checking" id="status-odoo">Checking...</div>
           <div class="icon-wrapper">
@@ -421,7 +447,6 @@
           <h2 class="card-title">Patient Registration & Billing</h2>
         </a>
 
-        <!-- Card 2: Electronic Health Record (OpenMRS) -->
         <a href="/openmrs/spa/index.html" target="_blank" class="card" id="card-openmrs">
           <div class="status-badge status-checking" id="status-openmrs">Checking...</div>
           <div class="icon-wrapper">
@@ -430,7 +455,6 @@
           <h2 class="card-title">Electronic Health Record</h2>
         </a>
 
-        <!-- Card 3: Laboratory Information System (OpenELIS) -->
         <a href="/openelis" target="_blank" class="card" id="card-openelis">
           <div class="status-badge status-checking" id="status-openelis">Checking...</div>
           <div class="icon-wrapper">
@@ -439,7 +463,6 @@
           <h2 class="card-title">Laboratory Information System</h2>
         </a>
 
-        <!-- Card 4: PACS & Diagnostic Imaging (Orthanc) -->
         <a href="/orthanc-container/ui/app/index.html#/" target="_blank" class="card" id="card-orthanc">
           <div class="status-badge status-checking" id="status-orthanc">Checking...</div>
           <div class="icon-wrapper">
@@ -448,7 +471,7 @@
           <h2 class="card-title">Radiology & Diagnostic Imaging</h2>
         </a>
 
-        <!-- Card 5: Integration & Error Management (Middleware) -->
+        <!-- Row 2: Cards 5 to 7 -->
         <a href="/cis/dead-letters/index.html" target="_blank" class="card" id="card-cis">
           <div class="status-badge status-checking" id="status-cis">Checking...</div>
           <div class="icon-wrapper">
@@ -458,7 +481,6 @@
           <p class="card-description">Integration & eemps error data</p>
         </a>
 
-        <!-- Card 6: Analytics & Business Intelligence (Superset) -->
         <a href="/superset/" target="_blank" class="card" id="card-superset">
           <div class="status-badge status-checking" id="status-superset">Checking...</div>
           <div class="icon-wrapper">
@@ -467,7 +489,6 @@
           <h2 class="card-title">Analytics & Business Intelligence</h2>
         </a>
 
-        <!-- Card 7: Federal & Provincial HMIS Reporting (DHIS2) -->
         <a href="/dhis2/" target="_blank" class="card" id="card-dhis2">
           <div class="status-badge status-checking" id="status-dhis2">Checking...</div>
           <div class="icon-wrapper">
@@ -484,7 +505,7 @@
   <footer>
     <div class="container footer-content">
       
-      <!-- Left Side: Tech Powerhouse Logos -->
+      <!-- Left Side: Single Line Open Source Powerhouse Logos -->
       <div class="footer-left">
         <div class="tech-powerhouse">
           <span class="tech-powerhouse-title">Open Source Powerhouse</span>
