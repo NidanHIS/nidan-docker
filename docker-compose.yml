@@ -104,7 +104,7 @@ services:
     volumes:
       - openmrs-data:/openmrs/data
       # Optional dev: mount locally-built OMODs (startup.sh copies *.omod into data/modules on start).
-      # - ./openmrs/custom_modules:/openmrs/custom_modules:ro
+      - ./openmrs/custom_modules:/openmrs/custom_modules:ro
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/openmrs/" ]
       interval: 30s
@@ -229,9 +229,9 @@ services:
       - odoo-data:/var/lib/odoo
       # Addons come from the image (baked at /mnt/extra-addons + /mnt/private-addons).
       # No host addon source should be mounted in prod.
-      # - ${ODOO_ADDONS_PATH:-../odoo_19_addons}:/mnt/extra-addons
+      - ${ODOO_ADDONS_PATH:-../odoo_19_addons}:/mnt/extra-addons
       # Mount the private/closed-source addons for live editing in dev
-      # - ${ODOO_PRIVATE_ADDONS_HOST_PATH:-../nidan_odoo_extra_addons}:/mnt/private-addons
+      - ${ODOO_PRIVATE_ADDONS_HOST_PATH:-../nidan_odoo_extra_addons}:/mnt/private-addons
       # odoo.conf from git (read-only). Entrypoint copies to container; runtime changes stay in container.
       - ./odoo/odoo.conf:/mnt/odoo.conf.template:ro
     networks:
