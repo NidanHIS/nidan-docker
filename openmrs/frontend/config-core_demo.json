@@ -222,6 +222,10 @@
           "location-changer"
         ]
       }
+    },
+    "logo": {
+      "src": "${openmrsSpaBase}/nidan-logo-white.png",
+      "alt": "NidanEHR"
     }
   },
   "@openmrs/esm-login-app": {
