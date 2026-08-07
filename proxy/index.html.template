@@ -420,7 +420,7 @@
       
       <!-- Side-by-Side Centered Header -->
       <header class="header">
-        <img src="assets/images/nepal-gov-logo.png" alt="Nepal Government Logo" class="brand-logo">
+        <img src="/assets/images/nepal-gov-logo.png" alt="Nepal Government Logo" class="brand-logo">
         <div class="header-content">
           <div class="header-title">Lumbini Province Government</div>
           <div class="header-sub">Ministry of Health</div>
@@ -442,7 +442,7 @@
         <a href="${DASHBOARD_ODOO_URL}" target="_blank" class="card" id="card-odoo">
           <div class="status-badge status-checking" id="status-odoo">Checking...</div>
           <div class="icon-wrapper">
-            <img src="assets/images/billing.png" alt="Patient Registration & Billing Icon" />
+            <img src="/assets/images/billing.png" alt="Patient Registration & Billing Icon" />
           </div>
           <h2 class="card-title">Patient Registration & Billing</h2>
         </a>
@@ -450,7 +450,7 @@
         <a href="/openmrs/spa/index.html" target="_blank" class="card" id="card-openmrs">
           <div class="status-badge status-checking" id="status-openmrs">Checking...</div>
           <div class="icon-wrapper">
-            <img src="assets/images/emr.png" alt="Electronic Health Record Icon" />
+            <img src="/assets/images/emr.png" alt="Electronic Health Record Icon" />
           </div>
           <h2 class="card-title">Electronic Health Record</h2>
         </a>
@@ -458,7 +458,7 @@
         <a href="/openelis" target="_blank" class="card" id="card-openelis">
           <div class="status-badge status-checking" id="status-openelis">Checking...</div>
           <div class="icon-wrapper">
-            <img src="assets/images/lab.png" alt="Laboratory Information System Icon" />
+            <img src="/assets/images/lab.png" alt="Laboratory Information System Icon" />
           </div>
           <h2 class="card-title">Laboratory Information System</h2>
         </a>
@@ -466,7 +466,7 @@
         <a href="/orthanc-container/ui/app/index.html#/" target="_blank" class="card" id="card-orthanc">
           <div class="status-badge status-checking" id="status-orthanc">Checking...</div>
           <div class="icon-wrapper">
-            <img src="assets/images/pacs.png" alt="PACS & Diagnostic Imaging Icon" />
+            <img src="/assets/images/pacs.png" alt="PACS & Diagnostic Imaging Icon" />
           </div>
           <h2 class="card-title">Radiology & Diagnostic Imaging</h2>
         </a>
@@ -475,7 +475,7 @@
         <a href="/cis/dead-letters/index.html" target="_blank" class="card" id="card-cis">
           <div class="status-badge status-checking" id="status-cis">Checking...</div>
           <div class="icon-wrapper">
-            <img src="assets/images/crisis.png" alt="Integration & Error Management Icon" />
+            <img src="/assets/images/crisis.png" alt="Integration & Error Management Icon" />
           </div>
           <h2 class="card-title">Integration & Error Management</h2>
           <p class="card-description">Integration & eemps error data</p>
@@ -484,7 +484,7 @@
         <a href="/superset/" target="_blank" class="card" id="card-superset">
           <div class="status-badge status-checking" id="status-superset">Checking...</div>
           <div class="icon-wrapper">
-            <img src="assets/images/analytics.png" alt="Analytics & Business Intelligence Icon" />
+            <img src="/assets/images/analytics.png" alt="Analytics & Business Intelligence Icon" />
           </div>
           <h2 class="card-title">Analytics & Business Intelligence</h2>
         </a>
@@ -492,7 +492,7 @@
         <a href="/dhis2/" target="_blank" class="card" id="card-dhis2">
           <div class="status-badge status-checking" id="status-dhis2">Checking...</div>
           <div class="icon-wrapper">
-            <img src="assets/images/dhis2-report.png" alt="HMIS Reporting Icon" />
+            <img src="/assets/images/dhis2-report.png" alt="HMIS Reporting Icon" />
           </div>
           <h2 class="card-title">Federal & Provincial HMIS Reporting</h2>
         </a>
@@ -510,11 +510,11 @@
         <div class="tech-powerhouse">
           <span class="tech-powerhouse-title">Open Source Powerhouse</span>
           <div class="tech-list-small">
-            <img src="assets/images/openmrs_logo.svg" alt="OpenMRS" class="tech-logo-small" />
-            <img src="assets/images/OpenElisGlobalLogo.png" alt="OpenELIS Global" class="tech-logo-small" />
-            <img src="assets/images/dhis2-logo.svg" alt="DHIS2" class="tech-logo-small" />
-            <img src="assets/images/OrthancLogo.png" alt="Orthanc" class="tech-logo-small" />
-            <img src="assets/images/odoo_logo.svg" alt="Odoo" class="tech-logo-small" />
+            <img src="/assets/images/openmrs_logo.svg" alt="OpenMRS" class="tech-logo-small" />
+            <img src="/assets/images/OpenElisGlobalLogo.png" alt="OpenELIS Global" class="tech-logo-small" />
+            <img src="/assets/images/dhis2-logo.svg" alt="DHIS2" class="tech-logo-small" />
+            <img src="/assets/images/OrthancLogo.png" alt="Orthanc" class="tech-logo-small" />
+            <img src="/assets/images/odoo_logo.svg" alt="Odoo" class="tech-logo-small" />
           </div>
         </div>
       </div>
