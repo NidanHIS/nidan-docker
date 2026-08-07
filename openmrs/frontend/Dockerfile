@@ -31,6 +31,7 @@ COPY packages/openmrs-esm-form-builder-app-3.4.1-trigonal.tgz .
 COPY packages/openmrs-esm-form-engine-app-12.1.0-trigonal.tgz .
 COPY packages/openmrs-esm-service-queues-app-10.0.2.tgz .
 COPY packages/openmrs-esm-paywall-app-1.0.0.tgz .
+COPY packages/openmrs-esm-login-app-10.0.0-nidan.tgz .
 
 # Nidan patient-chart fork (@openmrs/esm-patient-chart 12.1.0 + extensions)
 COPY packages/openmrs-esm-patient-chart-app-12.1.0.tgz .
@@ -52,6 +53,7 @@ RUN yarn add ./kenyaemr-esm-bed-orders-app-4.0.5.tgz
 RUN yarn add ./openmrs-esm-nidan-core-app-1.0.0.tgz
 RUN yarn add ./openmrs-esm-paywall-app-1.0.0.tgz
 RUN yarn add ./openmrs-esm-patient-notes-app-12.1.0.tgz
+RUN yarn add ./openmrs-esm-login-app-10.0.0-nidan.tgz
 
 RUN echo "nidan-calendar-bundle=${NIDAN_CALENDAR_BUNDLE}" && \
     yarn add ./nidan-esm-nepali-calendar-1.0.0.tgz
@@ -99,5 +101,9 @@ COPY nginx.conf /etc/nginx/nginx.conf
 
 COPY --from=dev /app/spa /usr/share/nginx/html
 COPY config-core_demo.json /usr/share/nginx/html
+
+COPY /resources/favicon.ico /usr/share/nginx/html/favicon.ico
+COPY /resources/nidan-logo-full.png /usr/share/nginx/html
+COPY /resources/nidan-logo-white.png /usr/share/nginx/html
 
 CMD ["/usr/local/bin/startup.sh"]
