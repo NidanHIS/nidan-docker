@@ -69,4 +69,14 @@ if [ -f "/usr/share/nginx/html/index.html" ] && [ -n "$SPA_PATH" ]; then
     "/usr/share/nginx/html/index.html"
 fi
 
+# Custom packages are rebuilt in-place during local validation. Give every
+# module entrypoint a deployment-specific URL so a browser cannot reuse a
+# loader from an older build and then request chunk IDs that no longer exist.
+# Webpack removes the query string when it resolves the package's chunk path.
+if [ -f "/usr/share/nginx/html/importmap.json" ]; then
+  sed -i -E \
+    "s|(\"\./[^\"]+\.js)(\?v=[^\"]*)?\"|\1?v=${SPA_ASSET_VERSION}\"|g" \
+    "/usr/share/nginx/html/importmap.json"
+fi
+
 exec nginx -g "daemon off;"
