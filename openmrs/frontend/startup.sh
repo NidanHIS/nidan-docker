@@ -58,4 +58,15 @@ if [ -f "/usr/share/nginx/html/service-worker.js" ]; then
   envsubst '${IMPORTMAP_URL} ${SPA_PATH} ${API_URL}' < "/usr/share/nginx/html/service-worker.js" | sponge "/usr/share/nginx/html/service-worker.js"
 fi
 
+# A deployment can change a local package while an older import map is still
+# cached by the browser. Version both registry URLs on every container start so
+# the app shell cannot combine modules or chunks from different builds.
+SPA_ASSET_VERSION=${SPA_ASSET_VERSION:-$(date +%s)}
+if [ -f "/usr/share/nginx/html/index.html" ] && [ -n "$SPA_PATH" ]; then
+  sed -i -E \
+    -e "s|${SPA_PATH}/importmap\\.json(\\?v=[^\"']*)?|${SPA_PATH}/importmap.json?v=${SPA_ASSET_VERSION}|g" \
+    -e "s|${SPA_PATH}/routes\\.registry\\.json(\\?v=[^\"']*)?|${SPA_PATH}/routes.registry.json?v=${SPA_ASSET_VERSION}|g" \
+    "/usr/share/nginx/html/index.html"
+fi
+
 exec nginx -g "daemon off;"
