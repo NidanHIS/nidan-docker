@@ -314,7 +314,7 @@
 
         <div class="grid">
             <!-- OpenMRS -->
-            <a href="/openmrs/spa/index.html" target="_blank" class="card" id="card-openmrs">
+            <a href="/openmrs/spa" target="_blank" class="card" id="card-openmrs">
                 <div class="status-badge status-checking" id="status-openmrs">Checking...</div>
                 <div class="icon">🏥</div>
                 <div class="title">Electronic Medical Record</div>

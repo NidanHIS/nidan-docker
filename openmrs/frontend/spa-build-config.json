@@ -1,6 +1,7 @@
 {
   "spaPath": "$SPA_PATH",
   "apiUrl": "$API_URL",
+  "pageTitle": "NidanEHR-Clinical",
   "configUrls": ["$SPA_CONFIG_URLS"],
   "defaultLocale": "$SPA_DEFAULT_LOCALE",
   "importmap": "$SPA_PATH/importmap.json",
