@@ -42,6 +42,11 @@ sys.path.insert(0, "/app")
 # of full-width / 3-col / 2-col rows instead of a fixed 2-column layout).
 CHART_WIDTHS = {}
 
+# Odoo stores every timestamp in UTC. Nepal is UTC+05:45, so anything issued after
+# 18:15 UTC belongs to the *next* local day — a daily chart bucketed on raw UTC puts
+# those rows on the wrong bar. Datasets that roll up per day convert to local time.
+LOCAL_TZ = os.environ.get("REPORT_TZ", "Asia/Kathmandu")
+
 
 # --------------------------------------------------------------------------- #
 # Connection helpers
@@ -450,6 +455,43 @@ def build_dataset_specs():
         ],
     })
 
+    # ---- Odoo: TICKET SALES (POS line grain, ticket products only) ------- #
+    # A "ticket" is the registration slip a patient buys at the counter, modelled
+    # in Odoo as a product with clinical_product_type='ticket' (OPD / IPD / ER /
+    # Lab Ticket) — distinct from the OpenMRS visit_type on fct_visits. POS is the
+    # issuing event; the invoice is generated from it, so counting POS lines here
+    # avoids double-counting the same ticket via account_move_line.
+    specs.append({
+        "db": "odoo", "table_name": "fct_ticket_sales", "dttm": "issued_at",
+        "sql": f"""
+            SELECT
+                pol.id AS line_id,
+                po.id AS pos_order_id,
+                (po.date_order AT TIME ZONE 'UTC' AT TIME ZONE '{LOCAL_TZ}') AS issued_at,
+                po.partner_id,
+                COALESCE(pt.name->>'en_US', pt.name->>'en', 'Unknown') AS ticket_type,
+                pol.qty AS qty,
+                pol.price_subtotal_incl AS amount
+            FROM pos_order_line pol
+            JOIN pos_order po ON pol.order_id = po.id
+            JOIN product_product pp ON pol.product_id = pp.id
+            JOIN product_template pt ON pp.product_tmpl_id = pt.id
+            WHERE pt.clinical_product_type = 'ticket'
+              AND po.state NOT IN ('draft', 'cancel')
+        """,
+        "columns": [
+            ("line_id", "BIGINT", False), ("pos_order_id", "BIGINT", False),
+            ("issued_at", "TIMESTAMP", False), ("partner_id", "BIGINT", False),
+            ("ticket_type", "VARCHAR", True), ("qty", "FLOAT", False),
+            ("amount", "FLOAT", False),
+        ],
+        "metrics": [
+            ("Patients", "COUNT(DISTINCT partner_id)"),
+            ("Tickets", "COUNT(DISTINCT line_id)"),
+            ("Ticket Revenue", "SUM(amount)"),
+        ],
+    })
+
     # ---- Odoo: INSURANCE CLAIMS (claim header grain) --------------------- #
     # From nidan_insurance_management.insurance.claim. insurance_type is stored
     # as the insurance.type *code* (char), joined to insurance_type for the
@@ -734,8 +776,10 @@ def build_dataset_specs():
 
 
 # --------------------------------------------------------------------------- #
-# CHART helpers — every chart leaves time range/grain to the dashboard filters
-# (time_range="No filter", time_grain default P1D overridden by the grain filter)
+# CHART helpers — every chart leaves time range/grain to the dashboard filters.
+# The time range is NOT the "time_range" key set here (Superset 6 ignores it); it is
+# the TEMPORAL_RANGE adhoc filter that attach_temporal_filters() appends on the way
+# out of build_chart_specs(). time_grain default P1D is overridden by the grain filter.
 # --------------------------------------------------------------------------- #
 def ts_chart(name, table, metrics, x_axis, groupby=None, viz="echarts_timeseries_line", width=6):
     CHART_WIDTHS[name] = width
@@ -825,9 +869,13 @@ def heatmap_chart(name, table, metric, x_col, y_col, filters=None, width=6):
     })
 
 
-def stacked_bar(name, table, metric, x_col, series_col, filters=None, row_limit=10000, width=6):
+def stacked_bar(name, table, metric, x_col, series_col, filters=None, row_limit=10000,
+                width=6, time_grain=None):
+    """time_grain (e.g. "P1D") is only needed when x_col is temporal — a categorical
+    x_col buckets itself, but a TIMESTAMP column would otherwise render one bar per
+    raw timestamp instead of one per day."""
     CHART_WIDTHS[name] = width
-    return (name, table, "echarts_timeseries_bar", {
+    params = {
         "x_axis": x_col,
         "metrics": [metric],
         "groupby": [series_col],
@@ -836,7 +884,11 @@ def stacked_bar(name, table, metric, x_col, series_col, filters=None, row_limit=
         "time_range": "No filter",
         "show_legend": True,
         "adhoc_filters": filters or [],
-    })
+    }
+    if time_grain:
+        params["time_grain_sqla"] = time_grain
+        params["x_axis_sort_asc"] = True
+    return (name, table, "echarts_timeseries_bar", params)
 
 
 def multi_metric_bar(name, table, metrics, dimension, filters=None, row_limit=50,
@@ -907,6 +959,12 @@ def build_chart_specs():
         cat_bar_chart("Patients by District", "fct_patients", "Patients", "district"),
         cat_bar_chart("Visits by Hour of Day", "fct_visits", "Visits", "hour_of_day", row_limit=24),
         pie_chart("Visits by Status", "fct_visits", "Visits", "visit_status"),
+        # Patients per ticket type per day, from the Odoo ticket products — not the
+        # OpenMRS visit_type, which "Visits Trend by Type" already reports on.
+        # "Patients" is COUNT(DISTINCT partner_id): a patient buying two OPD tickets
+        # in a day is one patient on that day's OPD bar, not two.
+        stacked_bar("Patients per Ticket Type (Daily)", "fct_ticket_sales", "Patients",
+                    "issued_at", "ticket_type", time_grain="P1D", width=12),
     ]
 
     # Clinical operations
@@ -1060,7 +1118,34 @@ def build_chart_specs():
                     metrics=["Voided", "Voided %"], row_limit=20),
     ]
 
-    return charts
+    return attach_temporal_filters(charts)
+
+
+def attach_temporal_filters(charts):
+    """Give every chart a TEMPORAL_RANGE adhoc filter on its dataset's time column.
+
+    Superset 6 ignores the legacy top-level form_data "time_range" key: a query only
+    gets a WHERE on its time column when the chart carries a TEMPORAL_RANGE adhoc
+    filter, which is what the Explore UI emits. A dashboard's native Time Range filter
+    works by *overriding the comparator of that filter*, so a chart without one has
+    nothing to bind to and silently ignores the date filter.
+
+    Datasets with no time column (dttm=None, e.g. current stock snapshots) are skipped
+    — a point-in-time snapshot has nothing to range over.
+    """
+    dttm_by_table = {s["table_name"]: s.get("dttm") for s in build_dataset_specs()}
+    out = []
+    for name, table, viz, params in charts:
+        dttm = dttm_by_table.get(table)
+        if dttm:
+            params = dict(params)
+            params.pop("time_range", None)  # inert in Superset 6; drop the red herring
+            params["adhoc_filters"] = list(params.get("adhoc_filters") or []) + [{
+                "clause": "WHERE", "subject": dttm, "operator": "TEMPORAL_RANGE",
+                "comparator": "No filter", "expressionType": "SIMPLE",
+            }]
+        out.append((name, table, viz, params))
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -1083,7 +1168,12 @@ def build_dashboard_specs():
             "title": "NidanEHR · Patient Flow & Demographics",
             "public": True,
             "charts": ["Gender Distribution", "Age Distribution", "Top Municipalities",
-                       "Patients by District", "Visits by Hour of Day", "Visits by Status"],
+                       "Patients by District", "Visits by Hour of Day", "Visits by Status",
+                       "Patients per Ticket Type (Daily)"],
+            # Own date filter defaulting to a week, so the ticket chart is readable at
+            # daily grain without dragging the other six charts off their 90-day window.
+            "chart_time_ranges": {"Patients per Ticket Type (Daily)":
+                                  ("Ticket Date Range", "Last week")},
             "filters": [("fct_patients", "gender", "Gender"),
                         ("fct_patients", "age_group", "Age Group"),
                         ("fct_patients", "district", "District"),
@@ -1329,11 +1419,26 @@ def build_position_json(title, slices, note=None):
     return position
 
 
-def build_native_filters(title, filter_specs, table_to_dataset, primary_dataset_id):
-    """Time Range + Time Grain + one select per (table, column, label)."""
-    filters = []
+def build_native_filters(title, filter_specs, table_to_dataset, primary_dataset_id,
+                         slices=None, chart_time_ranges=None):
+    """Time Range + Time Grain + one select per (table, column, label).
 
-    # Time Range (presets + custom range). Default to a generous window.
+    chart_time_ranges maps chart name -> (filter label, default range) for charts that
+    need their own window instead of the dashboard-wide one. Superset scopes a native
+    filter by *excluding* chart ids, so a per-chart filter excludes every other chart
+    and the dashboard-wide Time Range excludes the charts that brought their own.
+    """
+    filters = []
+    slices = slices or []
+    chart_time_ranges = chart_time_ranges or {}
+    all_ids = [s.id for s in slices]
+    ids_by_name = {s.slice_name: s.id for s in slices}
+    own = {n: ids_by_name[n] for n in chart_time_ranges if n in ids_by_name}
+
+    # Time Range. Use one of Superset's radio presets — "Last day", "Last week",
+    # "Last month", "Last quarter", "Last year". Anything else (e.g. "Last 90 days")
+    # still parses, but the control opens in "Advanced" mode as two free-text date
+    # boxes instead of the preset list, which is far worse to drive.
     filters.append({
         "id": _hash_id("NATIVE_FILTER", title, "time_range"),
         "name": "Time Range",
@@ -1342,13 +1447,33 @@ def build_native_filters(title, filter_specs, table_to_dataset, primary_dataset_
         "targets": [{}],
         "controlValues": {},
         "defaultDataMask": {
-            "filterState": {"value": "Last 90 days"},
-            "extraFormData": {"time_range": "Last 90 days"},
+            "filterState": {"value": "Last month"},
+            "extraFormData": {"time_range": "Last month"},
         },
         "cascadeParentIds": [],
-        "scope": {"rootPath": ["ROOT_ID"], "excluded": []},
+        "scope": {"rootPath": ["ROOT_ID"], "excluded": sorted(own.values())},
         "description": "",
     })
+
+    # Per-chart Time Range for charts that need their own default window.
+    for name, cid in own.items():
+        label, default_range = chart_time_ranges[name]
+        filters.append({
+            "id": _hash_id("NATIVE_FILTER", title, "time_range", name),
+            "name": label,
+            "filterType": "filter_time",
+            "type": "NATIVE_FILTER",
+            "targets": [{}],
+            "controlValues": {},
+            "defaultDataMask": {
+                "filterState": {"value": default_range},
+                "extraFormData": {"time_range": default_range},
+            },
+            "cascadeParentIds": [],
+            "scope": {"rootPath": ["ROOT_ID"],
+                      "excluded": sorted(i for i in all_ids if i != cid)},
+            "description": f"Date window for '{name}'",
+        })
 
     # Time Grain: Day / Week / Month / Quarter / Year
     filters.append({
@@ -1580,7 +1705,8 @@ def main():
             primary_ds_id = slices[0].datasource_id
             position = build_position_json(title, slices, note=spec.get("note"))
             native_filters = build_native_filters(
-                title, spec.get("filters", []), table_to_dataset, primary_ds_id)
+                title, spec.get("filters", []), table_to_dataset, primary_ds_id,
+                slices=slices, chart_time_ranges=spec.get("chart_time_ranges"))
             json_metadata = json.dumps({
                 "native_filter_configuration": native_filters,
                 "cross_filters_enabled": True,

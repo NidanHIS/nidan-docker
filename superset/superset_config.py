@@ -218,6 +218,13 @@ _AUTOSCROLL_JS = _load_js("scroller.js", "__nidan_scroller__")
 def inject_scroller_js(response):
     if "text/html" not in (response.content_type or ""):
         return response
+    # Superset 6 serves dashboard HTML (and static-file 404 pages) as a streamed
+    # response with direct_passthrough set. get_data() on one raises RuntimeError
+    # ("Attempted implicit sequence conversion"), which the error handler then hits
+    # again while rendering its own page — turning every dashboard into a 500.
+    # Nothing to inject into a stream we are not allowed to buffer: leave it alone.
+    if getattr(response, "direct_passthrough", False):
+        return response
     body = response.get_data(as_text=True)
     if "</body>" not in body:
         return response
