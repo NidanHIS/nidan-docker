@@ -37,6 +37,8 @@ services:
       - "8443:8443"
     environment:
       - GATEWAY_DOMAIN=${GATEWAY_DOMAIN:-localhost}
+      # Extra names for the self-signed cert (comma separated, openssl SAN syntax)
+      - GATEWAY_CERT_SANS=${GATEWAY_CERT_SANS:-}
       - OPENELIS_DOMAIN=${OPENELIS_DOMAIN}
       # OpenELIS context path (must match the backend SERVER_SERVLET_CONTEXT_PATH)
       - OPENELIS_CONTEXT_PATH=${OPENELIS_CONTEXT_PATH:-/api/OpenELIS-Global/}
@@ -200,7 +202,7 @@ services:
     # addons into /mnt/private-addons. No host addon source is mounted in prod.
     # image: ${ODOO_IMAGE:-trigonaltechnology/nidan_odoo:stable}
     profiles: ["odoo","nidanehr-standard"]
-    image: trigonaltechnology/nidan_odoo_pro:latest
+    image: trigonaltechnology/nidan_odoo:latest
     container_name: nidan-odoo
     command: sh -c "odoo -d \${ODOO_DB_NAME:-nidan} --proxy-mode --dev=xml -u all"
     ports:
@@ -229,9 +231,9 @@ services:
       - odoo-data:/var/lib/odoo
       # Addons come from the image (baked at /mnt/extra-addons + /mnt/private-addons).
       # No host addon source should be mounted in prod.
-      - ${ODOO_ADDONS_PATH:-../odoo_19_addons}:/mnt/extra-addons
+      # - ${ODOO_ADDONS_PATH:-../odoo_19_addons}:/mnt/extra-addons
       # Mount the private/closed-source addons for live editing in dev
-      - ${ODOO_PRIVATE_ADDONS_HOST_PATH:-../nidan_odoo_extra_addons}:/mnt/private-addons
+      # - ${ODOO_PRIVATE_ADDONS_HOST_PATH:-../nidan_odoo_extra_addons}:/mnt/private-addons
       # odoo.conf from git (read-only). Entrypoint copies to container; runtime changes stay in container.
       - ./odoo/odoo.conf:/mnt/odoo.conf.template:ro
     networks:

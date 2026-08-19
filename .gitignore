@@ -39,3 +39,6 @@ gateway-truststore.p12
 gateway.pem
 OpenELIS-Global.war
 .gstack/
+
+# Local dev compose override (host addon binds)
+docker-compose.override.yml
