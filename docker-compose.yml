@@ -204,7 +204,7 @@ services:
     profiles: ["odoo","nidanehr-standard"]
     image: trigonaltechnology/nidan_odoo:latest
     container_name: nidan-odoo
-    command: sh -c "odoo -d \${ODOO_DB_NAME:-nidan} --proxy-mode --dev=xml -u all"
+    command: ["odoo", "-d", "${ODOO_DB_NAME:-nidan}", "--proxy-mode", "--dev=xml", "-u", "all"]
     ports:
       - "8069:8069"
     environment:
