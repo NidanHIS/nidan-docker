@@ -628,7 +628,7 @@
           <code>admin</code>
 
           <span>Password</span>
-          <code>Admin123</code>
+          <code>Admin@123#!</code>
         </div>
 
         <div class="credential-item">
