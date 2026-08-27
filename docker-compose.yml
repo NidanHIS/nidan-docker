@@ -88,8 +88,9 @@ services:
       OMRS_CONFIG_HAS_CURRENT_OPENMRS_DATABASE: "true"
       # Debug mode: attach remote debugger on port 5005 (e.g. from IDE) - disable to speed startup
       # OMRS_DEV_DEBUG_PORT: "5005"
-      # JVM: more heap for faster Spring context refresh (many modules = slow bean creation)
-      OMRS_JAVA_MEMORY_OPTS: "-Xmx2g -Xms1g"
+      # Keep enough memory for the OpenMRS module set without exhausting the
+      # 8 GiB Docker VM shared by the rest of the Nidan stack.
+      OMRS_JAVA_MEMORY_OPTS: "${OMRS_JAVA_MEMORY_OPTS:--Xmx1536m -Xms512m -XX:MaxMetaspaceSize=512m}"
       # JVM (optional overrides)
       _JAVA_OPTIONS: "-Dcsrf.enabled=false"
       # Nidan paywall → Odoo payment-status API (read by nidancore via System.getenv;
@@ -113,6 +114,7 @@ services:
       timeout: 10s
       retries: 15
       start_period: 1200s
+    restart: unless-stopped
 
   openmrs-frontend:
     # build:

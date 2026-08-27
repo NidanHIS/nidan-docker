@@ -70,7 +70,7 @@
       "defaultStatusConceptUuid": "51ae5e4d-b72b-4912-bf31-a17efb690aeb",
       "defaultTransitionStatus": "ca7494ae-437f-4fd0-8aae-b88b9a2ba47d"
     },
-    "visitQueueNumberAttributeUuid": "",
+    "visitQueueNumberAttributeUuid": "fe02b073-0b36-4e72-8aa8-27b2de6c4cb1",
     "defaultFacilityUrl": ""
   },
   "@openmrs/esm-styleguide": {
