@@ -1,0 +1,37 @@
+# ST-10.2.4 AC2 — alerting rules for the restore check.
+#
+# Load into the Prometheus that scrapes node_exporter's textfile collector.
+# The metric is written by scripts/verify-backup-restore.sh.
+groups:
+  - name: nidan-backups
+    rules:
+      # Fires within 5 minutes of a failed run, per AC2. `for: 0m` is
+      # deliberate: a failed restore is not a transient condition that might
+      # clear on its own, and waiting to confirm it only delays the alert.
+      - alert: BackupRestoreVerificationFailed
+        expr: backup_restore_verified{result="fail"} == 1
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "The latest backup did not restore"
+          description: >-
+            verify-backup-restore.sh could not restore the most recent backup
+            into a throwaway volume, or the restored database failed its marker
+            query. Until this passes, treat the deployment as having no usable
+            backup. See docs/RUNBOOK-backup-key-management.md.
+
+      # The silent failure the metric alone cannot catch: the job stopped
+      # running. A stale pass is indistinguishable from a current one without
+      # this.
+      - alert: BackupRestoreVerificationStale
+        expr: time() - backup_restore_verified_timestamp_seconds > 40 * 24 * 3600
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backup restore has not been verified in over 40 days"
+          description: >-
+            The monthly check has not reported. Either cron is not running it
+            or it cannot write the textfile metric. An unverified backup is
+            treated as no backup.

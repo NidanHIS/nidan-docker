@@ -1,0 +1,12 @@
+# ST-10.2.4 — monthly proof that the newest backup actually restores.
+#
+#   sudo cp docs/backup-verification.cron /etc/cron.d/nidan-backup-verify
+#   sudo chmod 644 /etc/cron.d/nidan-backup-verify
+#
+# 03:20 on the 1st. After the nightly backup window, before working hours, so a
+# failure is on someone's screen at the start of the day rather than at 2am.
+SHELL=/bin/bash
+BACKUP_AGE_IDENTITY=/root/nidan-backup-key.txt
+METRICS_DIR=/var/lib/node_exporter/textfile_collector
+
+20 3 1 * * root /opt/nidan-docker/scripts/verify-backup-restore.sh >> /var/log/nidan-backup-verify.log 2>&1
