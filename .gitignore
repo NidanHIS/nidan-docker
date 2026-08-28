@@ -1,5 +1,11 @@
 # Environment variables
+# .env is tracked demo config, on purpose — see the banner inside it. This
+# line is therefore inert for .env and kept only so the intent is visible.
 .env
+# Real deployments override here. Untracked from the start, so unlike .env
+# this rule actually does something.
+.env.local
+.env.*.local
 
 # Legacy backup (archived old Bahmni-based configuration)
 _backup_legacy/

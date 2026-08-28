@@ -28,11 +28,22 @@ This repository contains the containerized architecture for **NidanEHR**, orches
 ## Build & Deployment Instructions
 
 ### Prerequisites
-1. Copy `.env.example` to `.env` and customize the environment variables for your deployment:
+1. **To evaluate the stack**, nothing to do. `.env` is committed with demo
+   credentials so `docker compose up -d` works straight from a clone. Every
+   value in it is public.
+
+2. **For a real deployment**, do not edit `.env`. It is tracked, so adding it to
+   `.gitignore` will not stop your credentials being committed. Put overrides in
+   `.env.local`, which is untracked:
    ```bash
-   cp .env.example .env
-   # Edit .env with your specific values
+   cp env.template .env.local          # then fill in every CHANGEME
+   echo 'NIDAN_DEPLOYMENT=production' >> .env.local
+   COMPOSE_ENV_FILES=.env,.env.local docker compose up -d
    ```
+   With `NIDAN_DEPLOYMENT=production` the services refuse to start on any
+   credential still shipped in `.env` — a published default is not safer than a
+   leaked one. Rotating an existing deployment: see
+   `docs/RUNBOOK-rotate-debezium-credential.md`.
 
 ### 1. OpenMRS 3.0 Frontend (SPA)
 The frontend is built using `npx openmrs assemble` to create a custom distribution of micro-frontends.
