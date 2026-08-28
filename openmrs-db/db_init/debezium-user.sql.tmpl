@@ -1,0 +1,31 @@
+-- ST-10.10.2 — a dedicated least-privilege replication account for Debezium/CIS.
+--
+-- Debezium ran as root against the clinical database. Root can read every
+-- schema, write every row and grant itself more; the CDC connector needs to do
+-- none of that. This account is the smallest set of privileges that still lets
+-- the binlog reader work, so a leaked CIS credential cannot move laterally.
+--
+-- Numbered 11 so it runs after 01-openmrs.sql: the SELECT grant is checked
+-- against a schema that already exists.
+-- Runs only on a fresh volume (/docker-entrypoint-initdb.d). Existing
+-- deployments rotate via docs/RUNBOOK-rotate-debezium-credential.md.
+--
+-- The password is injected by the image entrypoint from DEBEZIUM_DB_PASSWORD;
+-- see 09-debezium-user.sh, which renders this file. Never hardcode it here:
+-- initdb scripts are baked into the image layer and readable by anyone who can
+-- pull it.
+
+-- Privileges, and why each one:
+--   REPLICATION SLAVE   read the binlog stream itself
+--   REPLICATION CLIENT  run SHOW MASTER STATUS / SHOW BINARY LOGS for offsets
+--   SELECT on openmrs   read table state for the initial consistent snapshot
+--
+-- Deliberately NOT granted: INSERT, UPDATE, DELETE, DROP, GRANT OPTION, and
+-- any privilege on a schema other than openmrs.
+
+CREATE USER IF NOT EXISTS 'debezium'@'%' IDENTIFIED BY '__DEBEZIUM_PASSWORD__';
+
+GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'debezium'@'%';
+GRANT SELECT ON openmrs.* TO 'debezium'@'%';
+
+FLUSH PRIVILEGES;

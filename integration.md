@@ -90,8 +90,10 @@ The CIS container (`nidan-cis`) embeds Debezium support behind env flags. The co
 ```yaml
 # Debezium Embedded (CIS) – variable controls for Debezium
 # - DEBEZIUM_ENABLED=${DEBEZIUM_ENABLED:-false}
-# - DEBEZIUM_DB_USER=${DEBEZIUM_DB_USER:-root}
-# - DEBEZIUM_DB_PASSWORD=${DEBEZIUM_DB_PASSWORD:-root}
+# - DEBEZIUM_DB_USER=${DEBEZIUM_DB_USER:-debezium}
+# - DEBEZIUM_DB_PASSWORD=${DEBEZIUM_DB_PASSWORD:-}
+#   (ST-10.10: the old :-root fallback is gone. Unset now fails at the
+#    entrypoint guard rather than silently logging in as root.)
 ```
 
 To enable Debezium‑based CDC from OpenMRS:

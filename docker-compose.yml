@@ -644,8 +644,11 @@ services:
       - INTEGRATION_FLOW_DEBEZIUM_PUBLISH_ORDERS_RADIOLOGY_ENABLED=${INTEGRATION_FLOW_DEBEZIUM_PUBLISH_ORDERS_RADIOLOGY_ENABLED:-true}
       # Debezium Embedded (CIS)--var control for debezium
       - DEBEZIUM_ENABLED=${DEBEZIUM_ENABLED:-false}
-      - DEBEZIUM_DB_USER=${DEBEZIUM_DB_USER:-root}
-      - DEBEZIUM_DB_PASSWORD=${DEBEZIUM_DB_PASSWORD:-root}
+      # No fallback. These used to default to root/root, so an operator who
+      # never set them got a root login against the clinical database and
+      # nothing said so. Unset now reaches the entrypoint guard, which refuses.
+      - DEBEZIUM_DB_USER=${DEBEZIUM_DB_USER:-debezium}
+      - DEBEZIUM_DB_PASSWORD=${DEBEZIUM_DB_PASSWORD:-}
       - DEBEZIUM_TABLE_INCLUDE_LIST=${DEBEZIUM_TABLE_INCLUDE_LIST:-openmrs.orders,openmrs.drug_order,openmrs.person,openmrs.person_name,openmrs.patient_identifier,openmrs.bed_type,openmrs.bed_patient_assignment_map,openmrs.location,openmrs.provider,openmrs.provider_attribute}
       # Kafka retry topics (opt-in via @KafkaRetryable)
       - INTEGRATION_KAFKA_RETRY_ENABLED=${INTEGRATION_KAFKA_RETRY_ENABLED:-false}

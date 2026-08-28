@@ -529,8 +529,9 @@ services:
       - INTEGRATION_FLOW_DEBEZIUM_PUBLISH_ORDERS_RADIOLOGY_ENABLED=${INTEGRATION_FLOW_DEBEZIUM_PUBLISH_ORDERS_RADIOLOGY_ENABLED:-true}
       # Debezium Embedded (CIS)--var control for debezium
       - DEBEZIUM_ENABLED=${DEBEZIUM_ENABLED:-false}
-      - DEBEZIUM_DB_USER=${DEBEZIUM_DB_USER:-root}
-      - DEBEZIUM_DB_PASSWORD=${DEBEZIUM_DB_PASSWORD:-root}
+      # See docker-compose.yml: no root fallback.
+      - DEBEZIUM_DB_USER=${DEBEZIUM_DB_USER:-debezium}
+      - DEBEZIUM_DB_PASSWORD=${DEBEZIUM_DB_PASSWORD:-}
     depends_on:
       nidan-integration-db:
         condition: service_healthy

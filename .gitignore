@@ -42,3 +42,10 @@ OpenELIS-Global.war
 
 # Local dev compose override (host addon binds)
 docker-compose.override.yml
+
+# Local backup artefacts and resolved configs — contain patient data and secrets.
+# Never commit these.
+backups
+env-resolved
+docker-compose-resolved
+*-resolved
