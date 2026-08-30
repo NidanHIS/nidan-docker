@@ -428,6 +428,7 @@ services:
       - ./openelis/tomcat/server.xml:/usr/local/tomcat/conf/server.xml:ro
       - openelis-properties:/var/lib/openelis-global/properties
       - ./openelis/volume/configuration:/var/lib/openelis-global/configuration
+      - ./openelis/volume/branding:/var/lib/openelis-global/branding
       - ./openelis/volume/plugins:/var/lib/openelis-global/plugins
       - ./openelis/volume/ocl:/var/lib/openelis-global/ocl
       - ./openelis/volume/logs/oeLogs:/var/lib/openelis-global/logs
