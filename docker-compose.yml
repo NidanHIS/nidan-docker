@@ -652,7 +652,7 @@ services:
       # nothing said so. Unset now reaches the entrypoint guard, which refuses.
       - DEBEZIUM_DB_USER=${DEBEZIUM_DB_USER:-debezium}
       - DEBEZIUM_DB_PASSWORD=${DEBEZIUM_DB_PASSWORD:-}
-      - DEBEZIUM_TABLE_INCLUDE_LIST=${DEBEZIUM_TABLE_INCLUDE_LIST:-openmrs.orders,openmrs.drug_order,openmrs.person,openmrs.person_name,openmrs.patient_identifier,openmrs.bed_type,openmrs.bed_patient_assignment_map,openmrs.location,openmrs.provider,openmrs.provider_attribute}
+      - DEBEZIUM_TABLE_INCLUDE_LIST=${DEBEZIUM_TABLE_INCLUDE_LIST:-openmrs.visit,openmrs.orders,openmrs.drug_order,openmrs.person,openmrs.person_name,openmrs.patient_identifier,openmrs.bed_type,openmrs.bed_patient_assignment_map,openmrs.location,openmrs.provider,openmrs.provider_attribute,openmrs.person_attribute,openmrs.nidan_caregiver_grant}
       # Kafka retry topics (opt-in via @KafkaRetryable)
       - INTEGRATION_KAFKA_RETRY_ENABLED=${INTEGRATION_KAFKA_RETRY_ENABLED:-false}
       - INTEGRATION_KAFKA_RETRY_ATTEMPTS=${INTEGRATION_KAFKA_RETRY_ATTEMPTS:-5}
