@@ -9,7 +9,7 @@
     "@openmrs/esm-orderset-app": "openmrs-esm-orderset-app-12.0.1.tgz",
     "@openmrs/esm-nidan-core-app": "openmrs-esm-nidan-core-app-1.0.0.tgz",
     "@openmrs/esm-active-visits-app": "next",
-    "@openmrs/esm-appointments-app": "next",
+    "@openmrs/esm-appointments-app": "openmrs-esm-appointments-app-10.0.2.tgz",
     "@openmrs/esm-bed-management-app": "next",
     "@openmrs/esm-cohort-builder-app": "next",
     "@openmrs/esm-devtools-app": "next",
