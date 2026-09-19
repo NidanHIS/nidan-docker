@@ -309,7 +309,7 @@ services:
       ORTHANC_USERNAME: "${ORTHANC_USERNAME:-nidan}"
       ORTHANC_PASSWORD: "${ORTHANC_PASSWORD:-nidan}"
       # Dynamic Webhook to CIS
-      ORTHANC_WEBHOOK_URL: "http://${CIS_HOST:-nidan-cis}:${CIS_PORT:-8081}/orthanc/webhook"
+      ORTHANC_WEBHOOK_URL: "http://${CIS_HOST:-nidan-cis}:${CIS_PORT:-8081}/internal/orthanc/webhook"
     networks:
       - nidan-network
     depends_on:
@@ -404,13 +404,13 @@ services:
           -Ddatasource.username=clinlims
           -Ddatasource.password=${OPENELIS_DB_PASSWORD:-changeme}
           -Dorg.openelisglobal.middleware.test.sync.enabled=${OPENELIS_MIDDLEWARE_TEST_SYNC_ENABLED:-false}
-          -Dorg.openelisglobal.middleware.test.sync.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/catalog/lab-test-definition
+          -Dorg.openelisglobal.middleware.test.sync.url=${CIS_BASE_URL:-http://nidan-cis:8081}/internal/openelis/catalog/lab-test-definition
           -Dorg.openelisglobal.middleware.test.sync.secret=${OPENELIS_MIDDLEWARE_SYNC_SECRET:-change-me}
           -Dorg.openelisglobal.middleware.result.sync.enabled=${OPENELIS_MIDDLEWARE_RESULT_SYNC_ENABLED:-true}
-          -Dorg.openelisglobal.middleware.result.sync.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/lab-result
+          -Dorg.openelisglobal.middleware.result.sync.url=${CIS_BASE_URL:-http://nidan-cis:8081}/internal/openelis/lab-result
           -Dorg.openelisglobal.middleware.result.sync.secret=${OPENELIS_MIDDLEWARE_SYNC_SECRET:-change-me}
           -Dorg.openelisglobal.nidan.testorder.enabled=${OPENELIS_NIDAN_TESTORDER_ENABLED:-true}
-          -Dorg.openelisglobal.nidan.testorder.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/sample-collected
+          -Dorg.openelisglobal.nidan.testorder.url=${CIS_BASE_URL:-http://nidan-cis:8081}/internal/openelis/sample-collected
           -Dorg.openelisglobal.nidan.paywall.enabled=${OPENELIS_NIDAN_PAYWALL_ENABLED:-true}
           -Dorg.openelisglobal.nidan.paywall.odoo.url=${NIDANCORE_ODOO_URL:-http://odoo:8069}
           -Dorg.openelisglobal.nidan.paywall.odoo.secret=${NIDAN_ODOO_SECRET}
