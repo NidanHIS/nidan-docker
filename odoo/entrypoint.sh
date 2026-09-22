@@ -61,13 +61,18 @@ EOSQL
         echo "db_filter = ${ODOO_DB_FILTER:-^${DB_NAME}\$}" >> /etc/odoo/odoo.conf
         echo "proxy_mode = ${ODOO_PROXY_MODE:-True}" >> /etc/odoo/odoo.conf
 
-        # One-time install of base + all custom addons present in /mnt/extra-addons
+        # One-time install of base + every custom addon found in ADDONS_INIT_DIRS
         ADDON_SENTINEL="/var/lib/odoo/.nidan-addons-installed"
         if [ ! -f "$ADDON_SENTINEL" ]; then
-            ADDONS_DIR="/mnt/extra-addons"
+            # Honour ADDONS_INIT_DIRS (space-separated). Falls back to the
+            # open-source dir alone if unset. Was previously hardcoded to
+            # /mnt/extra-addons, so /mnt/private-addons never auto-installed.
             CUSTOM_MODULES=""
-            for d in "$ADDONS_DIR"/*/; do
-                [ -f "${d}__manifest__.py" ] && CUSTOM_MODULES="${CUSTOM_MODULES}${CUSTOM_MODULES:+,}$(basename "$d")"
+            for ADDONS_DIR in ${ADDONS_INIT_DIRS:-/mnt/extra-addons}; do
+                [ -d "$ADDONS_DIR" ] || continue
+                for d in "$ADDONS_DIR"/*/; do
+                    [ -f "${d}__manifest__.py" ] && CUSTOM_MODULES="${CUSTOM_MODULES}${CUSTOM_MODULES:+,}$(basename "$d")"
+                done
             done
             INIT_MODULES="base${CUSTOM_MODULES:+,$CUSTOM_MODULES}"
             echo "First run: installing base and custom addons: $INIT_MODULES"

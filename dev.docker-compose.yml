@@ -162,16 +162,19 @@ services:
       - NIDAN_OIS_URL=${NIDAN_OIS_URL}
       - NIDAN_OIS_SECRET=${NIDAN_OIS_SECRET}
       # First-run auto-install scans both the open-source and private addon dirs
-      - ADDONS_INIT_DIRS=/mnt/extra-addons /mnt/private-addons
+      - ADDONS_INIT_DIRS=${ODOO_ADDONS_INIT_DIRS:-/mnt/extra-addons /mnt/private-addons}
     volumes:
       - odoo-data:/var/lib/odoo
       # Mount custom addons (including nidan_connector) for dev
-      - ${ODOO_ADDONS_PATH:-../odoo_19_addons}:/mnt/extra-addons
+      - ${ODOO_ADDONS_PATH:-${ODOO_EXTRA_ADDONS_HOST_PATH:-../odoo_19_addons}}:/mnt/extra-addons
       # Mount the private/closed-source addons for live editing in dev
       - ${ODOO_PRIVATE_ADDONS_HOST_PATH:-../nidan_odoo_extra_addons}:/mnt/private-addons
       # Payment gateway addons (NEPALPAY QR, Fonepay, Khalti, eSewa). Deliberately kept out
       # of ADDONS_INIT_DIRS: each site installs only the gateways it holds accounts for.
       - ${ODOO_PAYMENT_ADDONS_HOST_PATH:-../odoo_payment_gateway}:/mnt/payment-addons
+      # Trigonal product tiers (OPL-1, closed source). One mount, tier dirs listed
+      # individually in odoo.conf so a client can be shipped a subset -- BUNDLES.md.
+      - ${ODOO_TRIGONAL_ADDONS_HOST_PATH:-../trigonal-addons}:/mnt/trigonal
       # odoo.conf template so addons_path includes /mnt/private-addons
       - ./odoo/odoo.conf:/mnt/odoo.conf.template:ro
     networks:
