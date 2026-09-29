@@ -42,6 +42,7 @@ COPY packages/openmrs-esm-patient-orders-fast-app-12.0.1.tgz .
 COPY packages/openmrs-esm-patient-medications-app-12.1.0-trigonal.tgz .
 COPY packages/openmrs-esm-patient-notes-app-12.1.0.tgz .
 COPY packages/openmrs-esm-appointments-app-10.0.2.tgz .
+COPY packages/openmrs-esm-odontogram-app-1.0.0.tgz .
 
 RUN yarn add ./trigonal-esm-patient-report-app-1.0.0.tgz
 RUN yarn add ./trigonal-esm-ipd-app-1.0.0.tgz
@@ -55,6 +56,7 @@ RUN yarn add ./openmrs-esm-nidan-core-app-1.0.0.tgz
 RUN yarn add ./openmrs-esm-paywall-app-1.0.0.tgz
 RUN yarn add ./openmrs-esm-patient-notes-app-12.1.0.tgz
 RUN yarn add ./openmrs-esm-login-app-10.0.0-nidan.tgz
+RUN yarn add ./openmrs-esm-odontogram-app-1.0.0.tgz
 
 RUN echo "nidan-calendar-bundle=${NIDAN_CALENDAR_BUNDLE}" && \
     yarn add ./nidan-esm-nepali-calendar-1.0.0.tgz
