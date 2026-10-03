@@ -42,8 +42,8 @@
         <referencedemodata.version>2.6.1</referencedemodata.version>
         <queue.version>3.0.0</queue.version>
         <!-- appointments provided by custom_modules/ (Nidan SNAPSHOT) -->
-        <appointments.version>2.1.0-SNAPSHOT</appointments.version>
-        <teleconsultation.version>2.1.0-20250318.154145-1</teleconsultation.version>
+        <!-- appointments.version>2.1.0-SNAPSHOT</appointments.version -->
+        <!-- teleconsultation.version>2.1.0-20250318.154145-1</teleconsultation.version -->
         <!-- communication provided by custom_modules/ (Nidan SNAPSHOT) -->
         <communication.version>1.3.0-SNAPSHOT</communication.version>
         <cohort.version>3.7.3</cohort.version>
@@ -177,19 +177,19 @@
         </dependency>
         
         <!-- appointments is provided by custom_modules/ (Nidan SNAPSHOT) -->
-        <dependency>
+        <!-- <dependency>
             <groupId>org.bahmni.module</groupId>
             <artifactId>appointments-omod</artifactId>
             <version>${appointments.version}</version>
             <scope>provided</scope>
-        </dependency>
+        </dependency> -->
        
-        <dependency>
+        <!-- <dependency>
             <groupId>org.bahmni.module</groupId>
             <artifactId>teleconsultation-omod</artifactId>
             <version>${teleconsultation.version}</version>
             <scope>provided</scope>
-        </dependency>
+        </dependency> -->
         <dependency>
             <groupId>org.openmrs.module</groupId>
             <artifactId>cohort-omod</artifactId>
