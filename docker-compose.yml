@@ -786,9 +786,9 @@ services:
       - "${DHIS2_APP_PORT:-5003}:5000"
     volumes:
       # Runtime / persistent data and YAML config
-      - ./dhis2/mappings:/app/mappings
+      - ./../hmis-query/mappings:/app/mappings:ro
       - ./dhis2/connections:/app/connections
-      - ./dhis2/sql:/app/sql
+      - ./../hmis-query/sql:/app/sql:ro
       # Runtime / persistent data
       - dhis2-integration-data:/app/data
       - dhis2-integration-audit-logs:/app/audit_logs
@@ -819,6 +819,7 @@ services:
       - FEDERAL_HMIS_PASSWORD=${FEDERAL_HMIS_PASSWORD}
       - FEDERAL_HMIS_SSL_VERIFY=${FEDERAL_HMIS_SSL_VERIFY:-false}
       - FEDERAL_HMIS_ORG_UNIT=${FEDERAL_HMIS_ORG_UNIT}
+      - ALLOW_INSECURE_TLS=true
       # Provincial DHIS2 (optional — leave blank to disable)
       - PROVINCIAL_DHIS2_URL=${PROVINCIAL_DHIS2_URL:-}
       - PROVINCIAL_DHIS2_USERNAME=${PROVINCIAL_DHIS2_USERNAME:-}

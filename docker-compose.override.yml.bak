@@ -1,0 +1,9 @@
+# Local dev only (gitignored). Host addon binds + the payment-gateway addons repo,
+# and keeps the running command as plain serve (no -u all on every restart).
+services:
+  odoo:
+    command: ["odoo", "-d", "${ODOO_DB_NAME:-nidan}", "--proxy-mode", "--dev=xml"]
+    volumes:
+      - ${ODOO_ADDONS_PATH:-../odoo_19_addons}:/mnt/extra-addons
+      - ${ODOO_PRIVATE_ADDONS_HOST_PATH:-../nidan_odoo_extra_addons}:/mnt/private-addons
+      - ${ODOO_PAYMENT_ADDONS_HOST_PATH:-../odoo_payment_gateway}:/mnt/payment-addons
