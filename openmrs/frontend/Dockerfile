@@ -5,7 +5,7 @@
 #--------------------------------------------
 FROM --platform=$BUILDPLATFORM node:22-alpine as dev
 
-ARG APP_SHELL_VERSION=next
+ARG APP_SHELL_VERSION=10.0.0
 # Bump after repacking nidan-esm-nepali-calendar-1.0.0.tgz to bust docker layer cache.
 ARG NIDAN_CALENDAR_BUNDLE=1.0.0-v9
 
@@ -62,7 +62,7 @@ RUN echo "nidan-calendar-bundle=${NIDAN_CALENDAR_BUNDLE}" && \
     yarn add ./nidan-esm-nepali-calendar-1.0.0.tgz
 
 # openmrs CLI must live in /app/node_modules (not npx cache) so patches apply to the same tree `openmrs build` uses.
-RUN yarn add openmrs@${APP_SHELL_VERSION:-next} --legacy-peer-deps
+RUN yarn add openmrs@${APP_SHELL_VERSION:-10.0.0} --legacy-peer-deps
 RUN yarn add ./openmrs-esm-form-builder-app-3.4.1-trigonal.tgz
 RUN yarn add ./openmrs-esm-form-engine-app-12.1.0-trigonal.tgz
 RUN yarn add ./openmrs-esm-service-queues-app-10.0.2.tgz
