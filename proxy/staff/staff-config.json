@@ -1,0 +1,4 @@
+{
+  "_comment": "Job groups shown on the Staff page (KC-21). Generated per site from the realm after import (group name -> Keycloak group id); this file is a placeholder with no jobs.",
+  "jobs": []
+}

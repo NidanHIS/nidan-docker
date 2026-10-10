@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Staff · NidanEHR</title>
+  <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="/staff/staff.css">
+</head>
+<body>
+  <!-- Staff page for hospital admins (backlog KC-20/21/22/23). Talks only to /staff-api on this origin. -->
+  <header class="bar">
+    <strong>NidanEHR · Staff</strong>
+    <nav>
+      <button type="button" class="tab" data-tab="people" aria-pressed="true">People</button>
+      <button type="button" class="tab" data-tab="activity" aria-pressed="false">Activity</button>
+    </nav>
+  </header>
+  <main>
+    <p id="notice" class="notice" role="status" hidden></p>
+
+    <section id="tab-people">
+      <div class="row">
+        <label>Job <select id="job-filter"></select></label>
+        <label>Search <input id="search" type="search" placeholder="Name or username" autocomplete="off"></label>
+        <button type="button" id="add-open">Add person</button>
+      </div>
+      <p id="list-state" class="muted" role="status">Loading…</p>
+      <table id="people" hidden>
+        <thead><tr><th>Name</th><th>Username</th><th>Job</th><th>Status</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="tab-activity" hidden>
+      <p class="muted">Logins and admin changes in this hospital (read-only).</p>
+      <table id="events"><thead><tr><th>Time</th><th>What</th><th>Who</th><th>Details</th></tr></thead><tbody></tbody></table>
+    </section>
+  </main>
+
+  <dialog id="add-dialog">
+    <form id="add-form" method="dialog">
+      <h2>Add a person</h2>
+      <label>First name <input name="firstName" required maxlength="80"></label>
+      <label>Last name <input name="lastName" required maxlength="80"></label>
+      <label>Username <input name="username" required maxlength="40" pattern="[a-z][a-z0-9._-]{2,39}" title="lowercase letters, digits, . _ -"></label>
+      <label>Gender
+        <select name="gender" required><option value="">Choose…</option><option value="M">Male</option><option value="F">Female</option><option value="O">Other</option><option value="U">Unknown</option></select>
+      </label>
+      <label>Job <select name="job" required id="add-job"></select></label>
+      <label>Email (optional) <input name="email" type="email" maxlength="120"></label>
+      <p class="error" id="add-error" role="alert" hidden></p>
+      <div class="row"><button type="submit" value="ok">Add</button><button type="button" id="add-cancel">Cancel</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="places-dialog">
+    <form id="places-form" method="dialog">
+      <h2>Places for <span id="places-user"></span></h2>
+      <p class="muted">Separate several with commas. Takes effect at the person's next login.</p>
+      <label>Locations (OpenMRS) <input name="nidan_locations" maxlength="1000" autocomplete="off"></label>
+      <label>Lab units (OpenELIS) <input name="nidan_lab_units" maxlength="1000" autocomplete="off"></label>
+      <label>POS shops (Odoo) <input name="nidan_shops" maxlength="1000" autocomplete="off"></label>
+      <p class="error" id="places-error" role="alert" hidden></p>
+      <div class="row"><button type="submit" value="ok">Save</button><button type="button" id="places-cancel">Cancel</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="slip-dialog">
+    <div class="slip" id="slip">
+      <h2>Temporary password</h2>
+      <p>For <strong id="slip-name"></strong> (<span id="slip-user"></span>)</p>
+      <p class="password" id="slip-password"></p>
+      <p>Shown once. The person must choose their own password at first login. It expires in 7 days.</p>
+      <p lang="ne">यो अस्थायी पासवर्ड हो। पहिलो पटक लगइन गर्दा आफ्नै पासवर्ड राख्नुहोस्। यो ७ दिनमा समाप्त हुन्छ।</p>
+    </div>
+    <div class="row"><button type="button" id="slip-print">Print slip</button><button type="button" id="slip-close">Done</button></div>
+  </dialog>
+
+  <script src="/staff/staff.js" defer></script>
+</body>
+</html>

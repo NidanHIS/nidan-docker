@@ -1,0 +1,34 @@
+# /staff-api allow-list (backlog KC-20 / D33 / D56, contract-v1 DRAFT, 2026-10-08).
+# The ONLY Keycloak admin REST calls the Staff page may make, forwarded by nginx with the hospital
+# admin's own token. nginx matches the decoded, normalised $uri against these anchored patterns,
+# rebuilds the upstream path from the captured ids only, and rejects everything else with 403.
+# Before matching: %2f %5c %2e%2e ; // in the raw URI -> 400; Origin must be the Staff origin and
+# X-Nidan-Staff: 1 must be present on every method (KC-20-04).
+# FGAP (KC-09) is the second layer: even an allowed call only works on staff/* members.
+#
+# Ids are Keycloak UUIDs. Job group ids come from staff-config.json generated with the realm,
+# so there is no group-listing call.
+
+id: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+upstream_base: /auth/admin/realms/nidan
+
+allow:
+  - {method: GET,    path: "^/staff-api/groups/(ID)/members$",        upstream: "/groups/$1/members",      why: list one job group (GET /users is denied by FGAP)}
+  - {method: POST,   path: "^/staff-api/users$",                      upstream: "/users",                  why: "add a person into /staff/<job>; roles in the body are ignored by Keycloak (spike)"}
+  - {method: GET,    path: "^/staff-api/users/(ID)$",                 upstream: "/users/$1",               why: show one person}
+  - {method: PUT,    path: "^/staff-api/users/(ID)$",                 upstream: "/users/$1",               why: "enable/disable, names, R4 attributes"}
+  - {method: PUT,    path: "^/staff-api/users/(ID)/reset-password$",  upstream: "/users/$1/reset-password", why: temporary password}
+  - {method: POST,   path: "^/staff-api/users/(ID)/logout$",          upstream: "/users/$1/logout",        why: "before disabling: end every session, with back-channel logout to the apps (open POS websockets close, KC-11-02)"}
+  - {method: GET,    path: "^/staff-api/users/(ID)/groups$",          upstream: "/users/$1/groups",        why: current job}
+  - {method: PUT,    path: "^/staff-api/users/(ID)/groups/(ID)$",     upstream: "/users/$1/groups/$2",     why: "change job: add (FGAP: staff/* only)"}
+  - {method: DELETE, path: "^/staff-api/users/(ID)/groups/(ID)$",     upstream: "/users/$1/groups/$2",     why: "change job: remove (membership only, the user is kept)"}
+  - {method: GET,    path: "^/staff-api/events$",                     upstream: "/events",                 why: Activity tab, read-only (A3)}
+  - {method: GET,    path: "^/staff-api/admin-events$",               upstream: "/admin-events",           why: "Activity tab; filtered to USER and GROUP_MEMBERSHIP resources (KC-23-04)"}
+
+# Explicitly never allowed (documentation; anything not in `allow` is already 403):
+never:
+  - "GET /users (search/list)"
+  - "/users/{id}/credentials/* (would let an admin delete another user's OTP, KC-09-07)"
+  - "/users/{id}/role-mappings/*, /clients/*, /roles/*, /groups (create/rename/delete)"
+  - "/users/{id}/impersonation, /users/{id}/execute-actions-email, DELETE /users/{id}"
+  - "anything on the master realm"

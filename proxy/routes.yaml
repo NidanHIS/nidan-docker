@@ -1,0 +1,135 @@
+# Gateway route contract (backlog KC-01, contract-v1 DRAFT, 2026-10-08).
+#
+# The TARGET state of every location the gateway serves once SSO lands (KC-10), not today's
+# nginx.conf. Checked by scripts/check-routes.py: every rendered nginx location must appear here
+# and vice versa, and every location not listed as exempt must carry auth_request (KC-01-02/06).
+#
+# Fields
+#   server : http (80) | main (443) | oe-api (8443) | odoo (8069) | staff (9443, also Keycloak: D1)
+#   match  : exact | prefix | prefix-priority (^~) | regex
+#   gate   : app role that auth_request checks (role:nidan-gateway:<gate>), or "exempt", or "deny"
+#   kind   : page (navigate -> 302 to login) | api (-> 401) | ws (websocket) | static | redirect
+#   reason : required for exempt and deny
+#
+# Pending decisions recorded here, not guessed:
+#   D1 Keycloak origin (decided 2026-10-10): /auth/* is served only on :9443 (server staff), with the Staff page.
+#   KC-47: the port-80 "localhost" full-proxy server was removed (approved 2026-10-10).
+
+# /502.html is an nginx `internal` error page on every TLS server: not a client route, so not listed.
+defaults:
+  gate_header_rule: navigate-302-else-401        # spec §4 rule 4
+  cookie_flags: secure                           # KC-06
+  unknown_path: 404                               # catch-all location / on every server (KC-10-03)
+
+routes:
+  # ---------------- port 80: redirect + ACME only (KC-47) ----------------
+  - {server: http, match: prefix, path: /.well-known/acme-challenge/, gate: exempt, kind: static, reason: certbot HTTP-01}
+  - {server: http, match: prefix, path: /, gate: exempt, kind: redirect, reason: 301 to https on the same host}
+
+  # ---------------- main :443 ----------------
+  - {server: main, match: exact, path: /, gate: exempt, kind: page, reason: launcher shell; app list comes from /oauth2/userinfo}
+  - {server: main, match: prefix, path: /, gate: deny, kind: api, reason: catch-all, unknown paths 404 never reach an upstream (KC-10-03)}
+  - {server: main, match: exact, path: /not-allowed.html, gate: exempt, kind: page, reason: shown after a 403 (ds3)}
+  - {server: main, match: exact, path: /outage.html, gate: exempt, kind: page, reason: shown when Keycloak is down (ds5)}
+  - {server: main, match: prefix, path: /assets/, gate: exempt, kind: static, reason: launcher css/js/icons}
+  - {server: main, match: exact, path: /nidan-logo.png, gate: exempt, kind: static, reason: 502 page logo}
+  - {server: main, match: exact, path: /trigonal-logo.png, gate: exempt, kind: static, reason: launcher / 502 footer logo}
+  - {server: main, match: exact, path: /oauth2/start, gate: exempt, kind: page, reason: login start}
+  - {server: main, match: exact, path: /oauth2/callback, gate: exempt, kind: page, reason: login callback; expires app cookies}
+  - {server: main, match: exact, path: /oauth2/sign_out, gate: exempt, kind: page, reason: logout; expires app cookies}
+  - {server: main, match: exact, path: /oauth2/userinfo, gate: exempt, kind: api, reason: launcher identity; 401 without session}
+  - {server: main, match: exact, path: /oauth2/auth, gate: deny, kind: api, reason: internal only via /_auth_<app>; external 404 (KC-56-04)}
+  # health probes the launcher polls: exact matches only, fixed upstream paths, no version output (KC-14-02)
+  - {server: main, match: exact, path: /odoo-health/, gate: exempt, kind: api, reason: launcher health probe -> odoo /web/health}
+  - {server: main, match: exact, path: /auth-ping/orthanc, gate: exempt, kind: api, reason: "launcher health probe: status only (204 up, 502 down), /system body via internal subrequest"}
+  - {server: main, match: exact, path: /cis/actuator/health, gate: exempt, kind: api, reason: launcher health probe}
+
+  # OpenMRS / O3
+  - {server: main, match: exact, path: /openmrs, gate: app-openmrs, kind: page}
+  - {server: main, match: exact, path: /openmrs/, gate: app-openmrs, kind: page}
+  - {server: main, match: prefix, path: /openmrs/, gate: app-openmrs, kind: page, note: "REST, FHIR and legacy UI: client Authorization / X-JWT-Assertion stripped (KC-56-02)"}
+  - {server: main, match: regex, path: "^/openmrs/(initialsetup|module|login|logout|admin|legacy)", gate: app-openmrs, kind: page, note: "regex beats the prefix: must be gated itself (KC-01-06)"}
+  - {server: main, match: exact, path: /openmrs/spa, gate: app-openmrs, kind: redirect}
+  - {server: main, match: exact, path: /openmrs/spa/config.json, gate: app-openmrs, kind: api}
+  - {server: main, match: prefix, path: /openmrs/spa/, gate: app-openmrs, kind: page}
+
+  # OpenELIS (frontend on :443, API on :8443 and under /api/OpenELIS-Global/)
+  - {server: main, match: exact, path: /openelis, gate: app-openelis, kind: redirect}
+  - {server: main, match: prefix, path: /openelis/, gate: app-openelis, kind: page}
+  - {server: main, match: exact, path: /api/OpenELIS-Global/openelis/, gate: app-openelis, kind: redirect}
+  - {server: main, match: regex, path: "^/api/OpenELIS-Global/(.*)$", gate: app-openelis, kind: api}
+  - {server: main, match: regex, path: "^/OpenELIS-Global/(.*)$", gate: app-openelis, kind: api}
+
+  # Imaging: viewer credential injected for app-orthanc; admin UI only for orthanc-admin (KC-30)
+  - {server: main, match: exact, path: /ohif, gate: app-orthanc, kind: redirect}
+  - {server: main, match: prefix, path: /ohif/, gate: app-orthanc, kind: page}
+  - {server: main, match: prefix, path: /dicom-web/, gate: app-orthanc, kind: api, note: "GET/HEAD/OPTIONS only at nginx (limit_except); Orthanc-side read-only Lua filter still to add"}
+  - {server: main, match: prefix, path: /wado/, gate: app-orthanc, kind: api, note: "GET/HEAD only"}
+  - {server: main, match: prefix, path: /orthanc-container/, gate: orthanc-admin, kind: page}
+  - {server: main, match: prefix, path: /orthanc/, gate: orthanc-admin, kind: redirect}
+
+  # Reports
+  - {server: main, match: exact, path: /superset, gate: app-superset, kind: redirect}
+  - {server: main, match: prefix, path: /superset/, gate: app-superset, kind: page, note: "public dashboards: explicit allow-list entries below, none yet (KC-03)"}
+  - {server: main, match: exact, path: /api/OpenELIS-Global/Logout, gate: app-openelis, kind: page, reason: logout chain to /oauth2/sign_out}
+  - {server: main, match: exact, path: /dhis2/auth/logout, gate: app-dhis2, kind: page, reason: logout chain to /oauth2/sign_out}
+  - {server: main, match: exact, path: /superset/logout/, gate: app-superset, kind: page, reason: logout chain to /oauth2/sign_out}
+  - {server: main, match: exact, path: /dhis2, gate: app-dhis2, kind: redirect}
+  - {server: main, match: prefix, path: /dhis2/, gate: app-dhis2, kind: page}
+
+  # Sync issues (CIS dead letters): cis-admin; AdminAccessFilter stays as the second layer
+  - {server: main, match: exact, path: /cis, gate: cis-admin, kind: redirect}
+  - {server: main, match: exact, path: /cis/, gate: cis-admin, kind: redirect}
+  - {server: main, match: prefix-priority, path: /cis/dead-letters/, gate: cis-admin, kind: page}
+  - {server: main, match: prefix, path: /cis/, gate: deny, kind: api, reason: "webhooks, actuator and internal APIs are internal-network only (KC-53)"}
+  - {server: main, match: prefix, path: /dead-letters, gate: cis-admin, kind: page}
+  - {server: main, match: prefix, path: /api/dead-letters, gate: cis-admin, kind: api}
+
+  # ---------------- OpenELIS API :8443 (hardcoded by its frontend) ----------------
+  - {server: oe-api, match: exact, path: /oauth2/start, gate: exempt, kind: page, reason: login start}
+  - {server: oe-api, match: exact, path: /oauth2/callback, gate: exempt, kind: page, reason: login callback; expires app cookies}
+  - {server: oe-api, match: exact, path: /oauth2/sign_out, gate: exempt, kind: page, reason: logout; expires app cookies}
+  - {server: oe-api, match: exact, path: /oauth2/userinfo, gate: exempt, kind: api, reason: identity; 401 without session}
+  - {server: oe-api, match: exact, path: /oauth2/auth, gate: deny, kind: api, reason: internal only via /_auth_<app>; external 404}
+  - {server: oe-api, match: prefix, path: /OpenELIS-Global/, gate: app-openelis, kind: api}
+  - {server: oe-api, match: prefix, path: /, gate: deny, kind: api, reason: catch-all 404}
+
+  # ---------------- Odoo :8069 (gateway-owned, KC-10) ----------------
+  - {server: odoo, match: prefix, path: /, gate: app-odoo, kind: page}
+  - {server: odoo, match: prefix-priority, path: /auth/, gate: deny, kind: api, reason: "Keycloak is on :9443 only (D1, KC-07-02)"}
+  - {server: odoo, match: exact, path: /websocket, gate: app-odoo, kind: ws, note: "POS/bus; gated at the upgrade (KC-10-08)"}
+  - {server: odoo, match: exact, path: /oauth2/start, gate: exempt, kind: page, reason: login start}
+  - {server: odoo, match: exact, path: /oauth2/callback, gate: exempt, kind: page, reason: login callback; expires app cookies}
+  - {server: odoo, match: exact, path: /oauth2/sign_out, gate: exempt, kind: page, reason: logout; expires app cookies}
+  - {server: odoo, match: exact, path: /oauth2/userinfo, gate: exempt, kind: api, reason: identity; 401 without session}
+  - {server: odoo, match: exact, path: /oauth2/auth, gate: deny, kind: api, reason: internal only (KC-56-04)}
+  - {server: odoo, match: regex, path: "^/(api/|web/database/|xmlrpc/|jsonrpc)", gate: deny, kind: api, reason: "service APIs and DB manager are internal only (KC-53-02)"}
+  - {server: odoo, match: exact, path: /pos_esewa_qr/pay, gate: exempt, kind: page, reason: "payer phone; consteq link token (GET only)"}
+  - {server: odoo, match: exact, path: /pos_esewa_qr/return, gate: exempt, kind: page, reason: "payer phone; static return page"}
+  - {server: odoo, match: regex, path: "^/pos_khalti_qr/return/[0-9]+/[A-Za-z0-9_-]+$", gate: exempt, kind: page, reason: "payer phone; consteq return token"}
+
+  # ---------------- Staff page :9443 (own origin, D49) ----------------
+  - {server: staff, match: exact, path: /staff, gate: hospital-admin, kind: page}
+  - {server: staff, match: prefix, path: /staff/, gate: hospital-admin, kind: page}
+  - {server: staff, match: prefix, path: /staff-api/, gate: hospital-admin, kind: api, note: "allow-list + Origin/X-Nidan-Staff on every method (KC-20)"}
+  - {server: staff, match: exact, path: /oauth2/start, gate: exempt, kind: page, reason: login start}
+  - {server: staff, match: exact, path: /oauth2/callback, gate: exempt, kind: page, reason: login callback; expires app cookies}
+  - {server: staff, match: exact, path: /oauth2/sign_out, gate: exempt, kind: page, reason: logout; expires app cookies}
+  - {server: staff, match: exact, path: /oauth2/userinfo, gate: exempt, kind: api, reason: identity; 401 without session}
+  - {server: staff, match: exact, path: /oauth2/auth, gate: deny, kind: api, reason: internal only via /_auth_<app>; external 404}
+  - {server: staff, match: prefix, path: /, gate: deny, kind: api, reason: catch-all 404}
+
+  # ---------------- internal :8099 back-channel for apps (KC-43); never published ----------------
+  - {server: backchannel, match: regex, path: "^/auth/realms/nidan/protocol/openid-connect/(token|certs|userinfo)$", gate: exempt, kind: api, reason: "app containers only: client-credentials / code redeem, JWKS, userinfo"}
+  - {server: backchannel, match: exact, path: /backchannel-logout/odoo, gate: exempt, kind: api, reason: "Keycloak -> Odoo back-channel logout relay; Odoo verifies the signed logout token (KC-37-08)"}
+  - {server: backchannel, match: exact, path: /gateway-health, gate: exempt, kind: api, reason: "container healthcheck; listener not published (KC-47-03)"}
+  - {server: backchannel, match: prefix, path: /, gate: deny, kind: api, reason: "everything else of Keycloak (admin, master realm, account) -> 404"}
+
+  # Keycloak public endpoints: server staff (:9443), decision D1 (proxy/auth/keycloak-public.conf; SSO only)
+  - {server: staff, match: regex, path: "^/auth/realms/nidan/protocol/openid-connect/(auth|token)$", gate: exempt, kind: api, reason: "OIDC authorize + token; 10/min per IP (KC-12-07)"}
+  - {server: staff, match: regex, path: "^/auth/realms/nidan/protocol/openid-connect/(certs|userinfo|login-status-iframe\\.html|logout|logout/logout-confirm)$", gate: exempt, kind: api, reason: OIDC endpoints and logout confirmation}
+  - {server: staff, match: prefix, path: /auth/realms/nidan/login-actions/, gate: exempt, kind: page, reason: "login, OTP and required-action forms; 10/min per IP"}
+  - {server: staff, match: exact, path: /auth/realms/nidan/.well-known/openid-configuration, gate: exempt, kind: api, reason: discovery}
+  - {server: staff, match: prefix, path: /auth/resources/, gate: exempt, kind: static, reason: theme assets}
+  - {server: staff, match: prefix, path: /auth/js/, gate: exempt, kind: static, reason: keycloak js}
+  - {server: staff, match: prefix, path: /auth/, gate: deny, kind: api, reason: "master realm, admin, account console, client registration -> 404 (KC-07-03)"}
