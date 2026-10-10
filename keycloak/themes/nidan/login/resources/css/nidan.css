@@ -1,0 +1,15 @@
+/* Nidan login theme (KC-17). The native locale picker is hidden; the gateway's nidan_locale picker
+   drives kc_locale instead (spec 8.3). */
+:root {
+  --nidan-primary: #0b5d7a;
+}
+#kc-locale,
+.kc-locale-select,
+#login-select-toggle,                      /* keycloak.v2 26.8 template */
+.pf-v5-c-login__main-header-utilities {
+  display: none !important;
+}
+.pf-v5-c-button.pf-m-primary,
+#kc-login {
+  background-color: var(--nidan-primary);
+}

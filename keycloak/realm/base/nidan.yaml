@@ -1,0 +1,451 @@
+# Realm "nidan": base, applied by keycloak-config-cli (backlog KC-01 / KC-08 / KC-54). contract-v1 DRAFT.
+# Site specifics go in keycloak/realm/sites/<site>/ overlays. Variables are "env:" lookups in dollar-parentheses,
+# substituted by keycloak-config-cli (IMPORT_VARSUBSTITUTION_ENABLED=true) EVEN IN COMMENTS: never write one
+# here as an example. Secrets come from .env.local only.
+#
+# Static rules enforced by scripts/check-realm.py (CI): exact redirect URIs, no implicit or password
+# grant, fullScopeAllowed=false, PKCE S256 on code-flow clients, openmrs_user only on machine clients.
+#
+# NOT yet validated against a live Keycloak 26.8 import (KC-01-01 needs the stack running).
+# Known open points are marked TODO with the story that settles them.
+
+realm: nidan
+enabled: true
+displayName: Nidan EHR
+sslRequired: external
+
+# --- login and account (KC-55) ---
+registrationAllowed: false
+adminPermissionsEnabled: true         # fine-grained admin permissions v2: Staff page scope (KC-09), scripts/keycloak-admin-permissions.py
+resetPasswordAllowed: false          # no self-service reset (CVE history, no email requirement)
+editUsernameAllowed: false
+rememberMe: false
+loginWithEmailAllowed: false
+duplicateEmailsAllowed: true         # email is optional and never an identity key
+verifyEmail: false
+loginTheme: nidan                    # keycloak/themes/nidan (KC-17), mounted into the keycloak service
+internationalizationEnabled: true
+supportedLocales: [en, ne]
+defaultLocale: $(env:DEFAULT_LOCALE)        # en | ne (env.template; preflight refuses others)
+
+# --- passwords and lockout (D52, ds8) ---
+# TODO(KC-08-04): add a common-password blocklist (passwordBlacklist needs a list file on the server).
+passwordPolicy: "length(8) and notUsername and notEmail and passwordBlacklist(nidan.txt)"   # ds8; list: keycloak/password-blocklist.txt
+bruteForceProtected: true
+permanentLockout: false
+failureFactor: 5
+waitIncrementSeconds: 30
+maxFailureWaitSeconds: 300
+maxDeltaTimeSeconds: 43200
+quickLoginCheckMilliSeconds: 1000
+minimumQuickLoginWaitSeconds: 60
+
+# --- sessions and tokens (ds10, D19) ---
+ssoSessionIdleTimeout: 900           # 15 min
+ssoSessionMaxLifespan: 43200         # 12 h
+accessTokenLifespan: 300             # 5 min: a disable reaches the gateway within ~6 min
+offlineSessionIdleTimeout: 0
+revokeRefreshToken: true
+refreshTokenMaxReuse: 0
+actionTokenGeneratedByAdminLifespan: 604800   # 7 days (temporary-password links)
+
+# --- audit (A1, D39) ---
+eventsEnabled: true
+eventsExpiration: 31536000           # 365 days
+enabledEventTypes: [LOGIN, LOGIN_ERROR, LOGOUT, CODE_TO_TOKEN_ERROR, UPDATE_PASSWORD, UPDATE_CREDENTIAL,
+                    REFRESH_TOKEN_ERROR, REMOVE_CREDENTIAL]
+adminEventsEnabled: true
+adminEventsDetailsEnabled: true
+
+# offline_access is not a default role: no long-lived refresh tokens for staff (KC-54-01)
+# Keycloak gives every new realm view-profile, manage-account, offline_access and uma_authorization by default;
+# listing the composites makes it exactly view-profile (found on the realm harness, 2026-10-09): no offline tokens,
+# and no account-API writes, so nobody can delete their own OTP (KC-09-10) or change their profile (KC-55-01).
+# Password changes use the UPDATE_PASSWORD required action, which needs no account role (KC-55-05).
+defaultRole:
+  name: default-roles-nidan
+
+roles:
+  realm:
+    - name: default-roles-nidan          # the realm's default role (see defaultRole above): exactly view-profile
+      composite: true
+      composites: {client: {account: [view-profile]}}
+    - {name: requires-otp, description: "Login needs OTP on every sign-in (nidan-browser flow, KC-09-09). Admin groups only; never in a token (fullScopeAllowed=false)."}
+  client:
+    nidan-gateway:
+      - {name: app-openmrs, description: Clinical Records}
+      - {name: app-odoo, description: Billing & Pharmacy}
+      - {name: app-openelis, description: Lab}
+      - {name: app-orthanc, description: Radiology viewer}
+      - {name: app-superset, description: Reports}
+      - {name: app-dhis2, description: HMIS Reports}
+      - {name: cis-admin, description: Sync Issues (dead letters)}
+      - {name: orthanc-admin, description: Orthanc admin UI}
+      - {name: hospital-admin, description: Staff page}
+    # Per-app role catalogs (R1) come from keycloak/realm/roles/<app>.yaml (KC-24); job groups map them.
+    openmrs: []
+    odoo: []
+    openelis:                        # = system_role names (exact match, OidcUserLinking); Global/User Account Administrator only via app-superusers
+      - {name: Analyser Import}
+      - {name: Cytopathologist}
+      - {name: Global Roles}
+      - {name: Lab Unit Roles}
+      - {name: Pathologist}
+      - {name: Paywall Administration}   # PUT/GET /rest/nidan/paywall-config (KC-38-06)
+      - {name: Global Administrator}
+      - {name: Reception}
+      - {name: Reports}
+      - {name: Results}
+      - {name: User Account Administrator}
+      - {name: Validation}
+    superset:                        # = Superset role names (AUTH_ROLES_MAPPING); Admin/Alpha/sql_lab only via app-superusers
+      - {name: Admin}
+      - {name: Alpha}
+      - {name: Gamma}
+      - {name: sql_lab}
+      - {name: Clinical}
+      - {name: Lab}
+      - {name: Pharmacy}
+      - {name: Finance}
+    dhis2:                           # = nidan-dhis2-integration auth/oidc.py ROLE_MAP (KC-40)
+      - {name: admin, description: "Full reporter admin (users, mappings, HMIS submit)"}
+      - {name: report-admin, description: Writes SQL reports}
+      - {name: report-user, description: Runs and exports reports}
+      - {name: reporter, description: HMIS submitter}
+
+groups:
+  - name: staff                      # job groups only; never an admin (R6, KC-09-08)
+    subGroups:
+      - {name: Doctor}
+      - {name: Nurse}
+      - {name: Cashier}
+      - {name: Lab Tech}
+      - {name: Radiologist}
+      - {name: Pharmacist}
+  - name: hospital-admin
+    clientRoles: {nidan-gateway: [hospital-admin]}
+    realmRoles: [requires-otp]
+  - name: cis-admin
+    clientRoles: {nidan-gateway: [cis-admin]}
+    realmRoles: [requires-otp]
+  - name: orthanc-admin
+    clientRoles: {nidan-gateway: [orthanc-admin, app-orthanc]}
+    realmRoles: [requires-otp]
+  - name: app-superusers             # operator-managed; superuser app roles live only here (KC-57)
+    realmRoles: [requires-otp]
+
+# --- login flow (KC-09-09, KC-57-03): admin groups and app-superusers give an OTP on every sign-in ---
+# Cookie (same session) or username+password, then OTP when the user has realm role requires-otp (granted only by
+# the admin groups above). An admin without OTP is made to enrol one before the login completes: never password-only.
+browserFlow: nidan-browser
+authenticatorConfig:
+  - alias: nidan-requires-otp
+    config: {condUserRole: requires-otp, negate: "false"}
+authenticationFlows:
+  - alias: nidan-browser
+    description: Cookie, or password + OTP for admin groups
+    providerId: basic-flow
+    topLevel: true
+    builtIn: false
+    authenticationExecutions:
+      - {authenticator: auth-cookie, requirement: ALTERNATIVE, priority: 10, authenticatorFlow: false, userSetupAllowed: false}
+      - {flowAlias: nidan-browser-forms, requirement: ALTERNATIVE, priority: 20, authenticatorFlow: true, userSetupAllowed: false}
+  - alias: nidan-browser-forms
+    description: Username + password, then the admin OTP step
+    providerId: basic-flow
+    topLevel: false
+    builtIn: false
+    authenticationExecutions:
+      - {authenticator: auth-username-password-form, requirement: REQUIRED, priority: 10, authenticatorFlow: false, userSetupAllowed: false}
+      - {flowAlias: nidan-admin-otp, requirement: CONDITIONAL, priority: 20, authenticatorFlow: true, userSetupAllowed: false}
+  - alias: nidan-admin-otp
+    description: OTP when the user holds requires-otp
+    providerId: basic-flow
+    topLevel: false
+    builtIn: false
+    authenticationExecutions:
+      - {authenticator: conditional-user-role, authenticatorConfig: nidan-requires-otp, requirement: REQUIRED, priority: 10, authenticatorFlow: false, userSetupAllowed: false}
+      - {authenticator: auth-otp-form, requirement: REQUIRED, priority: 20, authenticatorFlow: false, userSetupAllowed: false}
+
+# --- user profile (KC-55-01/03): admin-only edits, no unmanaged attributes, reserved usernames ---
+# Keycloak 26 stores the declarative profile as this component (the form a realm export uses).
+# KC_USERNAME_PATTERN comes from scripts/reserved-usernames.py (fixed + env + client ids + site export).
+# TODO(KC-01-01): confirm keycloak-config-cli applies it on import against a live 26.8.
+# Message key nidanUsernameReserved: login theme messages_en/ne; the Staff page maps the admin-API key.
+components:
+  org.keycloak.userprofile.UserProfileProvider:
+    - providerId: declarative-user-profile
+      subComponents: {}
+      config:
+        kc.user.profile.config:
+          - '{"attributes":[{"name":"username","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${username}","validations":{"length":{"min":3,"max":40},"username-prohibited-characters":{},"up-username-not-idn-homograph":{},"pattern":{"pattern":"$(env:KC_USERNAME_PATTERN)","error-message":"nidanUsernameReserved"}}},{"name":"email","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${email}","validations":{"email":{},"length":{"max":255}}},{"name":"firstName","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${firstName}","required":{"roles":["admin","user"]},"validations":{"length":{"max":255},"person-name-prohibited-characters":{}}},{"name":"lastName","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${lastName}","required":{"roles":["admin","user"]},"validations":{"length":{"max":255},"person-name-prohibited-characters":{}}},{"name":"gender","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"Gender","required":{"roles":["admin","user"]},"validations":{"options":{"options":["M","F","O","U"]}}},{"name":"nidan_shops","displayName":"POS shops","multivalued":true,"permissions":{"view":["admin"],"edit":["admin"]}},{"name":"nidan_locations","displayName":"Locations","multivalued":true,"permissions":{"view":["admin"],"edit":["admin"]}},{"name":"nidan_lab_units","displayName":"Lab units","multivalued":true,"permissions":{"view":["admin"],"edit":["admin"]}}]}'
+
+clients:
+  # Gateway (oauth2-proxy). One client for every gateway origin.
+  - clientId: nidan-gateway
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:KC_GATEWAY_CLIENT_SECRET)
+    standardFlowEnabled: true
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: false
+    fullScopeAllowed: false
+    redirectUris:
+      - https://$(env:GATEWAY_DOMAIN)/oauth2/callback
+      - https://$(env:GATEWAY_DOMAIN):8443/oauth2/callback
+      - https://$(env:GATEWAY_DOMAIN):8069/oauth2/callback
+      - https://$(env:GATEWAY_DOMAIN):9443/oauth2/callback
+    webOrigins: []
+    attributes:
+      pkce.code.challenge.method: S256
+      post.logout.redirect.uris: https://$(env:GATEWAY_DOMAIN)/##https://$(env:GATEWAY_DOMAIN):9443/
+      standard.token.exchange.enabled: "false"
+    protocolMappers:
+      - name: audience-nidan-gateway
+        protocol: openid-connect
+        protocolMapper: oidc-audience-mapper
+        config: {included.client.audience: nidan-gateway, access.token.claim: "true", id.token.claim: "false", userinfo.token.claim: "false"}
+
+  # OpenMRS oauth2login (user login). Legacy OAuth2RestTemplate: no PKCE support (KC-54-01 exception).
+  - clientId: openmrs
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:KC_OPENMRS_CLIENT_SECRET)
+    standardFlowEnabled: true
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: false
+    fullScopeAllowed: false
+    # oauth2login callback = contextPath + "/oauth2login" (OAuth2LoginController, Utils.java:66).
+    redirectUris: [https://$(env:GATEWAY_DOMAIN)/openmrs/oauth2login]
+    webOrigins: []
+    attributes:
+      pkce.code.challenge.method: ""
+      standard.token.exchange.enabled: "false"
+    protocolMappers:
+      - name: openmrs-roles
+        protocol: openid-connect
+        protocolMapper: oidc-usermodel-client-role-mapper
+        config: {usermodel.clientRoleMapping.clientId: openmrs, claim.name: roles, multivalued: "true",
+                 jsonType.label: String, access.token.claim: "true", id.token.claim: "true", userinfo.token.claim: "true"}
+      - name: gender
+        protocol: openid-connect
+        protocolMapper: oidc-usermodel-attribute-mapper
+        config: {user.attribute: gender, claim.name: gender, jsonType.label: String,
+                 access.token.claim: "true", id.token.claim: "true", userinfo.token.claim: "true"}
+
+  # Odoo user login (nidan_keycloak_sso + OCA auth_oidc, KC-37). auth_oidc sends PKCE S256. Roles are Odoo
+  # res.groups XML ids; "groups" lets the addon honour superuser groups only for /app-superusers (KC-57).
+  # Redirect assumes Odoo behind the gateway on :8069 (port decision pending).
+  - clientId: odoo
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:KC_ODOO_CLIENT_SECRET)
+    standardFlowEnabled: true
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: false
+    fullScopeAllowed: false
+    redirectUris: [https://$(env:GATEWAY_DOMAIN):8069/auth_oauth/signin]
+    webOrigins: []
+    attributes:
+      pkce.code.challenge.method: S256
+      standard.token.exchange.enabled: "false"
+      # Logout / session end in Keycloak ends the user's Odoo sessions (KC-37-08), via the gateway relay
+      # on its fixed auth-net address (Keycloak cannot reach Odoo directly).
+      backchannel.logout.url: http://172.31.250.10:8099/backchannel-logout/odoo
+      backchannel.logout.session.required: "false"
+      backchannel.logout.revoke.offline.tokens: "false"
+    protocolMappers:
+      - name: odoo-roles
+        protocol: openid-connect
+        protocolMapper: oidc-usermodel-client-role-mapper
+        config: {usermodel.clientRoleMapping.clientId: odoo, claim.name: roles, multivalued: "true",
+                 jsonType.label: String, access.token.claim: "false", id.token.claim: "true", userinfo.token.claim: "false"}
+      - name: groups
+        protocol: openid-connect
+        protocolMapper: oidc-group-membership-mapper
+        config: {full.path: "true", claim.name: groups, access.token.claim: "false", id.token.claim: "true",
+                 userinfo.token.claim: "false"}
+      - name: nidan-shops
+        protocol: openid-connect
+        protocolMapper: oidc-usermodel-attribute-mapper
+        config: {user.attribute: nidan_shops, claim.name: nidan_shops, multivalued: "true", jsonType.label: String,
+                 access.token.claim: "false", id.token.claim: "true", userinfo.token.claim: "false"}
+
+  # DHIS2 reporter app (AUTH_PROVIDER=oidc, KC-40). The app role comes only from these client roles.
+  - clientId: dhis2
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:KC_DHIS2_CLIENT_SECRET)
+    standardFlowEnabled: true
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: false
+    fullScopeAllowed: false
+    redirectUris: [https://$(env:GATEWAY_DOMAIN)/dhis2/auth/oidc/callback]
+    webOrigins: []
+    attributes:
+      pkce.code.challenge.method: S256
+      standard.token.exchange.enabled: "false"
+    protocolMappers:
+      - name: dhis2-roles
+        protocol: openid-connect
+        protocolMapper: oidc-usermodel-client-role-mapper
+        config: {usermodel.clientRoleMapping.clientId: dhis2, claim.name: roles, multivalued: "true",
+                 jsonType.label: String, access.token.claim: "false", id.token.claim: "true", userinfo.token.claim: "false"}
+
+  # Superset (AUTH_OAUTH via superset_config.py, KC-39). Claims read from the verified ID token.
+  - clientId: superset
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:KC_SUPERSET_CLIENT_SECRET)
+    standardFlowEnabled: true
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: false
+    fullScopeAllowed: false
+    redirectUris: [https://$(env:GATEWAY_DOMAIN)/superset/oauth-authorized/nidan-keycloak]
+    webOrigins: []
+    attributes:
+      pkce.code.challenge.method: S256
+      standard.token.exchange.enabled: "false"
+    protocolMappers:
+      - name: superset-roles
+        protocol: openid-connect
+        protocolMapper: oidc-usermodel-client-role-mapper
+        config: {usermodel.clientRoleMapping.clientId: superset, claim.name: roles, multivalued: "true",
+                 jsonType.label: String, access.token.claim: "false", id.token.claim: "true", userinfo.token.claim: "false"}
+      - name: groups
+        protocol: openid-connect
+        protocolMapper: oidc-group-membership-mapper
+        config: {full.path: "true", claim.name: groups, access.token.claim: "false", id.token.claim: "true",
+                 userinfo.token.claim: "false"}
+
+  # OpenELIS (org.itech.login.oauth + OidcAuthenticationSuccessHandler, KC-38). Links by sub only.
+  - clientId: openelis
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:KC_OPENELIS_CLIENT_SECRET)
+    standardFlowEnabled: true
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: false
+    fullScopeAllowed: false
+    redirectUris:
+      - https://$(env:GATEWAY_DOMAIN)/api/OpenELIS-Global/login/oauth2/code/nidan-keycloak
+      - https://$(env:GATEWAY_DOMAIN)/OpenELIS-Global/login/oauth2/code/nidan-keycloak   # Spring {baseUrl} = context path behind the gateway
+      - https://$(env:GATEWAY_DOMAIN):8443/OpenELIS-Global/login/oauth2/code/nidan-keycloak
+    webOrigins: []
+    attributes:
+      pkce.code.challenge.method: S256
+      standard.token.exchange.enabled: "false"
+    protocolMappers:
+      - name: openelis-roles
+        protocol: openid-connect
+        protocolMapper: oidc-usermodel-client-role-mapper
+        config: {usermodel.clientRoleMapping.clientId: openelis, claim.name: roles, multivalued: "true",
+                 jsonType.label: String, access.token.claim: "false", id.token.claim: "true", userinfo.token.claim: "true"}
+      - name: groups
+        protocol: openid-connect
+        protocolMapper: oidc-group-membership-mapper
+        config: {full.path: "true", claim.name: groups, access.token.claim: "false", id.token.claim: "true",
+                 userinfo.token.claim: "true"}
+
+  # Machine callers of OpenMRS (D11). The only clients allowed to emit openmrs_user (KC-01-03). Each maps to its own
+  # least-privilege OpenMRS account, created by nidancore: cis -> NIDAN_SYNC_USERNAME (writes; the loop-prevention
+  # identity), odoo-sync -> nidan-odoo (read only), portal-sync -> nidan-portal (reads + appointments).
+  # Written out in full (no YAML anchors/merge keys: keycloak-config-cli's parser may not support them).
+  # Launcher "Change password" (KC-55-05): runs Keycloak's UPDATE_PASSWORD (kc_action) and returns to the launcher.
+  # Confidential with no secret in this file, so Keycloak generates one nobody holds: the code it returns can never
+  # be redeemed. No roles, no mappers, nothing in its tokens.
+  - clientId: nidan-password
+    protocol: openid-connect
+    publicClient: false
+    standardFlowEnabled: true
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: false
+    fullScopeAllowed: false
+    redirectUris: ["https://$(env:GATEWAY_DOMAIN)/"]
+    webOrigins: []
+    attributes:
+      pkce.code.challenge.method: S256
+      standard.token.exchange.enabled: "false"
+      post.logout.redirect.uris: https://$(env:GATEWAY_DOMAIN)/
+  - clientId: cis
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:KC_CIS_CLIENT_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+    fullScopeAllowed: false
+    redirectUris: []
+    webOrigins: []
+    attributes: {standard.token.exchange.enabled: "false"}
+    protocolMappers:
+      - name: openmrs-user
+        protocol: openid-connect
+        protocolMapper: oidc-hardcoded-claim-mapper
+        config: {claim.name: openmrs_user, claim.value: $(env:NIDAN_SYNC_USERNAME), jsonType.label: String,
+                 access.token.claim: "true", id.token.claim: "false", userinfo.token.claim: "false"}
+      - name: audience-openmrs         # aud = the one API this token is for (KC-01-03 contract)
+        protocol: openid-connect
+        protocolMapper: oidc-audience-mapper
+        config: {included.client.audience: openmrs, access.token.claim: "true", id.token.claim: "false",
+                 userinfo.token.claim: "false", introspection.token.claim: "true"}
+  - clientId: odoo-sync
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:KC_ODOO_SYNC_CLIENT_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+    fullScopeAllowed: false
+    redirectUris: []
+    webOrigins: []
+    attributes: {standard.token.exchange.enabled: "false"}
+    protocolMappers:
+      - name: openmrs-user           # read-only OpenMRS account (nidancore ServiceAccounts, KC-32-05)
+        protocol: openid-connect
+        protocolMapper: oidc-hardcoded-claim-mapper
+        config: {claim.name: openmrs_user, claim.value: nidan-odoo, jsonType.label: String,
+                 access.token.claim: "true", id.token.claim: "false", userinfo.token.claim: "false"}
+      - name: audience-openmrs         # aud = the one API this token is for (KC-01-03 contract)
+        protocol: openid-connect
+        protocolMapper: oidc-audience-mapper
+        config: {included.client.audience: openmrs, access.token.claim: "true", id.token.claim: "false",
+                 userinfo.token.claim: "false", introspection.token.claim: "true"}
+  - clientId: portal-sync
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:KC_PORTAL_SYNC_CLIENT_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+    fullScopeAllowed: false
+    redirectUris: []
+    webOrigins: []
+    attributes: {standard.token.exchange.enabled: "false"}
+    protocolMappers:
+      - name: openmrs-user           # portal reads + appointments (nidancore ServiceAccounts, KC-59-01)
+        protocol: openid-connect
+        protocolMapper: oidc-hardcoded-claim-mapper
+        config: {claim.name: openmrs_user, claim.value: nidan-portal, jsonType.label: String,
+                 access.token.claim: "true", id.token.claim: "false", userinfo.token.claim: "false"}
+      - name: audience-openmrs         # aud = the one API this token is for (KC-01-03 contract)
+        protocol: openid-connect
+        protocolMapper: oidc-audience-mapper
+        config: {included.client.audience: openmrs, access.token.claim: "true", id.token.claim: "false",
+                 userinfo.token.claim: "false", introspection.token.claim: "true"}
+
+  # Built-in client hardening: no password grant anywhere (KC-54-03).
+  - clientId: admin-cli
+    directAccessGrantsEnabled: false
+
+  # TODO(KC-37..KC-40): odoo, openelis, superset, dhis2 clients (P2) with exact redirect URIs.

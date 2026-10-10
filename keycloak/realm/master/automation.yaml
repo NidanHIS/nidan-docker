@@ -1,0 +1,53 @@
+# Master realm: the two automation clients (backlog KC-07-07, KC-50). Imported with realm "nidan" by
+# keycloak-config-cli. Client-credentials only, no browser flow, secrets from .env.local.
+#
+# Bootstrap: the FIRST import runs as the bootstrap admin (KC_BOOTSTRAP_ADMIN_*), which creates these clients.
+# Then set KEYCLOAK_CONFIG_CLI_GRANT=client_credentials and remove the bootstrap admin user in the admin
+# console (runbook step; operators sign in with their own accounts + OTP).
+realm: master
+clients:
+  # Runs keycloak-config-cli. Needs master "admin" to create and update realm nidan.
+  # TODO(KC-07-07): narrow to the nidan-realm management roles once the realm exists, if config-cli allows.
+  - clientId: nidan-config-cli
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:KC_CONFIG_CLI_CLIENT_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+    fullScopeAllowed: false
+    attributes: {standard.token.exchange.enabled: "false"}
+
+  # scripts/incident.py (revoke-all, key and secret rotation): realm nidan only.
+  - clientId: nidan-incident
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:KC_AUTOMATION_CLIENT_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+    fullScopeAllowed: false
+    attributes: {standard.token.exchange.enabled: "false"}
+
+# fullScopeAllowed is false on both clients, so a role reaches their tokens only through these scope mappings;
+# without them the admin API answers 403 (found on the realm harness, 2026-10-08).
+scopeMappings:
+  - client: nidan-config-cli
+    roles: [admin]
+clientScopeMappings:
+  nidan-realm:
+    - client: nidan-incident
+      roles: [manage-realm, manage-users, manage-clients, view-realm, view-clients, view-events]   # view-events: event shipper / realm audit
+
+users:
+  - username: service-account-nidan-config-cli
+    enabled: true
+    serviceAccountClientId: nidan-config-cli
+    realmRoles: [admin]
+  - username: service-account-nidan-incident
+    enabled: true
+    serviceAccountClientId: nidan-incident
+    clientRoles:
+      nidan-realm: [manage-realm, manage-users, manage-clients, view-realm, view-clients, view-events]

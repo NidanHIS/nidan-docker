@@ -1,0 +1,48 @@
+# Token claim contract (backlog KC-01-03, contract-v1 DRAFT, 2026-10-08).
+# What each client's access token must carry, and must NOT carry. The Playwright harness (KC-42)
+# decodes live tokens and checks them against this; scripts/check-realm.py already enforces the
+# static part (who may emit openmrs_user).
+
+common:
+  required: [iss, sub, aud, azp, exp, iat, typ]
+  iss: https://${GATEWAY_DOMAIN}/auth/realms/nidan      # path per decision D1 (Keycloak origin)
+  typ: Bearer
+  forbidden_everywhere_except_machine_clients: [openmrs_user]
+
+clients:
+  nidan-gateway:            # oauth2-proxy session; never forwarded to apps (KC-56-01)
+    grant: authorization_code+PKCE
+    aud: [nidan-gateway]      # only its own audience (fullScopeAllowed=false, KC-54-04)
+    required: [preferred_username, resource_access.nidan-gateway.roles]
+    roles_claim: resource_access.nidan-gateway.roles    # app-* | cis-admin | orthanc-admin | hospital-admin
+    forbidden: [resource_access.openmrs, resource_access.odoo, resource_access.openelis, openmrs_user]
+
+  openmrs:                  # oauth2login user login
+    grant: authorization_code
+    required: [preferred_username, gender, given_name, family_name]
+    roles: "list of OpenMRS role names from the openmrs client-role catalog; Keycloak omits it when empty, which oauth2login reads as zero roles (KC-58-07, UserInfoTest)"
+    gender: "one of M F O U"
+    forbidden: [openmrs_user]
+
+  cis:                      # service account, client_credentials only
+    grant: client_credentials
+    azp: cis
+    aud: [openmrs]            # audience mapper; checked live by tests/e2e-auth/specs/realm.spec.ts
+    required: [openmrs_user]
+    openmrs_user: ${NIDAN_SYNC_USERNAME}
+    forbidden: [preferred_username_of_a_person, roles]
+  odoo-sync:
+    grant: client_credentials
+    azp: odoo-sync
+    aud: [openmrs]            # audience mapper; checked live by tests/e2e-auth/specs/realm.spec.ts
+    required: [openmrs_user]
+    openmrs_user: nidan-odoo
+  portal-sync:
+    grant: client_credentials
+    azp: portal-sync
+    aud: [openmrs]            # audience mapper; checked live by tests/e2e-auth/specs/realm.spec.ts
+    required: [openmrs_user]
+    openmrs_user: nidan-portal
+
+# Accepting side (KC-58): OpenMRS's service-account filter must require iss == common.iss,
+# azp in {cis, odoo-sync, portal-sync}, typ == Bearer, and openmrs_user; anything else is refused.
