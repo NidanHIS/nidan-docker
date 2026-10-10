@@ -1,0 +1,16 @@
+# KC-28 — nightly encrypted backup of every volume, then retention (14 daily + 12 monthly).
+#
+#   sudo cp docs/backup-nightly.cron /etc/cron.d/nidan-backup-nightly
+#   sudo chmod 644 /etc/cron.d/nidan-backup-nightly
+#
+# Only the PUBLIC key is on this host: backups can be written here, never read here (KC-28-05).
+# The backup is cold: every container of the stack stops for its duration. 02:00, outside clinic hours.
+# A failed run (KC-28-03) restarts the stack, leaves no SHA256SUMS (never counted as a backup), sets the
+# backup_succeeded 0 metric in the node_exporter textfile collector, and prints one line that cron mails to MAILTO.
+# Alert on backup_succeeded == 0 or on backup_last_run_timestamp_seconds older than 26 h.
+SHELL=/bin/bash
+MAILTO=FILL_IN_it-lead@hospital.example
+BACKUP_AGE_RECIPIENT=FILL_IN_age1_public_key
+NIDAN_BACKUP_DIR=/srv/nidan-backups
+
+0 2 * * * root /opt/nidan-docker/scripts/volume-backup.sh backup >> /var/log/nidan-backup.log 2>&1 && /opt/nidan-docker/scripts/volume-backup.sh prune /srv/nidan-backups --execute >> /var/log/nidan-backup.log 2>&1 || echo "nidan backup FAILED on $(hostname): see /var/log/nidan-backup.log"

@@ -155,9 +155,9 @@ superset/
 
 ## Access
 
-- App: http://localhost/superset/
-- Dashboards: http://localhost/superset/dashboard/list/
-- SQL Lab: http://localhost/superset/sqllab/
+- App: https://localhost/superset/
+- Dashboards: https://localhost/superset/dashboard/list/
+- SQL Lab: https://localhost/superset/sqllab/
 
 ## Roadmap / known gaps
 

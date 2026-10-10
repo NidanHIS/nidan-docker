@@ -1,0 +1,13 @@
+# KC-09-08 / KC-09-09 — nightly realm audit: admins without OTP, an admin inside a job group, default-role drift,
+# and temporary passwords older than 7 days, which --disable-expired disables (the Staff page's slip promises 7 days;
+# Keycloak itself never expires them).
+#
+#   sudo cp docs/realm-audit.cron /etc/cron.d/nidan-realm-audit
+#   sudo chmod 644 /etc/cron.d/nidan-realm-audit
+#
+# Runs as the master-realm automation client nidan-incident; its secret comes from .env.local through the
+# environment (never on a command line). Findings go to MAILTO (cron mails any output); exit 1 when there are any.
+SHELL=/bin/bash
+MAILTO=FILL_IN_it-lead@hospital.example
+
+30 6 * * * root set -a; . /opt/nidan-docker/.env.local; set +a; /opt/nidan-docker/scripts/realm-audit.py --client nidan-incident --disable-expired >> /var/log/nidan-realm-audit.log 2>&1 || tail -n 20 /var/log/nidan-realm-audit.log

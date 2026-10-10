@@ -1,0 +1,9 @@
+# KC-23-05 — ship Keycloak's login and admin events out of its database every 5 minutes.
+#
+#   sudo cp docs/keycloak-events.cron /etc/cron.d/nidan-keycloak-events && sudo chmod 644 /etc/cron.d/nidan-keycloak-events
+#
+# /srv/nidan-audit/keycloak must NOT be on the Keycloak volume, and belongs in the off-host backup: after a restore,
+# scripts/keycloak-reapply-after-restore.py re-applies the revocations recorded here (docs/RUNBOOK-incident-response.md).
+SHELL=/bin/bash
+
+*/5 * * * * root set -a; . /opt/nidan-docker/.env.local; set +a; /opt/nidan-docker/scripts/keycloak-event-shipper.py /srv/nidan-audit/keycloak --client nidan-incident >> /var/log/nidan-keycloak-events.log 2>&1

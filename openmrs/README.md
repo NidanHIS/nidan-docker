@@ -152,3 +152,19 @@ The `./configuration:/openmrs/data/configuration` mount is **commented out** by 
 
 - **Checksum skip**: When using a mounted config, the startup script clears OCL checksums so concepts reload every time (avoids skip after DB reset).
 - **Module version**: The distro uses Open Concept Lab 2.4.0 for compatibility with the Initializer's OCL loader.
+
+## Central login (oauth2login, backlog KC-34)
+
+With `OPENMRS_SSO_ENABLED=true` (or `NIDAN_SSO_ENABLED=true`) `startup-custom.sh` renders
+`sso/oauth2.properties.template` into the data directory, installs the oauth2login OMOD from
+`/openmrs/distribution/sso_modules/` and adds Tomcat's `RemoteIpValve`. It refuses to start if
+`KEYCLOAK_PUBLIC_URL`, `KC_OPENMRS_CLIENT_SECRET` or the OMOD is missing. With it off, oauth2login and its
+properties are removed from the data directory, so OpenMRS behaves exactly as before.
+
+Build the patched module (Java 8 for its PowerMock tests) and drop it in before building the image:
+
+```bash
+cd openmrs-backend/openmrs-module-oauth2login
+JAVA_HOME=$(/usr/libexec/java_home -v 1.8) mvn -s ../settings-local-first.xml package
+cp omod/target/oauth2login-*.omod ../../nidan-docker/openmrs/sso_modules/
+```

@@ -1,5 +1,9 @@
 # ST-10.2.4 — monthly proof that the newest backup actually restores.
 #
+# Install this on the RESTORE/VERIFY host, never on the stack host: it needs the private key, and the stack host
+# holds only the public one (KC-28-05; volume-backup.sh refuses to back up while BACKUP_AGE_IDENTITY is set).
+# Copy or mount the backups there first (NIDAN_BACKUP_DIR).
+#
 #   sudo cp docs/backup-verification.cron /etc/cron.d/nidan-backup-verify
 #   sudo chmod 644 /etc/cron.d/nidan-backup-verify
 #

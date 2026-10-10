@@ -163,7 +163,7 @@ docker exec nidan-openmrs-db mariadb -uroot -p"$OPENMRS_DB_ROOT_PASSWORD" \
 Expected: root remains, restricted to `localhost`. Do **not** drop root.
 
 If root is listed with host `%`, it is reachable from any container on
-`nidan-network`. Restrict it:
+`data-net` (the services that use databases; KC-43). Restrict it:
 ```bash
 docker exec nidan-openmrs-db mariadb -uroot -p"$OPENMRS_DB_ROOT_PASSWORD" \
   -e "DROP USER 'root'@'%';"

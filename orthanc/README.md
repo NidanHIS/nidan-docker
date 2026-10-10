@@ -55,11 +55,20 @@ findscu -W -k "ScheduledProcedureStepSequence[0].Modality=CT" localhost 4242
 
 | Service | URL |
 |---------|-----|
-| Orthanc Explorer 2 | `http://localhost:8042/ui/app/` |
-| OHIF Viewer | `http://localhost:8042/ohif/` |
-| DICOMweb API | `http://localhost:8042/dicom-web/` |
+| Orthanc Explorer 2 | `https://<host>/orthanc-container/ui/app/` (orthanc-admin) |
+| OHIF Viewer | `https://<host>/ohif/` (app-orthanc) |
+| DICOMweb API | `https://<host>/dicom-web/` (app-orthanc, read only) |
 | Via Gateway | `https://localhost/orthanc-container/ui/app/` |
 
 ## Security Notes
 
 > ⚠️ `RemoteAccessAllowed: true` is for development. In production, restrict via firewall/reverse proxy.
+
+## Accounts and the read-only viewer (backlog KC-30)
+
+- `ORTHANC_USERNAME` / `ORTHANC_PASSWORD`: the admin account (CIS, and the Orthanc UI for `orthanc-admin` users).
+- `nidan-viewer` / `ORTHANC_VIEWER_PASSWORD`: the account the gateway uses on the image viewer routes
+  (`/ohif/`, `/dicom-web/`, `/wado/`). `viewer-readonly.lua` refuses it anything but GET/HEAD, whoever sends it.
+- Nobody may call `/tools/execute-script`; `ExecuteLuaEnabled` and `RestApiWriteToFileSystemEnabled` are false.
+- With central login on, browsers never see either password: the gateway adds them behind its role checks.
+- Checked by `tests/e2e-auth/specs/orthanc.spec.ts` against the real image (`tests/e2e-auth/harness/orthanc.yml`).
