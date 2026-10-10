@@ -58,9 +58,11 @@
                               password="${datasource.password}" />
                 </Context>
 
+                <!-- KC-45-02/03: method + path + protocol, never the query string (%r would log patient searches);
+                     rotated daily (Tomcat default), kept 365 days like the gateway access log (A2). -->
                 <Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"
-                       prefix="localhost_access_log" suffix=".txt"
-                       pattern="%h %l %u %t &quot;%r&quot; %s %b" />
+                       prefix="localhost_access_log" suffix=".txt" maxDays="365"
+                       pattern="%h %l %u %t &quot;%m %U %H&quot; %s %b" />
             </Host>
         </Engine>
     </Service>

@@ -1,0 +1,9 @@
+{
+  "@openmrs/esm-login-app": {
+    "provider": {
+      "type": "oauth2",
+      "loginUrl": "${openmrsBase}/oauth2login",
+      "logoutUrl": "${openmrsBase}/oauth2logout"
+    }
+  }
+}

@@ -18,6 +18,9 @@
     "HttpPort": 8042,
     "RemoteAccessAllowed": true,
     "AuthenticationEnabled": true,
+    // KC-30-05: no Lua sent over REST, no REST call writing to the server's filesystem
+    "ExecuteLuaEnabled": false,
+    "RestApiWriteToFileSystemEnabled": false,
     "Worklists": {
         "Enable": true,
         "Database": "/var/lib/orthanc/worklists",
@@ -46,6 +49,7 @@
         }
     },
     "LuaScripts": [
-        "/etc/orthanc/webhook.lua"
+        "/etc/orthanc/webhook.lua",
+        "/etc/orthanc/viewer-readonly.lua"
     ]
 }

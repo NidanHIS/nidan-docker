@@ -19,6 +19,11 @@ if [ -n "${IMPORTMAP_URL}" ]; then
   fi
 fi
 
+# Central login (KC-35): O3 logs in and out through Keycloak (oauth2login), never with its own password form.
+if [ "${OPENMRS_SSO_ENABLED:-false}" = "true" ]; then
+  SPA_CONFIG_URLS="${SPA_CONFIG_URLS:+${SPA_CONFIG_URLS},}${SPA_PATH}/config-sso.json"
+fi
+
 # setting the config urls to "" causes an error reported in the console, so if we aren't using
 # the SPA_CONFIG_URLS, we remove it from the source, leaving config urls as []
 if [ -z "$SPA_CONFIG_URLS" ]; then

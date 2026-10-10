@@ -58,6 +58,19 @@ RUN \
 ### Run stage (production)
 FROM openmrs/openmrs-core:2.8.x-amazoncorretto-21
 
+# KC-45-02: Tomcat's default access log writes the full request line (%r), so every patient search
+# (/ws/rest/v1/patient?q=<name>) lands in it. Log method + path + protocol only, keep 30 days; the build fails
+# if the base image's valve ever changes shape and the rewrite stops matching.
+# Also the RemoteIpValve central login needs (https + the gateway's port in redirect_uri, KC-10-12): added here because
+# server.xml is root-owned and the runtime user (1001) cannot edit it; startup-custom.sh only checks it is there.
+USER root
+RUN sed -i -e 's#suffix=".txt"#suffix=".txt" maxDays="30"#' -e 's#&quot;%r&quot;#\&quot;%m %U %H\&quot;#' \
+        -e 's#</Host>#  <Valve className="org.apache.catalina.valves.RemoteIpValve" protocolHeader="X-Forwarded-Proto" portHeader="X-Forwarded-Port"/>\n      </Host>#' \
+        /usr/local/tomcat/conf/server.xml \
+ && grep -q '%m %U %H' /usr/local/tomcat/conf/server.xml && ! grep -q '%r' /usr/local/tomcat/conf/server.xml \
+ && [ "$(grep -c RemoteIpValve /usr/local/tomcat/conf/server.xml)" = 1 ]
+USER 1001
+
 # Copy built artifacts from dev stage
 COPY --from=dev /openmrs/distribution/openmrs_core/openmrs.war /openmrs/distribution/openmrs_core/
 COPY --from=dev /openmrs/distribution/openmrs-distro.properties /openmrs/distribution/
@@ -70,6 +83,9 @@ COPY custom_modules/ /openmrs/distribution/openmrs_modules/
 
 # Property files for modules (appointment.properties, etc.) — copied to data dir at startup
 COPY properties/ /openmrs/distribution/openmrs_properties/
+# Central login (KC-34): template + oauth2login OMOD, used only when OPENMRS_SSO_ENABLED/NIDAN_SSO_ENABLED=true
+COPY sso/ /openmrs/distribution/sso/
+COPY sso_modules/ /openmrs/distribution/sso_modules/
 
 # Diagnostic script for Initializer troubleshooting
 COPY --chmod=755 check-initializer.sh /openmrs/check-initializer.sh

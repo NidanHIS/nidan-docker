@@ -1,8 +1,36 @@
+# Log cap for every service (backlog KC-13-04): without it a chatty container fills the host disk.
+x-default-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 networks:
   nidan-network:
     driver: bridge
+  # Central login (KC-07 / KC-43): gateway, keycloak, keycloak-db, keycloak-config-cli only. Internal =
+  # no route out. Fixed subnet so the gateway has a static address for KC_PROXY_TRUSTED_ADDRESSES.
+  # Databases, Kafka and ZooKeeper, shared only with the services that read or write them (KC-43-03). Internal =
+  # no route out; the gateway is NOT on it, so a compromised gateway cannot reach a database.
+  # Check: python3 -I tests/e2e-auth/harness/net-probe.py
+  data-net:
+    driver: bridge
+    internal: true
+  # Only keycloak-admin-proxy: a non-internal network so its 127.0.0.1:8180 is served (KC-07-04).
+  kc-admin-net:
+    driver: bridge
+  auth-net:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.31.250.0/24
 
 volumes:
+  openelis-logs:          # OpenELIS application logs (KC-45-03)
+  openelis-tomcat-logs:   # Tomcat access logs, no query strings, 365 days (KC-45-02/03)
+  gateway-logs:
+  keycloak-db-data:
   openmrs-data:
   openmrs-db-data: # openmrs-db-postgres-data:  # commented - PostgreSQL for OpenMRS disabled for now
 
@@ -28,6 +56,7 @@ services:
   # PROXY / GATEWAY
   # ============================================================================
   gateway:
+    logging: *default-logging
     # build: ./proxy  # local dev: docker compose build gateway
     # CI: dev → trigonaltechnology/gateway:latest | main → :stable
     image: ${GATEWAY_IMAGE:-trigonaltechnology/gateway:latest}
@@ -35,27 +64,54 @@ services:
       - "80:80"
       - "443:443"
       - "8443:8443"
+      - "8069:8069"   # Odoo / POS (TLS + app-odoo gate); Odoo itself is not published
+      - "9443:9443"   # Keycloak login (central login) + Staff page; serves nothing else (D1)
     environment:
       - GATEWAY_DOMAIN=${GATEWAY_DOMAIN:-localhost}
+      # KC-12-07: Keycloak login/token requests per client IP and minute; exempt CIDRs (comma separated) only for a
+      # known shared address such as a NAT in front of the gateway (each exemption removes the limit for it)
+      - KC_LOGIN_RATE_PER_MIN=${KC_LOGIN_RATE_PER_MIN:-10}
+      - KC_LOGIN_RATE_EXEMPT=${KC_LOGIN_RATE_EXEMPT:-}
       # Extra names for the self-signed cert (comma separated, openssl SAN syntax)
       - GATEWAY_CERT_SANS=${GATEWAY_CERT_SANS:-}
       - OPENELIS_DOMAIN=${OPENELIS_DOMAIN}
       # OpenELIS context path (must match the backend SERVER_SERVLET_CONTEXT_PATH)
       - OPENELIS_CONTEXT_PATH=${OPENELIS_CONTEXT_PATH:-/api/OpenELIS-Global/}
       # Odoo card URL on the gateway dashboard (index.html)
-      - DASHBOARD_ODOO_URL=${DASHBOARD_ODOO_URL:-http://localhost:8069}
+      - DASHBOARD_ODOO_URL=${DASHBOARD_ODOO_URL:-https://${GATEWAY_DOMAIN:-localhost}:8069}
+      # Optional Google Analytics id for the public demo launcher; unset = no third-party script.
+      - GATEWAY_ANALYTICS_ID=${GATEWAY_ANALYTICS_ID:-}
+      # Public demo only: show the demo-credentials card on the launcher (KC-04-01).
+      - GATEWAY_SHOW_DEMO_CREDENTIALS=${GATEWAY_SHOW_DEMO_CREDENTIALS:-false}
+      # IT support number shown on the outage page (KC-16).
+      - SUPPORT_PHONE=${SUPPORT_PHONE:-}
+      # Launcher "Change password" link to Keycloak (KC-55-05); empty = no link.
+      - KEYCLOAK_PUBLIC_URL=${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}
+      # With central login on, the gateway authenticates to Orthanc behind its gates (KC-30-06); unused when off.
+      - ORTHANC_USERNAME=${ORTHANC_USERNAME:-nidan}
+      - ORTHANC_PASSWORD=${ORTHANC_PASSWORD:-}
+      - ORTHANC_VIEWER_PASSWORD=${ORTHANC_VIEWER_PASSWORD:-}
+      # Central login: true = every app route needs a Keycloak session (needs --profile sso), KC-10.
+      - NIDAN_SSO_ENABLED=${NIDAN_SSO_ENABLED:-false}
+      # HSTS: auto = only a DNS name with a publicly issued certificate (KC-12-02); on/off to force
+      - GATEWAY_HSTS=${GATEWAY_HSTS:-auto}
     networks:
-      - nidan-network
+      nidan-network:
+      auth-net:
+        ipv4_address: 172.31.250.10
     volumes:
       - certbot-etc:/etc/letsencrypt
       - certbot-www:/var/www/certbot
+      - gateway-logs:/var/log/nidan          # PHI-free access log, 0600, 365 days (KC-13-03)
+      - ${STAFF_SITE_DIR:-./proxy/staff-site}:/etc/nginx/staff-site:ro   # scripts/staff-config.py output (KC-21-09)
       - ./proxy/nginx.conf:/etc/nginx/nginx.conf.template:ro
+      - ./proxy/auth:/etc/nginx/auth-templates:ro
       - ./proxy/index.html.template:/etc/nginx/templates/index.html.template:ro
       - ./proxy/nidan-logo.png:/usr/share/nginx/html/nidan-logo.png:ro
       - ./proxy/trigonal-logo.png:/usr/share/nginx/html/trigonal-logo.png:ro
       - ./proxy/502.html:/usr/share/nginx/html/502.html:ro
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost/" ]
+      test: [ "CMD", "curl", "-fsS", "http://localhost:8099/gateway-health" ]   # internal listener (KC-47-03)
       interval: 30s
       timeout: 10s
       retries: 3
@@ -66,6 +122,7 @@ services:
   # # OPENMRS
   # # ============================================================================
   openmrs-backend:
+    logging: *default-logging
     profiles: ["openmrs","nidanehr-standard"]
     build: ./openmrs
     image: trigonaltechnology/openmrs-backend:latest
@@ -79,7 +136,7 @@ services:
       OMRS_DB_PORT: "3306"
       OMRS_DB_URL: jdbc:mysql://openmrs-db:3306/${OPENMRS_DB_NAME:-openmrs}?useUnicode=true&characterEncoding=UTF-8&sessionVariables=storage_engine=InnoDB
       OMRS_DB_USERNAME: ${OPENMRS_DB_USER:-openmrs}
-      OMRS_DB_PASSWORD: ${OPENMRS_DB_PASSWORD:-openmrs}
+      OMRS_DB_PASSWORD: ${OPENMRS_DB_PASSWORD:?set OPENMRS_DB_PASSWORD (generate-secrets.sh writes .env.local)}
       OMRS_DB_DRIVER_CLASS: com.mysql.cj.jdbc.Driver
       # Installation (MySQL creates DB via MYSQL_DATABASE; skip OpenMRS create-database step)
       OMRS_CONFIG_MODULE_WEB_ADMIN: "true"
@@ -96,11 +153,21 @@ services:
       # Nidan paywall → Odoo payment-status API (read by nidancore via System.getenv;
       # no openmrs-runtime.properties edit / startup.sh patch needed).
       NIDANCORE_ODOO_URL: ${NIDANCORE_ODOO_URL:-http://odoo:8069}
+      # Central login (KC-34): oauth2login + oauth2.properties only when on (startup-custom.sh)
+      OPENMRS_SSO_ENABLED: ${OPENMRS_SSO_ENABLED:-${NIDAN_SSO_ENABLED:-false}}
+      # nidancore at start: the stock admin / Admin123 becomes this (only while it is still Admin123; KC-05-06), and the
+      # machine-caller accounts are created under these names (KC-32-05)
+      OPENMRS_ADMIN_PASSWORD: ${OPENMRS_ADMIN_PASSWORD:?set OPENMRS_ADMIN_PASSWORD (generate-secrets.sh writes .env.local)}
+      NIDAN_SYNC_USERNAME: ${NIDAN_SYNC_USERNAME:-nidan-sync}
+      KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}
+      KC_OPENMRS_CLIENT_SECRET: ${KC_OPENMRS_CLIENT_SECRET:-}
+      GATEWAY_DOMAIN: ${GATEWAY_DOMAIN:-localhost}
       NIDANCORE_ODOO_PAYMENT_SECRET: ${NIDAN_ODOO_SECRET}
     # ports:
     #   - "5005:5005"  # Remote debug port
     networks:
       - nidan-network
+      - data-net
     depends_on:
       openmrs-db:
         condition: service_healthy
@@ -117,6 +184,7 @@ services:
     restart: unless-stopped
 
   openmrs-frontend:
+    logging: *default-logging
     # build:
     #   context: ./openmrs/frontend
     #   dockerfile: Dockerfile
@@ -130,6 +198,8 @@ services:
       - SPA_PATH=/openmrs/spa
       - API_URL=/openmrs
       - SPA_CONFIG_URLS=/openmrs/spa/config-core_demo.json
+      # central login (KC-35): adds config-sso.json (O3 login/logout through Keycloak)
+      - OPENMRS_SSO_ENABLED=${OPENMRS_SSO_ENABLED:-${NIDAN_SSO_ENABLED:-false}}
 
     #uncomment to mount nginx to override and allow backend-frontend communication when running without the gateway 
     # volumes:
@@ -146,6 +216,7 @@ services:
       retries: 3
 
   openmrs-db:
+    logging: *default-logging
     #image: mariadb:10.11
     profiles: ["openmrs","nidanehr-standard"]
     image: trigonaltechnology/openmrs-db:latest
@@ -158,17 +229,16 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    ports:
-      - "3307:3306"
+    # No host port (approved 2026-10-07): DB tools use `docker compose exec` or an SSH tunnel.
     environment:
       MYSQL_DATABASE: ${OPENMRS_DB_NAME:-openmrs}
       MYSQL_USER: ${OPENMRS_DB_USER:-openmrs}
-      MYSQL_PASSWORD: ${OPENMRS_DB_PASSWORD:-openmrs}
-      MYSQL_ROOT_PASSWORD: ${OPENMRS_DB_ROOT_PASSWORD:-openmrs}
+      MYSQL_PASSWORD: ${OPENMRS_DB_PASSWORD:?set OPENMRS_DB_PASSWORD (generate-secrets.sh writes .env.local)}
+      MYSQL_ROOT_PASSWORD: ${OPENMRS_DB_ROOT_PASSWORD:?set OPENMRS_DB_ROOT_PASSWORD (generate-secrets.sh writes .env.local)}
     volumes:
       - openmrs-db-data:/var/lib/mysql
     networks:
-      - nidan-network
+      - data-net          # databases and Kafka: only the services that use them (KC-43-03)
 
   # PostgreSQL for OpenMRS - commented out for now
   # openmrs-db-postgres:
@@ -188,7 +258,7 @@ services:
   #   environment:
   #     POSTGRES_DB: ${OPENMRS_DB_NAME:-openmrs}
   #     POSTGRES_USER: ${OPENMRS_DB_USER:-openmrs}
-  #     POSTGRES_PASSWORD: ${OPENMRS_DB_PASSWORD:-openmrs}
+  #     POSTGRES_PASSWORD: ${OPENMRS_DB_PASSWORD:?set OPENMRS_DB_PASSWORD (generate-secrets.sh writes .env.local)}
   #   volumes:
   #     - openmrs-db-postgres-data:/var/lib/postgresql/data
   #     - ./openmrs/db/init-openmrs-db.sql:/docker-entrypoint-initdb.d/init-openmrs-db.sql:ro
@@ -199,6 +269,7 @@ services:
   # ODOO
   # ============================================================================
   odoo:
+    logging: *default-logging
     # Open-source base by default; hospitals set ODOO_IMAGE to the private image
     # (e.g. trigonaltechnology/nidan_odoo_pro:stable) which bakes the closed-source
     # addons into /mnt/private-addons. No host addon source is mounted in prod.
@@ -207,8 +278,8 @@ services:
     image: trigonaltechnology/nidan_odoo:latest
     container_name: nidan-odoo
     command: ["odoo", "-d", "${ODOO_DB_NAME:-nidan}", "--proxy-mode", "--dev=xml", "-u", "all"]
-    ports:
-      - "8069:8069"
+    # Not published: people reach Odoo through the gateway's https://<host>:8069 (app-odoo gate, KC-53-02);
+    # services call odoo:8069 inside the network.
     environment:
       # Odoo reads these environment variables automatically
       - HOST=${ODOO_DB_HOST}
@@ -217,16 +288,31 @@ services:
       - PORT=${ODOO_DB_PORT}
       - ODOO_DB_NAME=${ODOO_DB_NAME}
       - ODOO_ADMIN_EMAIL=${ODOO_ADMIN_EMAIL:-nidan}
-      - ODOO_ADMIN_PASSWORD=${ODOO_ADMIN_PASSWORD:-nidan}
+      - ODOO_ADMIN_PASSWORD=${ODOO_ADMIN_PASSWORD:?set ODOO_ADMIN_PASSWORD (generate-secrets.sh writes .env.local)}
       # PostgreSQL superuser for database creation
       - POSTGRES_USER=${ODOO_POSTGRES_USER}
       - POSTGRES_PASSWORD=${ODOO_POSTGRES_PASSWORD}
       # Nidan OIS connector
       - NIDAN_OIS_URL=${NIDAN_OIS_URL}
+      # Central login (nidan_keycloak_sso, KC-37): provider record is synced from these at module install/upgrade.
+      # Browser login goes to the public URL; token and keys via the gateway's internal back-channel (KC-43).
+      - NIDAN_SSO_ENABLED=${NIDAN_SSO_ENABLED:-false}
+      - NIDAN_KEYCLOAK_CLIENT_ID=odoo
+      - NIDAN_KEYCLOAK_CLIENT_SECRET=${KC_ODOO_CLIENT_SECRET:-}
+      - NIDAN_KEYCLOAK_AUTH_URL=${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}/realms/nidan/protocol/openid-connect/auth
+      - NIDAN_KEYCLOAK_TOKEN_URL=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/token
+      - NIDAN_KEYCLOAK_JWKS_URL=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/certs
       - NIDAN_OIS_SECRET=${NIDAN_OIS_SECRET}
       - NIDAN_ODOO_SECRET=${NIDAN_ODOO_SECRET}
+      - NIDAN_DEPLOYMENT=${NIDAN_DEPLOYMENT:-}   # production: Odoo refuses short/demo shared secrets (KC-51-04)
+      # Odoo -> OpenMRS auth (KC-33): basic (Settings credentials) until OpenMRS SSO is on, then jwt
+      # with the realm's odoo-sync client. The secret is env-only, never an Odoo config parameter.
+      - OPENMRS_AUTH_MODE=${OPENMRS_AUTH_MODE:-basic}
+      - OPENMRS_AUTH_TOKEN_URL=${OPENMRS_AUTH_TOKEN_URL:-http://gateway:8099/auth/realms/nidan/protocol/openid-connect/token}
+      - OPENMRS_AUTH_CLIENT_ID=odoo-sync
+      - OPENMRS_AUTH_CLIENT_SECRET=${KC_ODOO_SYNC_CLIENT_SECRET:-}
       # New Config Variables
-      - ODOO_WEB_BASE_URL=${ODOO_WEB_BASE_URL:-http://localhost:8069}
+      - ODOO_WEB_BASE_URL=${ODOO_WEB_BASE_URL:-https://${GATEWAY_DOMAIN:-localhost}:8069}
       - ODOO_WEB_BASE_URL_FREEZE=${ODOO_WEB_BASE_URL_FREEZE:-True}
       - ODOO_DB_FILTER=^${ODOO_DB_NAME:-nidan}$
     volumes:
@@ -240,6 +326,7 @@ services:
       - ./odoo/odoo.conf:/mnt/odoo.conf.template:ro
     networks:
       - nidan-network
+      - data-net
     depends_on:
       odoo-db:
         condition: service_healthy
@@ -251,6 +338,7 @@ services:
       start_period: 60s
 
   odoo-db:
+    logging: *default-logging
     profiles: ["odoo","nidanehr-standard"]
     image: postgres:15
     container_name: nidan-odoo-db
@@ -266,7 +354,7 @@ services:
       - odoo-db-data:/var/lib/postgresql/data
       - ./odoo/db/init-odoo-db.sh:/docker-entrypoint-initdb.d/init-odoo-db.sh:ro
     networks:
-      - nidan-network
+      - data-net          # databases and Kafka: only the services that use them (KC-43-03)
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${ODOO_POSTGRES_USER:-odoo} -d ${ODOO_POSTGRES_DB:-postgres}" ]
       interval: 5s
@@ -277,13 +365,19 @@ services:
   # ORTHANC
   # ============================================================================
   orthanc:
+    logging: *default-logging
     profiles: ["orthanc","nidanehr-standard"]
     image: orthancteam/orthanc:26.6.0
     container_name: nidan-orthanc
     ports:
-      - "8042:8042" # HTTP/REST API
-      - "4242:4242" # DICOM
+      - "${DICOM_BIND_IP:-0.0.0.0}:4242:4242" # DICOM; set DICOM_BIND_IP to the modality-LAN address (KC-31-02)
     environment:
+      # DICOM lockdown (KC-31): only registered modalities (JSON, see env.template) may store / find / move.
+      # ORTHANC_DICOM_ALLOW_ANY_STORE=true keeps today's open store until the site's modalities are listed;
+      # preflight refuses production while it is true or no modality is registered.
+      ORTHANC__DICOM_ALWAYS_ALLOW_STORE: "${ORTHANC_DICOM_ALLOW_ANY_STORE:-true}"
+      ORTHANC__DICOM_CHECK_MODALITY_HOST: "true"
+      ORTHANC__DICOM_MODALITIES: '${ORTHANC_DICOM_MODALITIES:-{}}'
       # Enable plugins
       DICOM_WEB_PLUGIN_ENABLED: "true"
       WORKLISTS_PLUGIN_ENABLED: "true"
@@ -301,17 +395,22 @@ services:
       ORTHANC__POSTGRESQL__PORT: "5432"
       ORTHANC__POSTGRESQL__DATABASE: "${ORTHANC_DB_NAME:-orthanc}"
       ORTHANC__POSTGRESQL__USERNAME: "${ORTHANC_DB_USER:-orthanc}"
-      ORTHANC__POSTGRESQL__PASSWORD: "${ORTHANC_DB_PASSWORD:-orthanc}"
+      ORTHANC__POSTGRESQL__PASSWORD: "${ORTHANC_DB_PASSWORD:?set ORTHANC_DB_PASSWORD (generate-secrets.sh writes .env.local)}"
       # Authentication (dynamic/secrets)
+      # admin (CIS, the Orthanc UI for orthanc-admin) + read-only viewer (image viewer routes; orthanc/viewer-readonly.lua)
       ORTHANC__REGISTERED_USERS: |
-        {"${ORTHANC_USERNAME:-nidan}": "${ORTHANC_PASSWORD:-nidan}"}
+        {"${ORTHANC_USERNAME:-nidan}": "${ORTHANC_PASSWORD:?set ORTHANC_PASSWORD (generate-secrets.sh writes .env.local)}", "nidan-viewer": "${ORTHANC_VIEWER_PASSWORD:?set ORTHANC_VIEWER_PASSWORD (generate-secrets.sh writes .env.local)}"}
+      ORTHANC_VIEWER_USERNAME: nidan-viewer
       # Exposed for healthchecks / operators (Orthanc reads ORTHANC__* for config)
       ORTHANC_USERNAME: "${ORTHANC_USERNAME:-nidan}"
-      ORTHANC_PASSWORD: "${ORTHANC_PASSWORD:-nidan}"
+      ORTHANC_PASSWORD: "${ORTHANC_PASSWORD:?set ORTHANC_PASSWORD (generate-secrets.sh writes .env.local)}"
       # Dynamic Webhook to CIS
       ORTHANC_WEBHOOK_URL: "http://${CIS_HOST:-nidan-cis}:${CIS_PORT:-8081}/orthanc/webhook"
+      # Sent by webhook.lua; CIS refuses the webhook when it is unset or wrong.
+      ORTHANC_WEBHOOK_SECRET: "${ORTHANC_WEBHOOK_SECRET:-}"
     networks:
       - nidan-network
+      - data-net
     depends_on:
       - orthanc-db
     volumes:
@@ -319,6 +418,7 @@ services:
       # Static configuration file
       - ./orthanc/orthanc.json:/etc/orthanc/orthanc.json:ro
       - ./orthanc/webhook.lua:/etc/orthanc/webhook.lua:ro
+      - ./orthanc/viewer-readonly.lua:/etc/orthanc/viewer-readonly.lua:ro   # viewer reads only, no execute-script (KC-30-02/05)
       # Worklist directory for MWL plugin
       - ./orthanc/worklists:/var/lib/orthanc/worklists
       # DICOM File Storage (use a named volume or change to a host path like /mnt/dicom:/var/lib/orthanc/db)
@@ -332,6 +432,7 @@ services:
       start_period: 30s
 
   orthanc-db:
+    logging: *default-logging
     profiles: ["orthanc","nidanehr-standard"]
     image: postgres:15
     container_name: nidan-orthanc-db
@@ -342,12 +443,13 @@ services:
     volumes:
       - orthanc-db-data:/var/lib/postgresql/data
     networks:
-      - nidan-network
+      - data-net          # databases and Kafka: only the services that use them (KC-43-03)
 
   # ============================================================================
   # OPENELIS (Placeholder)
   # ============================================================================
   nidan-certbot:
+    logging: *default-logging
     image: certbot/certbot:latest
     container_name: nidan-certbot
     entrypoint: "/bin/sh -c 'trap \"exit 0\" TERM; while :; do certbot renew --webroot -w /var/www/certbot --agree-tos --noninteractive --keep-until-expiring; sleep 12h & wait $${!}; done;'"
@@ -361,21 +463,23 @@ services:
       - nidan-network
 
   openelis-db:
+    logging: *default-logging
     image: trigonaltechnology/openelis-global-2-database:latest
     container_name: nidan-openelis-db
     platform: linux/amd64
-    ports:
-      - "15432:5432"
+    # No host port (approved 2026-10-07): DB tools use `docker compose exec` or an SSH tunnel.
     environment:
       POSTGRES_DB: ${OPENELIS_DB_NAME:-clinlims}
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${OPENELIS_DB_PASSWORD:-changeme}
-      DB_PASSWORD: ${OPENELIS_DB_PASSWORD:-changeme}
-      DB_SUPERUSER_PASSWORD: ${OPENELIS_DB_PASSWORD:-changeme}
+      # Superuser and app user (clinlims) have separate passwords (KC-48-02). Postgres applies these only when the
+      # volume is first created: an existing site changes it with ALTER ROLE postgres (docs/RUNBOOK-central-login-cutover.md).
+      POSTGRES_PASSWORD: ${OPENELIS_DB_ROOT_PASSWORD:?set OPENELIS_DB_ROOT_PASSWORD (generate-secrets.sh writes .env.local)}
+      DB_PASSWORD: ${OPENELIS_DB_PASSWORD:?set OPENELIS_DB_PASSWORD (generate-secrets.sh writes .env.local)}
+      DB_SUPERUSER_PASSWORD: ${OPENELIS_DB_ROOT_PASSWORD:?set OPENELIS_DB_ROOT_PASSWORD (generate-secrets.sh writes .env.local)}
     volumes:
       - openelis-db-data:/var/lib/postgresql/data
     networks:
-      - nidan-network
+      - data-net          # databases and Kafka: only the services that use them (KC-43-03)
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${OPENELIS_DB_USER:-postgres} -d ${OPENELIS_DB_NAME:-clinlims}" ]
       interval: 10s
@@ -384,45 +488,61 @@ services:
 
   # OpenELIS backend (Tomcat) - FIXED with HTTP enabled
   openelis:
+    logging: *default-logging
     profiles: ["openelis","nidanehr-standard"]
     image: trigonaltechnology/openelis-global-2:latest
     platform: linux/amd64
     container_name: nidan-openelis
-    ports:
-      - "8083:8080"
+    # no published port: reached through the gateway only (KC-02)
     depends_on:
       openelis-db:
         condition: service_healthy
     environment:
-      - DEFAULT_PW=${OPENELIS_DEFAULT_ADMIN_PASSWORD:-adminADMIN!}
+      - DEFAULT_PW=${OPENELIS_DEFAULT_ADMIN_PASSWORD:?set OPENELIS_DEFAULT_ADMIN_PASSWORD (generate-secrets.sh writes .env.local)}
       - TZ=${OPENELIS_TZ:-UTC}
       # JVM system properties injected into Tomcat via CATALINA_OPTS.
       # Each -D flag maps 1:1 to a property key in common.properties.
       # Groups: database | middleware sync | nidan test order | nidan paywall | nidan cis retry
+      # datasource.password stays a -D flag: Tomcat substitutes it into context.xml from system properties
+      # (KC-45-01 residual: needs logArgs=false in the image's server.xml or Tomcat's EnvironmentPropertySource).
       - CATALINA_OPTS=
           -Ddatasource.url=jdbc:postgresql://openelis-db:5432/clinlims
           -Ddatasource.username=clinlims
-          -Ddatasource.password=${OPENELIS_DB_PASSWORD:-changeme}
+          -Ddatasource.password=${OPENELIS_DB_PASSWORD:?set OPENELIS_DB_PASSWORD (generate-secrets.sh writes .env.local)}
           -Dorg.openelisglobal.middleware.test.sync.enabled=${OPENELIS_MIDDLEWARE_TEST_SYNC_ENABLED:-false}
           -Dorg.openelisglobal.middleware.test.sync.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/catalog/lab-test-definition
-          -Dorg.openelisglobal.middleware.test.sync.secret=${OPENELIS_MIDDLEWARE_SYNC_SECRET:-change-me}
           -Dorg.openelisglobal.middleware.result.sync.enabled=${OPENELIS_MIDDLEWARE_RESULT_SYNC_ENABLED:-true}
           -Dorg.openelisglobal.middleware.result.sync.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/lab-result
-          -Dorg.openelisglobal.middleware.result.sync.secret=${OPENELIS_MIDDLEWARE_SYNC_SECRET:-change-me}
           -Dorg.openelisglobal.nidan.testorder.enabled=${OPENELIS_NIDAN_TESTORDER_ENABLED:-true}
           -Dorg.openelisglobal.nidan.testorder.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/sample-collected
           -Dorg.openelisglobal.nidan.paywall.enabled=${OPENELIS_NIDAN_PAYWALL_ENABLED:-true}
           -Dorg.openelisglobal.nidan.paywall.odoo.url=${NIDANCORE_ODOO_URL:-http://odoo:8069}
-          -Dorg.openelisglobal.nidan.paywall.odoo.secret=${NIDAN_ODOO_SECRET}
           -Dorg.openelisglobal.nidan.paywall.insurance.bypass=${OPENELIS_NIDAN_PAYWALL_INSURANCE_BYPASS:-true}
           -Dorg.openelisglobal.nidan.cisretry.list.url=${CIS_BASE_URL:-http://nidan-cis:8081}/api/dead-letters
           -Dorg.openelisglobal.nidan.cisretry.retry.url=${CIS_BASE_URL:-http://nidan-cis:8081}/api/dead-letters/retry
+          -Dorg.itech.login.oauth=${OPENELIS_SSO_ENABLED:-${NIDAN_SSO_ENABLED:-false}}
+          -Dorg.itech.login.oauth.config=${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}/realms/nidan
+          -Dorg.itech.login.oauth.clientID=openelis
+          -Dorg.itech.login.oauth.authorizationUri=${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}/realms/nidan/protocol/openid-connect/auth
+          -Dorg.itech.login.oauth.tokenUri=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/token
+          -Dorg.itech.login.oauth.jwkSetUri=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/certs
+          -Dorg.itech.login.oauth.userInfoUri=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/userinfo
+          -Dorg.itech.login.oauth.issuerUri=${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}/realms/nidan
+          -Dorg.itech.login.oauth.redirectUri=https://${GATEWAY_DOMAIN:-localhost}/api/OpenELIS-Global/login/oauth2/code/nidan-keycloak
+          -Dorg.itech.login.oauth.successUrl=https://${GATEWAY_DOMAIN:-localhost}/openelis/
+      # Secrets as env vars, not -D flags: Tomcat logs every JVM argument at start (KC-45-01). Spring maps
+      # ORG_X_Y to org.x.y (pinned by OpenELIS NidanSecretEnvBindingTest).
+      - ORG_OPENELISGLOBAL_MIDDLEWARE_TEST_SYNC_SECRET=${OPENELIS_MIDDLEWARE_SYNC_SECRET:?set OPENELIS_MIDDLEWARE_SYNC_SECRET (generate-secrets.sh writes .env.local)}
+      - ORG_OPENELISGLOBAL_MIDDLEWARE_RESULT_SYNC_SECRET=${OPENELIS_MIDDLEWARE_SYNC_SECRET:?set OPENELIS_MIDDLEWARE_SYNC_SECRET (generate-secrets.sh writes .env.local)}
+      - ORG_OPENELISGLOBAL_NIDAN_PAYWALL_ODOO_SECRET=${NIDAN_ODOO_SECRET}
+      - ORG_ITECH_LOGIN_OAUTH_CLIENTSECRET=${KC_OPENELIS_CLIENT_SECRET:-}
       # Disable Odoo integration
       - ODOO_ENABLED=false
       - ORG_OPENELISGLOBAL_ODOO_ENABLED=false
       - OPENELIS_ENABLE_HTTPS=false
     networks:
       - nidan-network
+      - data-net
     volumes:
       # IMPORTANT: Mount the fixed server.xml that enables HTTP on port 8080
       - ./openelis/tomcat/server.xml:/usr/local/tomcat/conf/server.xml:ro
@@ -431,8 +551,9 @@ services:
       - ./openelis/volume/branding:/var/lib/openelis-global/branding
       - ./openelis/volume/plugins:/var/lib/openelis-global/plugins
       - ./openelis/volume/ocl:/var/lib/openelis-global/ocl
-      - ./openelis/volume/logs/oeLogs:/var/lib/openelis-global/logs
-      - ./openelis/volume/logs/tomcatLogs:/usr/local/tomcat/logs
+      # logs on named volumes, outside the repository (KC-45-03); they can carry patient details
+      - openelis-logs:/var/lib/openelis-global/logs
+      - openelis-tomcat-logs:/usr/local/tomcat/logs
       - ./openelis/volume/analyzer:/var/lib/openelis-global/analyzer
       - ./openelis/volume/odoo:/var/lib/openelis-global/odoo
       - openelis-lucene-index:/var/lib/lucene_index
@@ -448,12 +569,12 @@ services:
 
   # OpenELIS Frontend
   openelis-frontend:
+    logging: *default-logging
     profiles: ["openelis","nidanehr-standard"]
     image: trigonaltechnology/openelis-global-2-frontend:latest
     container_name: nidan-openelis-frontend
     platform: linux/amd64
-    ports:
-      - "8085:80"
+    # no published port: reached through the gateway only (KC-02)
     environment:
       - CHOKIDAR_USEPOLLING=true
       - PUBLIC_URL=/openelis
@@ -466,17 +587,18 @@ services:
   # NIDAN INTEGRATION MIDDLEWARE (Kafka + Postgres + CIS/OIS)
   # ============================================================================
   nidan-integration-db:
+    logging: *default-logging
     profiles: ["middleware","nidanehr-standard"]
     image: postgres:15
     container_name: nidan-integration-db
     environment:
       POSTGRES_DB: ${INTEGRATION_DB_NAME:-nidan_integration}
       POSTGRES_USER: ${INTEGRATION_DB_USER:-nidan}
-      POSTGRES_PASSWORD: ${INTEGRATION_DB_PASSWORD:-nidan}
+      POSTGRES_PASSWORD: ${INTEGRATION_DB_PASSWORD:?set INTEGRATION_DB_PASSWORD (generate-secrets.sh writes .env.local)}
     volumes:
       - nidan-integration-db-data:/var/lib/postgresql/data
     networks:
-      - nidan-network
+      - data-net          # databases and Kafka: only the services that use them (KC-43-03)
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${INTEGRATION_DB_USER:-nidan} -d ${INTEGRATION_DB_NAME:-nidan_integration}" ]
       interval: 5s
@@ -485,6 +607,7 @@ services:
 
   # Zookeeper for Kafka (Confluent images)
   nidan-zookeeper:
+    logging: *default-logging
     profiles: ["middleware","nidanehr-standard"]
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: nidan-zookeeper
@@ -493,7 +616,7 @@ services:
       ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME:-2000}
       ZOOKEEPER_HEAP_OPTS: ${ZOOKEEPER_HEAP_OPTS:--Xmx256m -Xms256m}
     networks:
-      - nidan-network
+      - data-net          # databases and Kafka: only the services that use them (KC-43-03)
     healthcheck:
       test: [ "CMD", "cub", "zk-ready", "localhost:2181", "10" ]
       interval: 10s
@@ -503,6 +626,7 @@ services:
     restart: unless-stopped
 
   nidan-kafka:
+    logging: *default-logging
     profiles: ["middleware","nidanehr-standard"]
     image: confluentinc/cp-kafka:7.5.0
     container_name: nidan-kafka
@@ -530,7 +654,7 @@ services:
       nidan-zookeeper:
         condition: service_healthy
     networks:
-      - nidan-network
+      - data-net          # databases and Kafka: only the services that use them (KC-43-03)
     healthcheck:
       test: [ "CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:${KAFKA_PORT:-9092} >/dev/null 2>&1 || exit 1" ]
       interval: 10s
@@ -540,11 +664,11 @@ services:
     restart: unless-stopped
 
   nidan-cis:
+    logging: *default-logging
     profiles: ["middleware","nidanehr-standard"]
     image: ${NIDAN_CIS_IMAGE:-nidan-cis:local}
     container_name: nidan-cis
-    ports:
-      - "${CIS_PORT:-8081}:${CIS_PORT:-8081}"
+    # no published port: reached through the gateway only (KC-02)
     # Share MWL directory with Orthanc (same host path as orthanc service worklists volume)
     volumes:
       # Must match Orthanc container worklist path (see orthanc service volume)
@@ -561,11 +685,28 @@ services:
       # Database
       - INTEGRATION_DB_URL=jdbc:postgresql://${INTEGRATION_DB_HOST:-nidan-integration-db}:${INTEGRATION_DB_PORT:-5432}/${INTEGRATION_DB_NAME:-nidan_integration}
       - INTEGRATION_DB_USER=${INTEGRATION_DB_USER:-nidan}
-      - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_PASSWORD:-nidan}
+      - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_PASSWORD:?set INTEGRATION_DB_PASSWORD (generate-secrets.sh writes .env.local)}
+      # Secret OpenELIS sends on its result/sample/patient/test webhooks (same value OpenELIS gets).
+      # Unset = CIS refuses every OpenELIS webhook; NIDAN_DEPLOYMENT=production also refuses demo values.
+      - OPENELIS_CATALOG_WEBHOOK_SECRET=${OPENELIS_MIDDLEWARE_SYNC_SECRET:-}
+      - ORTHANC_WEBHOOK_SECRET=${ORTHANC_WEBHOOK_SECRET:-}
+      # CIS -> OpenMRS auth (KC-32-01): basic until OpenMRS SSO is on, then jwt with the realm's cis client.
+      - OPENMRS_AUTH_MODE=${OPENMRS_AUTH_MODE:-basic}
+      - OPENMRS_AUTH_TOKEN_URL=${OPENMRS_AUTH_TOKEN_URL:-http://gateway:8099/auth/realms/nidan/protocol/openid-connect/token}
+      - OPENMRS_AUTH_CLIENT_ID=cis
+      - OPENMRS_AUTH_CLIENT_SECRET=${KC_CIS_CLIENT_SECRET:-}
+      # Dead-letter UI/API login (HTTP Basic) until the gateway's cis-admin SSO gate (KC-10). Unset = refused.
+      - DEAD_LETTER_ADMIN_USERNAME=${DEAD_LETTER_ADMIN_USERNAME:-dead-letter-admin}
+      - DEAD_LETTER_ADMIN_PASSWORD=${DEAD_LETTER_ADMIN_PASSWORD:-}
+      - NIDAN_DEPLOYMENT=${NIDAN_DEPLOYMENT:-}
       # Actuator: omit Redis health when broker absent (see MANAGEMENT_HEALTH_REDIS_ENABLED in .env)
       - MANAGEMENT_HEALTH_REDIS_ENABLED=${MANAGEMENT_HEALTH_REDIS_ENABLED:-false}
       #OpenMRS database (used by Debezium)
       - OPENMRS_DB_HOST=${OPENMRS_DB_HOST:-openmrs-db}
+      # OpenMRS DB reads (order context) and the StudyInstanceUID write: the OpenMRS app login, not root and not the
+      # Debezium binlog login (that one is used only with DEBEZIUM_ENABLED=true)
+      - OPENMRS_DB_USER=${OPENMRS_DB_USER:-openmrs}
+      - OPENMRS_DB_PASSWORD=${OPENMRS_DB_PASSWORD:?set OPENMRS_DB_PASSWORD (generate-secrets.sh writes .env.local)}
       - OPENMRS_DB_PORT=${OPENMRS_DB_PORT:-3306}
       # Kafka
       - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:${KAFKA_PORT:-9092}
@@ -586,13 +727,13 @@ services:
       - OPENMRS_ENABLED=${OPENMRS_ENABLED:-true}
       - OPENMRS_BASE_URL=${OPENMRS_BASE_URL:-http://openmrs-backend:8080/openmrs}
       - OPENMRS_USERNAME=${OPENMRS_USERNAME:-admin}
-      - OPENMRS_PASSWORD=${OPENMRS_PASSWORD:-Admin123}
+      - OPENMRS_PASSWORD=${OPENMRS_PASSWORD:?set OPENMRS_PASSWORD (generate-secrets.sh writes .env.local)}
       # Sync-account provisioning (CIS creates the account in OpenMRS + OpenELIS on startup).
       # NIDAN_SYNC_* = the account CIS authenticates as; OPENMRS_ADMIN_* = real admin used only to create it.
       - NIDAN_SYNC_USERNAME=${NIDAN_SYNC_USERNAME:-nidan-sync}
       - NIDAN_SYNC_PASSWORD=${NIDAN_SYNC_PASSWORD:-}
       - OPENMRS_ADMIN_USERNAME=${OPENMRS_ADMIN_USERNAME:-admin}
-      - OPENMRS_ADMIN_PASSWORD=${OPENMRS_ADMIN_PASSWORD:-Admin123}
+      - OPENMRS_ADMIN_PASSWORD=${OPENMRS_ADMIN_PASSWORD:?set OPENMRS_ADMIN_PASSWORD (generate-secrets.sh writes .env.local)}
       - OPENMRS_IDENTIFIER_TYPE_UUID=${OPENMRS_IDENTIFIER_TYPE_UUID:-05a29f94-c0ed-11e2-94be-8c13b969e334}
       - OPENMRS_DEFAULT_LOCATION_UUID=${OPENMRS_DEFAULT_LOCATION_UUID:-44c3efb0-2583-4c80-a79e-1f756a03c0a1}
       # Encounter type for order-less (Odoo-billed / walk-in) lab results ingested from OpenELIS
@@ -604,7 +745,7 @@ services:
       - ORTHANC_ENABLED=${ORTHANC_ENABLED:-true}
       - ORTHANC_BASE_URL=${ORTHANC_BASE_URL:-http://orthanc:8042}
       - ORTHANC_USERNAME=${ORTHANC_USERNAME:-orthanc}
-      - ORTHANC_PASSWORD=${ORTHANC_PASSWORD:-orthanc}
+      - ORTHANC_PASSWORD=${ORTHANC_PASSWORD:?set ORTHANC_PASSWORD (generate-secrets.sh writes .env.local)}
       - ORTHANC_DICOM_UID_ROOT=${ORTHANC_DICOM_UID_ROOT:-1.2.840.10008}
       - ORTHANC_WORKLIST_DIR=${ORTHANC_WORKLIST_DIR:-/var/lib/orthanc/worklists}
       - DICOM_TYPE=${DICOM_TYPE:-orthanc}
@@ -622,13 +763,13 @@ services:
       # - OPENELIS_FHIR_BASE_URL=${OPENELIS_FHIR_BASE_URL:-http://openelis-fhir:8080}
       # - OPENELIS_ORDER_BUNDLE_PATH=${OPENELIS_ORDER_BUNDLE_PATH:-/fhir/tasks}
       - OPENELIS_USERNAME=${OPENELIS_USERNAME:-admin}
-      - OPENELIS_PASSWORD=${OPENELIS_PASSWORD:-adminADMIN!}
+      - OPENELIS_PASSWORD=${OPENELIS_PASSWORD:?set OPENELIS_PASSWORD (generate-secrets.sh writes .env.local)}
       # OpenELIS DB — CIS seeds the sync account directly (OpenELIS has no user REST API)
       - OPENELIS_DB_HOST=${OPENELIS_DB_HOST:-nidan-openelis-db}
       - OPENELIS_DB_PORT=${OPENELIS_DB_PORT:-5432}
       - OPENELIS_DB_NAME=${OPENELIS_DB_NAME:-clinlims}
       - OPENELIS_DB_USER=${OPENELIS_DB_USER:-clinlims}
-      - OPENELIS_DB_PASSWORD=${OPENELIS_DB_PASSWORD:-clinlims}
+      - OPENELIS_DB_PASSWORD=${OPENELIS_DB_PASSWORD:?set OPENELIS_DB_PASSWORD (generate-secrets.sh writes .env.local)}
       #- "JAVA_TOOL_OPTIONS=-Djavax.net.ssl.trustStore=/etc/ssl/certs/openelis-truststore.p12 -Djavax.net.ssl.trustStorePassword=openelisTrust123"
       # Integration
       - INTEGRATION_SOURCE_SYSTEM=${INTEGRATION_SOURCE_SYSTEM:-CIS}
@@ -654,8 +795,10 @@ services:
       - DEBEZIUM_DB_PASSWORD=${DEBEZIUM_DB_PASSWORD:-}
       - DEBEZIUM_TABLE_INCLUDE_LIST=${DEBEZIUM_TABLE_INCLUDE_LIST:-openmrs.orders,openmrs.drug_order,openmrs.person,openmrs.person_name,openmrs.patient_identifier,openmrs.bed_type,openmrs.bed_patient_assignment_map,openmrs.location,openmrs.provider,openmrs.provider_attribute}
       # Kafka retry topics (opt-in via @KafkaRetryable)
-      - INTEGRATION_KAFKA_RETRY_ENABLED=${INTEGRATION_KAFKA_RETRY_ENABLED:-false}
-      - INTEGRATION_KAFKA_RETRY_ATTEMPTS=${INTEGRATION_KAFKA_RETRY_ATTEMPTS:-5}
+      # KC-32-03: CIS needs Keycloak for every OpenMRS call (central login); retry, so a Keycloak restart does not
+      # dead-letter events. 8 attempts = about 10 minutes of backoff before the dead-letter topic.
+      - INTEGRATION_KAFKA_RETRY_ENABLED=${INTEGRATION_KAFKA_RETRY_ENABLED:-true}
+      - INTEGRATION_KAFKA_RETRY_ATTEMPTS=${CIS_INTEGRATION_KAFKA_RETRY_ATTEMPTS:-8}
       - INTEGRATION_KAFKA_RETRY_INITIAL_DELAY=${INTEGRATION_KAFKA_RETRY_INITIAL_DELAY:-5s}
       - INTEGRATION_KAFKA_RETRY_MULTIPLIER=${INTEGRATION_KAFKA_RETRY_MULTIPLIER:-2.0}
       - INTEGRATION_KAFKA_RETRY_MAX_DELAY=${INTEGRATION_KAFKA_RETRY_MAX_DELAY:-10m}
@@ -675,6 +818,7 @@ services:
         condition: service_started
     networks:
       - nidan-network
+      - data-net
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:${CIS_PORT:-8081}/actuator/health" ]
       interval: 30s
@@ -683,16 +827,16 @@ services:
       start_period: 60s
 
   nidan-ois:
+    logging: *default-logging
     profiles: ["middleware","nidanehr-standard"]
     image: ${NIDAN_OIS_IMAGE:-nidan-ois:local}
     container_name: nidan-ois
-    ports:
-      - "${OIS_PORT:-8082}:${OIS_PORT:-8082}"
+    # no published port: reached through the gateway only (KC-02)
     environment:
       # Database
       - INTEGRATION_DB_URL=jdbc:postgresql://${INTEGRATION_DB_HOST:-nidan-integration-db}:${INTEGRATION_DB_PORT:-5432}/${INTEGRATION_DB_NAME:-nidan_integration}
       - INTEGRATION_DB_USER=${INTEGRATION_DB_USER:-nidan}
-      - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_PASSWORD:-nidan}
+      - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_PASSWORD:?set INTEGRATION_DB_PASSWORD (generate-secrets.sh writes .env.local)}
       - MANAGEMENT_HEALTH_REDIS_ENABLED=${MANAGEMENT_HEALTH_REDIS_ENABLED:-false}
       # Kafka
       - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:${KAFKA_PORT:-9092}
@@ -712,16 +856,20 @@ services:
       - ODOO_BASE_URL=${ODOO_BASE_URL:-http://odoo:8069}
       - ODOO_DATABASE=${ODOO_DB_NAME:-nidan}
       - ODOO_USERNAME=${ODOO_USERNAME:-nidan}
-      - ODOO_PASSWORD=${ODOO_PASSWORD:-nidan}
+      - ODOO_PASSWORD=${ODOO_PASSWORD:?set ODOO_PASSWORD (generate-secrets.sh writes .env.local)}
       # Sync-account provisioning (OIS creates the account in Odoo on startup, via JSON-RPC)
       - NIDAN_SYNC_USERNAME=${NIDAN_SYNC_USERNAME:-nidan-sync}
       - NIDAN_SYNC_PASSWORD=${NIDAN_SYNC_PASSWORD:-}
       # Integration
-      - OIS_WEBHOOK_SECRET=${OIS_WEBHOOK_SECRET:-sample}
+      - OIS_WEBHOOK_SECRET=${OIS_WEBHOOK_SECRET:?set OIS_WEBHOOK_SECRET (generate-secrets.sh writes .env.local)}
+      # Dead-letter UI/API login (HTTP Basic) until the gateway's cis-admin SSO gate (KC-10). Unset = refused.
+      - DEAD_LETTER_ADMIN_USERNAME=${DEAD_LETTER_ADMIN_USERNAME:-dead-letter-admin}
+      - DEAD_LETTER_ADMIN_PASSWORD=${DEAD_LETTER_ADMIN_PASSWORD:-}
+      - NIDAN_DEPLOYMENT=${NIDAN_DEPLOYMENT:-}
       - SKIP_SOURCE_SYSTEMS_FOR_ODOO=${SKIP_SOURCE_SYSTEMS_FOR_ODOO:-ODOO}
       - NIDAN_OIS_URL=${NIDAN_OIS_URL:-http://nidan-ois:8082}
-      - NIDAN_OIS_SECRET=${NIDAN_OIS_SECRET:-sample}
-      - ODOO_NIDAN_SECRET=${ODOO_NIDAN_SECRET:-sample}
+      - NIDAN_OIS_SECRET=${NIDAN_OIS_SECRET:?set NIDAN_OIS_SECRET (generate-secrets.sh writes .env.local)}
+      - ODOO_NIDAN_SECRET=${ODOO_NIDAN_SECRET:?set ODOO_NIDAN_SECRET (generate-secrets.sh writes .env.local)}
       # Align with CIS / application.yml (radiology-mwl fallback)
       - ORTHANC_ENABLED=${ORTHANC_ENABLED:-true}
       # Per-flow toggles (integration.flows.* — see nidan-docker/env.template)
@@ -748,6 +896,7 @@ services:
         condition: service_healthy
     networks:
       - nidan-network
+      - data-net
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:${OIS_PORT:-8082}/actuator/health" ]
       interval: 30s
@@ -759,20 +908,21 @@ services:
   # DHIS2 / FEDERAL HMIS INTEGRATION
   # ============================================================================
   nidan-dhis2-db:
+    logging: *default-logging
     profiles: ["dhis2","nidanehr-standard"]
     image: mysql:8.0
     container_name: nidan-dhis2-db
     environment:
       MYSQL_DATABASE: ${DHIS2_DB_NAME:-nidan_dhis2}
       MYSQL_USER: ${DHIS2_DB_USER:-nidan}
-      MYSQL_PASSWORD: ${DHIS2_DB_PASSWORD:-nidan}
-      MYSQL_ROOT_PASSWORD: ${DHIS2_DB_ROOT_PASSWORD:-nidan_root}
+      MYSQL_PASSWORD: ${DHIS2_DB_PASSWORD:?set DHIS2_DB_PASSWORD (generate-secrets.sh writes .env.local)}
+      MYSQL_ROOT_PASSWORD: ${DHIS2_DB_ROOT_PASSWORD:?set DHIS2_DB_ROOT_PASSWORD (generate-secrets.sh writes .env.local)}
     volumes:
       - dhis2-integration-db-data:/var/lib/mysql
     networks:
-      - nidan-network
+      - data-net          # databases and Kafka: only the services that use them (KC-43-03)
     healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DHIS2_DB_USER:-nidan}", "-p${DHIS2_DB_PASSWORD:-nidan}" ]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DHIS2_DB_USER:-nidan}", "-p${DHIS2_DB_PASSWORD:?set DHIS2_DB_PASSWORD (generate-secrets.sh writes .env.local)}" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -782,8 +932,7 @@ services:
     profiles: ["dhis2","nidanehr-standard"]
     image: trigonaltechnology/nidan-dhis2-integration:latest
     container_name: nidan-dhis2
-    ports:
-      - "${DHIS2_APP_PORT:-5003}:5000"
+    # no published port: reached through the gateway only (KC-02)
     volumes:
       # Runtime / persistent data and YAML config
       - ./dhis2/mappings:/app/mappings
@@ -795,21 +944,31 @@ services:
       - dhis2-integration-app-logs:/app/logs
     environment:
       # Flask
-      - SECRET_KEY=${DHIS2_SECRET_KEY:-change-me-in-production}
+      - SECRET_KEY=${DHIS2_SECRET_KEY:?set DHIS2_SECRET_KEY (generate-secrets.sh writes .env.local)}
       - DEBUG=${DHIS2_DEBUG:-false}
       - FLASK_ENV=${DHIS2_FLASK_ENV:-production}
+      # Real sites set NIDAN_DEPLOYMENT=production: the app then refuses the public demo SECRET_KEY and short passwords.
+      - NIDAN_DEPLOYMENT=${NIDAN_DEPLOYMENT:-}
       # Internal audit DB (dedicated MySQL)
-      - DATABASE_URL=mysql+pymysql://${DHIS2_DB_USER:-nidan}:${DHIS2_DB_PASSWORD:-nidan}@${DHIS2_DB_HOST:-nidan-dhis2-db}:${DHIS2_DB_PORT:-3306}/${DHIS2_DB_NAME:-nidan_dhis2}
+      - DATABASE_URL=mysql+pymysql://${DHIS2_DB_USER:-nidan}:${DHIS2_DB_PASSWORD:?set DHIS2_DB_PASSWORD (generate-secrets.sh writes .env.local)}@${DHIS2_DB_HOST:-nidan-dhis2-db}:${DHIS2_DB_PORT:-3306}/${DHIS2_DB_NAME:-nidan_dhis2}
       # Auth
       - AUTH_PROVIDER=${DHIS2_AUTH_PROVIDER:-env_file}
+      # Central login: set DHIS2_AUTH_PROVIDER=oidc (KC-40). Browser -> public URL; token/keys -> back-channel.
+      - DHIS2_OIDC_AUTH_URL=${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}/realms/nidan/protocol/openid-connect/auth
+      - DHIS2_OIDC_TOKEN_URL=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/token
+      - DHIS2_OIDC_JWKS_URL=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/certs
+      - DHIS2_OIDC_ISSUER=${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}/realms/nidan
+      - DHIS2_OIDC_CLIENT_ID=dhis2
+      - DHIS2_OIDC_CLIENT_SECRET=${KC_DHIS2_CLIENT_SECRET:-}
+      - DHIS2_OIDC_REDIRECT_URI=https://${GATEWAY_DOMAIN:-localhost}/dhis2/auth/oidc/callback
       - ADMIN_USERNAME=${DHIS2_ADMIN_USERNAME:-admin}
-      - ADMIN_PASSWORD=${DHIS2_ADMIN_PASSWORD:-pass}
+      - ADMIN_PASSWORD=${DHIS2_ADMIN_PASSWORD:?set DHIS2_ADMIN_PASSWORD (generate-secrets.sh writes .env.local)}
       - REPORTER_USERNAME=${DHIS2_REPORTER_USERNAME:-reporter}
-      - REPORTER_PASSWORD=${DHIS2_REPORTER_PASSWORD:-change-me}
+      - REPORTER_PASSWORD=${DHIS2_REPORTER_PASSWORD:?set DHIS2_REPORTER_PASSWORD (generate-secrets.sh writes .env.local)}
       # Source DB connections — URLs built entirely from env vars
-      - OPENMRS_DB_URL=mysql+pymysql://${OPENMRS_DB_USER}:${OPENMRS_DB_PASSWORD}@${OPENMRS_DB_HOST:-openmrs-db}:${OPENMRS_DB_PORT:-3306}/${OPENMRS_DB_NAME}
-      - OPENELIS_DB_URL=postgresql://${OPENELIS_DB_USER:-clinlims}:${OPENELIS_DB_PASSWORD}@${OPENELIS_DB_HOST:-openelis-db}:${OPENELIS_DB_PORT:-5432}/${OPENELIS_DB_NAME:-clinlims}
-      - ODOO_DB_URL=postgresql://${ODOO_DB_USER}:${ODOO_DB_PASSWORD}@${ODOO_DB_HOST:-odoo-db}:${ODOO_DB_PORT:-5432}/${ODOO_DB_NAME}
+      - OPENMRS_DB_URL=mysql+pymysql://${REPORTING_DB_USER:-${OPENMRS_DB_USER}}:${REPORTING_DB_PASSWORD:-${OPENMRS_DB_PASSWORD}}@${OPENMRS_DB_HOST:-openmrs-db}:${OPENMRS_DB_PORT:-3306}/${OPENMRS_DB_NAME}
+      - OPENELIS_DB_URL=postgresql://${REPORTING_DB_USER:-${OPENELIS_DB_USER:-clinlims}}:${REPORTING_DB_PASSWORD:-${OPENELIS_DB_PASSWORD}}@${OPENELIS_DB_HOST:-openelis-db}:${OPENELIS_DB_PORT:-5432}/${OPENELIS_DB_NAME:-clinlims}
+      - ODOO_DB_URL=postgresql://${REPORTING_DB_USER:-${ODOO_DB_USER}}:${REPORTING_DB_PASSWORD:-${ODOO_DB_PASSWORD}}@${ODOO_DB_HOST:-odoo-db}:${ODOO_DB_PORT:-5432}/${ODOO_DB_NAME}
       # Connection settings
       - DB_CONNECT_TIMEOUT=${DHIS2_DB_CONNECT_TIMEOUT:-10}
       - DB_DATE_OVERLAP_BUFFER_DAYS=${DHIS2_DB_DATE_OVERLAP_BUFFER_DAYS:-2}
@@ -827,6 +986,7 @@ services:
       - PROVINCIAL_DHIS2_ORG_UNIT=${PROVINCIAL_DHIS2_ORG_UNIT:-}
     networks:
       - nidan-network
+      - data-net
     depends_on:
       nidan-dhis2-db:
         condition: service_healthy
@@ -851,16 +1011,26 @@ services:
   # APACHE SUPERSET
   # ============================================================================
   superset:
+    logging: *default-logging
     profiles: ["superset","nidanehr-standard"]
     build: ./superset
     image: ${SUPERSET_IMAGE:-trigonaltechnology/superset:latest}
     container_name: nidan-superset
-    ports:
-      - "8088:8088" # Keep for direct access during debugging, remove in production
+    # no published port: reached through the gateway only (KC-02)
     environment:
-      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY}
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:?set SUPERSET_SECRET_KEY (32+ random chars)}
       SUPERSET_ADMIN_USERNAME: ${SUPERSET_ADMIN_USERNAME:-admin}
-      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:-admin}
+      SUPERSET_ADMIN_PASSWORD: ${SUPERSET_ADMIN_PASSWORD:?set SUPERSET_ADMIN_PASSWORD}
+      # Optional: enables embedded dashboards only when 32+ chars (superset_config.py).
+      SUPERSET_GUEST_TOKEN_SECRET: ${SUPERSET_GUEST_TOKEN_SECRET:-}
+      # Central login (KC-39): on with SUPERSET_SSO_ENABLED, default NIDAN_SSO_ENABLED
+      SUPERSET_SSO_ENABLED: ${SUPERSET_SSO_ENABLED:-${NIDAN_SSO_ENABLED:-false}}
+      KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}
+      KC_SUPERSET_CLIENT_SECRET: ${KC_SUPERSET_CLIENT_SECRET:-}
+      KC_OPENELIS_CLIENT_SECRET: ${KC_OPENELIS_CLIENT_SECRET:-}
+      KC_CONFIG_CLI_CLIENT_SECRET: ${KC_CONFIG_CLI_CLIENT_SECRET:-}
+      KC_AUTOMATION_CLIENT_SECRET: ${KC_AUTOMATION_CLIENT_SECRET:-}
+      NIDAN_DEPLOYMENT: ${NIDAN_DEPLOYMENT:-}
       SUPERSET_LOAD_EXAMPLES: ${SUPERSET_LOAD_EXAMPLES:-no}
       PYTHONPATH: /app/pythonpath
 
@@ -884,22 +1054,23 @@ services:
       OPENMRS_DB_HOST: ${OPENMRS_DB_HOST:-openmrs-db}
       OPENMRS_DB_PORT: ${OPENMRS_DB_PORT:-3306}
       OPENMRS_DB_NAME: ${OPENMRS_DB_NAME:-openmrs}
-      OPENMRS_DB_USER: ${OPENMRS_DB_USER:-openmrs}
-      OPENMRS_DB_PASSWORD: ${OPENMRS_DB_PASSWORD:-openmrs}
+      OPENMRS_DB_USER: ${REPORTING_DB_USER:-${OPENMRS_DB_USER:-openmrs}}
+      OPENMRS_DB_PASSWORD: ${REPORTING_DB_PASSWORD:-${OPENMRS_DB_PASSWORD:?set OPENMRS_DB_PASSWORD (generate-secrets.sh writes .env.local)}}
       OPENELIS_DB_HOST: ${OPENELIS_DB_HOST:-openelis-db}
       OPENELIS_DB_PORT: ${OPENELIS_DB_PORT:-5432}
       OPENELIS_DB_NAME: ${OPENELIS_DB_NAME:-clinlims}
-      OPENELIS_DB_USER: ${OPENELIS_DB_USER:-clinlims}
-      OPENELIS_DB_PASSWORD: ${OPENELIS_DB_PASSWORD:-clinlims}
+      OPENELIS_DB_USER: ${REPORTING_DB_USER:-${OPENELIS_DB_USER:-clinlims}}
+      OPENELIS_DB_PASSWORD: ${REPORTING_DB_PASSWORD:-${OPENELIS_DB_PASSWORD:?set OPENELIS_DB_PASSWORD (generate-secrets.sh writes .env.local)}}
       ODOO_DB_HOST: ${ODOO_DB_HOST:-odoo-db}
       ODOO_DB_PORT: ${ODOO_DB_PORT:-5432}
       ODOO_DB_NAME: ${ODOO_DB_NAME:-nidan}
-      ODOO_DB_USER: ${ODOO_DB_USER:-nidan}
-      ODOO_DB_PASSWORD: ${ODOO_DB_PASSWORD:-nidan}
+      ODOO_DB_USER: ${REPORTING_DB_USER:-${ODOO_DB_USER:-nidan}}
+      ODOO_DB_PASSWORD: ${REPORTING_DB_PASSWORD:-${ODOO_DB_PASSWORD:?set ODOO_DB_PASSWORD (generate-secrets.sh writes .env.local)}}
 
     command: [ "/bin/sh", "/app/docker-entrypoint.sh" ]
     networks:
       - nidan-network
+      - data-net
     depends_on:
       openmrs-db:
         condition: service_healthy
@@ -910,9 +1081,160 @@ services:
     volumes:
       - superset-home:/app/superset_home
       - ./superset/superset_config.py:/app/pythonpath/superset_config.py:ro
+      - ./superset/nidan_sso.py:/app/pythonpath/nidan_sso.py:ro
       - ./superset/init_superset_metadata.py:/app/pythonpath/init_superset_metadata.py:ro
       - ./superset/pager.js:/app/pythonpath/pager.js:ro
       - ./superset/scroller.js:/app/pythonpath/scroller.js:ro
       - ./superset/docker-entrypoint.sh:/app/docker-entrypoint.sh:ro
       - ./superset/metadata:/app/superset_metadata:ro
+    restart: unless-stopped
+
+  # ============================================================================
+  # CENTRAL LOGIN (profile "sso", off by default; backlog KC-07). Keycloak and its DB live only on
+  # auth-net; the admin console is reachable only through an SSH tunnel to 127.0.0.1:8180 (D34).
+  # Keycloak's public origin (decision D1) is the gateway's :9443: KEYCLOAK_PUBLIC_URL, default
+  # https://<GATEWAY_DOMAIN>:9443/auth. Browsers never reach Keycloak directly.
+  # TODO(KC-01-01): first live import; TODO(KC-07-07): switch config-cli to its own client, remove bootstrap admin.
+  # ============================================================================
+  keycloak-db:
+    logging: *default-logging
+    profiles: ["sso"]
+    image: postgres:16.15@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
+    container_name: nidan-keycloak-db
+    environment:
+      POSTGRES_DB: ${KEYCLOAK_DB_NAME:-keycloak}
+      POSTGRES_USER: ${KEYCLOAK_DB_USER:-keycloak}
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD (generate-secrets.sh writes .env.local)}
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+    networks:
+      - auth-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  keycloak:
+    logging: *default-logging
+    profiles: ["sso"]
+    image: quay.io/keycloak/keycloak:26.8.0@sha256:b0f60d489d51c5d113390bdf5461d4c06e6051be026c05549f2e1e10ec352bcc
+    container_name: nidan-keycloak
+    command: ["start"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/${KEYCLOAK_DB_NAME:-keycloak}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD (generate-secrets.sh writes .env.local)}
+      KC_HTTP_ENABLED: "true"                  # TLS ends at the gateway; keycloak is only on auth-net
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}
+      KC_HOSTNAME_ADMIN: http://127.0.0.1:8180/auth
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_PROXY_TRUSTED_ADDRESSES: 172.31.250.10
+      KC_HEALTH_ENABLED: "true"                # management port 9000, auth-net only (KC-07-05)
+      KC_METRICS_ENABLED: "false"
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD (generate-secrets.sh writes .env.local)}
+    volumes:
+      - ./keycloak/themes/nidan:/opt/keycloak/themes/nidan:ro   # login theme (KC-17)
+      - ./keycloak/password-blocklist.txt:/opt/keycloak/data/password-blacklists/nidan.txt:ro   # passwordBlacklist(nidan.txt)
+    networks:
+      - auth-net
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /auth/health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    restart: unless-stopped
+
+  # Admin console for operators: 127.0.0.1:8180 (SSH tunnel) -> keycloak:8080 (KC-07-04). Keycloak itself is on the
+  # internal auth-net, where Docker silently ignores published ports; this proxy is the only member of kc-admin-net.
+  keycloak-admin-proxy:
+    logging: *default-logging
+    profiles: ["sso"]
+    image: nginx:1.31.6-alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2
+    container_name: nidan-keycloak-admin-proxy
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp", "/var/cache/nginx"]
+    volumes:
+      - ./proxy/keycloak-admin-proxy.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "127.0.0.1:8180:8180"                  # admin console via SSH tunnel only (KC-07-04)
+    networks:
+      - auth-net
+      - kc-admin-net
+
+  keycloak-config-cli:
+    logging: *default-logging
+    profiles: ["sso"]
+    image: adorsys/keycloak-config-cli:6.5.1-26.5.5@sha256:0955d98c8a341898b7aa177477edf8a1e90569ae50bbe7598141c1270b773274
+    container_name: nidan-keycloak-config-cli
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080/auth
+      # First import as the bootstrap admin (password grant); after it, set KEYCLOAK_CONFIG_CLI_CLIENT=nidan-config-cli
+      # and KEYCLOAK_CONFIG_CLI_GRANT=client_credentials, then remove the bootstrap admin (KC-07-07).
+      KEYCLOAK_GRANTTYPE: ${KEYCLOAK_CONFIG_CLI_GRANT:-password}
+      KEYCLOAK_CLIENTID: ${KEYCLOAK_CONFIG_CLI_CLIENT:-admin-cli}
+      KEYCLOAK_CLIENTSECRET: ${KC_CONFIG_CLI_CLIENT_SECRET:-}
+      KEYCLOAK_USER: ${KEYCLOAK_ADMIN_USER:-admin}
+      KEYCLOAK_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD (generate-secrets.sh writes .env.local)}
+      KEYCLOAK_AVAILABILITYCHECK_ENABLED: "true"
+      KEYCLOAK_AVAILABILITYCHECK_TIMEOUT: 180s
+      IMPORT_FILES_LOCATIONS: /config/base/*.yaml,/config/master/*.yaml   # realm files only; roles/ catalogs are not imports
+      IMPORT_VARSUBSTITUTION_ENABLED: "true"
+      IMPORT_MANAGED_GROUP: full                     # groups not in the files are removed (no drift)
+      # $(env:...) values for keycloak/realm/base/nidan.yaml; preflight rejects empty secrets in production
+      GATEWAY_DOMAIN: ${GATEWAY_DOMAIN:-localhost}
+      NIDAN_SYNC_USERNAME: ${NIDAN_SYNC_USERNAME:-nidan-sync}
+      KC_USERNAME_PATTERN: ${KC_USERNAME_PATTERN:-}
+      DEFAULT_LOCALE: ${DEFAULT_LOCALE:-en}             # login/Staff page language when the browser asks for none
+      KC_GATEWAY_CLIENT_SECRET: ${KC_GATEWAY_CLIENT_SECRET:-}
+      KC_OPENMRS_CLIENT_SECRET: ${KC_OPENMRS_CLIENT_SECRET:-}
+      KC_ODOO_CLIENT_SECRET: ${KC_ODOO_CLIENT_SECRET:-}
+      KC_DHIS2_CLIENT_SECRET: ${KC_DHIS2_CLIENT_SECRET:-}
+      KC_SUPERSET_CLIENT_SECRET: ${KC_SUPERSET_CLIENT_SECRET:-}
+      KC_CIS_CLIENT_SECRET: ${KC_CIS_CLIENT_SECRET:-}
+      KC_ODOO_SYNC_CLIENT_SECRET: ${KC_ODOO_SYNC_CLIENT_SECRET:-}
+      KC_PORTAL_SYNC_CLIENT_SECRET: ${KC_PORTAL_SYNC_CLIENT_SECRET:-}
+      KC_OPENELIS_CLIENT_SECRET: ${KC_OPENELIS_CLIENT_SECRET:-}
+      KC_CONFIG_CLI_CLIENT_SECRET: ${KC_CONFIG_CLI_CLIENT_SECRET:-}     # master/automation.yaml sets the clients' own secrets
+      KC_AUTOMATION_CLIENT_SECRET: ${KC_AUTOMATION_CLIENT_SECRET:-}
+    volumes:
+      - ./keycloak/realm:/config:ro
+    networks:
+      - auth-net
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    restart: "no"
+
+  oauth2-proxy:
+    logging: *default-logging
+    profiles: ["sso"]
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.5@sha256:8498b0d0ef0a7b29686414000a08aee467f02d0299c9ed1e006a8f33fc017916
+    container_name: nidan-oauth2-proxy
+    command: ["--config=/etc/oauth2-proxy.cfg"]
+    environment:
+      OAUTH2_PROXY_CLIENT_SECRET: ${KC_GATEWAY_CLIENT_SECRET:-}
+      OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET:-}
+      OAUTH2_PROXY_OIDC_ISSUER_URL: ${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}/realms/nidan
+      OAUTH2_PROXY_LOGIN_URL: ${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}/realms/nidan/protocol/openid-connect/auth
+      OAUTH2_PROXY_REDEEM_URL: http://keycloak:8080/auth/realms/nidan/protocol/openid-connect/token
+      OAUTH2_PROXY_OIDC_JWKS_URL: http://keycloak:8080/auth/realms/nidan/protocol/openid-connect/certs
+      OAUTH2_PROXY_WHITELIST_DOMAINS: ${GATEWAY_DOMAIN:-localhost}:*   # post-login rd= only back to the gateway
+    volumes:
+      - ./proxy/oauth2-proxy.cfg:/etc/oauth2-proxy.cfg:ro
+    networks:
+      - auth-net
+    depends_on:
+      keycloak:
+        condition: service_healthy
     restart: unless-stopped

@@ -12,8 +12,19 @@ except ImportError:
 from flask import redirect
 from flask_appbuilder import expose, IndexView
 
-# Secret key for session encryption
-SECRET_KEY = os.environ.get('SUPERSET_SECRET_KEY', 'your-secret-key-here')
+import hashlib
+
+# Secret key for session encryption. Fails closed: Superset will not start on an unset, short or
+# known-public key (session cookies signed with a public key can be forged as any user).
+_PUBLIC_SECRET_KEYS = {"your-secret-key-here", "thisISaSECRET_1234", "CHANGEME_GENERATE_ME"}  # gitleaks:allow (known public defaults, listed to refuse them)
+# sha256 of every >=32-char key ever committed to nidan-docker (tracked demo .env and its history).
+_PUBLIC_SECRET_KEY_SHA256 = {"384febef31028d74957789b0e00e68e8b9c3afd466d46ce0aad80781e77e1c7b","b3cf5152a10b7a596ff461bfb6e04203341d08239fc80a56ce135f187ef29e6e"}  # gitleaks:allow (sha256 digests, not keys)
+_PRODUCTION = os.environ.get("NIDAN_DEPLOYMENT", "").lower() == "production"
+SECRET_KEY = os.environ.get("SUPERSET_SECRET_KEY", "")
+if len(SECRET_KEY) < 32 or SECRET_KEY in _PUBLIC_SECRET_KEYS:
+    raise RuntimeError("SUPERSET_SECRET_KEY is unset, shorter than 32 chars or a known default; set a unique value")
+if _PRODUCTION and hashlib.sha256(SECRET_KEY.encode()).hexdigest() in _PUBLIC_SECRET_KEY_SHA256:
+    raise RuntimeError("SUPERSET_SECRET_KEY is the public demo value; NIDAN_DEPLOYMENT=production needs a unique key")
 
 # SQLAlchemy database URI
 SQLALCHEMY_DATABASE_URI = 'sqlite:////app/superset_home/superset.db'
@@ -32,11 +43,11 @@ STATIC_ASSETS_PREFIX = '/superset'
 SERVER_NAME = None
 
 # WTF CSRF settings
+# CSRF on for every state-changing request. WTF_CSRF_EXEMPT_LIST and WTF_CSRF_CHECK_DEFAULT are left
+# at Superset's defaults (overriding them to []/False switched CSRF checking off globally).
 WTF_CSRF_ENABLED = True
-WTF_CSRF_EXEMPT_LIST = []
 WTF_CSRF_TIME_LIMIT = None
-WTF_CSRF_SSL_STRICT = False
-WTF_CSRF_CHECK_DEFAULT = False
+WTF_CSRF_SSL_STRICT = True
 
 # Set the authentication type
 # AUTH_TYPE = AUTH_DB  # Database authentication (default)
@@ -53,19 +64,16 @@ WTF_CSRF_CHECK_DEFAULT = False
 # The default user self registration role
 # AUTH_USER_REGISTRATION_ROLE = "Public"
 
-# CORS settings (if needed for API access)
-ENABLE_CORS = True
-CORS_OPTIONS = {
-    'supports_credentials': True,
-    'allow_headers': ['*'],
-    'origins': ['*']
-}
+# No CORS: Superset is only used same-origin through the gateway. ('*' with credentials let any
+# page a staff member visits read Superset data as that staff member.)
+ENABLE_CORS = False
 
 # Session configuration
 SESSION_COOKIE_NAME = 'superset_session'
 SESSION_COOKIE_PATH = '/superset'
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = False  # Set to True if using HTTPS
+# The gateway is TLS-only; set SUPERSET_COOKIE_SECURE=false only for plain-HTTP local debugging.
+SESSION_COOKIE_SECURE = os.environ.get("SUPERSET_COOKIE_SECURE", "true").lower() != "false"
 SESSION_COOKIE_SAMESITE = 'Lax'
 
 # Enable all visualization types and chart plugins
@@ -76,7 +84,9 @@ FEATURE_FLAGS = {
     "ENABLE_TEMPLATE_PROCESSING": True,
     "ENABLE_CHART_FLUX_FILTERS": True,
     "DASHBOARD_CACHE": True,
-    "ENABLE_EMBEDDED_SUPERSET": True,
+    # Embedding needs a guest-token signing secret; without one it stays off (Superset's built-in
+    # default secret is public, so guest tokens could be forged).
+    "ENABLE_EMBEDDED_SUPERSET": len(os.environ.get("SUPERSET_GUEST_TOKEN_SECRET", "")) >= 32,
     "ENABLE_EXPLORE_JSON": True,
     "ENABLE_CUSTOM_FORM_DATA": True,
     "KV_STORE": True,
@@ -143,12 +153,73 @@ FAVICONS = [{"href": "/static/assets/images/nidan-favicon.ico", "type": "image/x
 # ---------------------------------------------------------------------------
 # Role-based access
 # ---------------------------------------------------------------------------
-# Anonymous (not-logged-in) visitors get the Public role, used for the public
-# dashboards / embedded monitor screens. PUBLIC_ROLE_LIKE grants Public the
-# base perms needed to render a dashboard; DASHBOARD_RBAC then restricts which
-# dashboards Public can actually see (only those with the Public role attached).
+# Anonymous (not-logged-in) visitors get the Public role. It ships with NO permissions and NO
+# dashboards (hospital decision, 2026-10-07): the hospital chooses public dashboards later.
+# PUBLIC_ROLE_LIKE = "Gamma" used to copy Gamma's perms (chart/dataset listing) to anonymous users.
 AUTH_ROLE_PUBLIC = "Public"
-PUBLIC_ROLE_LIKE = "Gamma"
+PUBLIC_ROLE_LIKE = None
+GUEST_TOKEN_JWT_SECRET = os.environ.get("SUPERSET_GUEST_TOKEN_SECRET", "")
+
+# ---------------------------------------------------------------------------
+# Central login through Keycloak (backlog KC-39). Off unless SUPERSET_SSO_ENABLED / NIDAN_SSO_ENABLED is true.
+# Browser -> public Keycloak login; code exchange + signing keys -> the gateway's internal back-channel.
+# Rules (superset/nidan_sso.py): roles re-synced at every login, superuser roles only for /app-superusers,
+# a local account (e.g. the bootstrap admin) is never taken over by name, and password login - including
+# the REST API's provider "db" - is refused for every account.
+# ---------------------------------------------------------------------------
+_SSO = os.environ.get("SUPERSET_SSO_ENABLED", os.environ.get("NIDAN_SSO_ENABLED", "false")).strip().lower() == "true"
+if _SSO:
+    from flask_appbuilder.security.manager import AUTH_OAUTH
+    from superset.security import SupersetSecurityManager
+    from werkzeug.security import check_password_hash
+
+    import nidan_sso
+
+    _KC_PUBLIC = os.environ.get("KEYCLOAK_PUBLIC_URL", "").rstrip("/")
+    _KC_SECRET = os.environ.get("KC_SUPERSET_CLIENT_SECRET", "")
+    if not _KC_PUBLIC.startswith("https://") or len(_KC_SECRET) < 16:
+        raise RuntimeError("central login needs KEYCLOAK_PUBLIC_URL (https) and KC_SUPERSET_CLIENT_SECRET")
+    _BACKCHANNEL = "http://gateway:8099/auth/realms/nidan/protocol/openid-connect"
+
+    AUTH_TYPE = AUTH_OAUTH
+    AUTH_USER_REGISTRATION = True
+    AUTH_USER_REGISTRATION_ROLE = "Public"          # no permissions (KC-03); real roles come from the token
+    AUTH_ROLES_SYNC_AT_LOGIN = True                 # KC-39-01: locally added roles are gone next login
+    AUTH_ROLES_MAPPING = {r: [r] for r in ("Admin", "Alpha", "Gamma", "sql_lab", "Clinical", "Lab", "Pharmacy",
+                                           "Finance")}
+    OAUTH_PROVIDERS = [{
+        "name": "nidan-keycloak",
+        "icon": "fa-key",
+        "token_key": "access_token",
+        "remote_app": {
+            "client_id": "superset",
+            "client_secret": _KC_SECRET,
+            "authorize_url": _KC_PUBLIC + "/realms/nidan/protocol/openid-connect/auth",
+            "access_token_url": _BACKCHANNEL + "/token",
+            "jwks_uri": _BACKCHANNEL + "/certs",
+            "issuer": _KC_PUBLIC + "/realms/nidan",     # authlib checks the ID token's iss against this
+            "client_kwargs": {"scope": "openid profile email", "code_challenge_method": "S256"},
+        },
+    }]
+
+    class NidanSecurityManager(SupersetSecurityManager):
+        def get_oauth_user_info(self, provider, resp):
+            # ID token claims already verified by authlib (signature via JWKS, iss, aud, nonce).
+            claims = (resp or {}).get("userinfo") or {}
+            return nidan_sso.userinfo(claims) if claims.get("sub") else {}
+
+        def auth_user_oauth(self, userinfo):
+            existing = self.find_user(username=userinfo.get("username"))
+            if nidan_sso.is_local_account(existing, check_password_hash):
+                return None                         # KC-39-03
+            if not nidan_sso.has_superset_role(userinfo.get("role_keys"), AUTH_ROLES_MAPPING):
+                return None                         # "sign-in denied" instead of a redirect loop as Public
+            return super().auth_user_oauth(userinfo)
+
+        def auth_user_db(self, username, password):
+            return None                             # KC-39-04: no password login, incl. /api/v1/security/login
+
+    CUSTOM_SECURITY_MANAGER = NidanSecurityManager
 
 # Enable all built-in chart types
 DEFAULT_VIZ_TYPE = "table"
@@ -176,7 +247,7 @@ if not SQLALCHEMY_DATABASE_URI.startswith('sqlite'):
 LOGGER_LEVEL = 'INFO'
 
 # Prevent Superset from redirecting to root
-PREFERRED_URL_SCHEME = 'http'  # Change to 'https' in production
+PREFERRED_URL_SCHEME = 'https'  # the gateway terminates TLS
 
 # Additional configuration for reverse proxy
 ENABLE_PROXY_FIX = True

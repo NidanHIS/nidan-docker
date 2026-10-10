@@ -1663,7 +1663,9 @@ def main():
         from superset.extensions import security_manager as sm
 
         STAFF_ROLES = ["Clinical", "Lab", "Pharmacy", "Finance"]
-        PUBLIC_ROLE_NAMES = ["Public"] + STAFF_ROLES  # public dashboards: everyone
+        # "public" dashboards go to every staff role only. Anonymous access (the Public role) is
+        # off until the hospital picks public dashboards (decision 2026-10-07, backlog KC-03).
+        PUBLIC_ROLE_NAMES = STAFF_ROLES
 
         role_cache = {}
 
@@ -1674,7 +1676,7 @@ def main():
             if not role:
                 role = sm.add_role(name)
             # Clone Gamma's base permissions into custom staff roles so they can
-            # log in and render dashboards (Public is handled by PUBLIC_ROLE_LIKE).
+            # log in and render dashboards.
             if name in STAFF_ROLES:
                 gamma = sm.find_role("Gamma")
                 if gamma:
@@ -1685,6 +1687,13 @@ def main():
 
         for rn in STAFF_ROLES:
             get_role(rn)
+        # Older images synced Gamma's permissions into Public (PUBLIC_ROLE_LIKE = "Gamma"); revoke
+        # them so anonymous visitors get nothing. Re-applied every start, like the roles above.
+        public_role = sm.find_role("Public")
+        if public_role and public_role.permissions:
+            print(f"  ✓ revoking {len(public_role.permissions)} permissions from Public (anonymous)")
+            public_role.permissions = []
+            db.session.commit()
         print(f"  ✓ roles ready: {', '.join(['Admin'] + STAFF_ROLES + ['Public'])}")
 
         def roles_for(spec):

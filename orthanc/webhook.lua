@@ -12,8 +12,10 @@ function OnStableStudy(studyId, tags, metadata)
     
     -- Perform an HTTP POST to the configured webhook URL
     -- Set headers to indicate application/json to avoid Spring Boot parsing it as form parameters
+    -- CIS refuses the call without the shared secret (ORTHANC_WEBHOOK_SECRET on both containers).
     local headers = {
-        ["Content-Type"] = "application/json"
+        ["Content-Type"] = "application/json",
+        ["X-Nidan-Webhook-Secret"] = os.getenv("ORTHANC_WEBHOOK_SECRET") or ""
     }
     
     local response = HttpPost(url, studyInfo, headers)

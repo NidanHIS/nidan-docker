@@ -121,7 +121,7 @@ services:
     # Configure MariaDB with utf8mb4 and row‑based binlog (unique server-id, relaxed SQL mode) for Debezium/OpenMRS CDC --do the same if running external
     command: "mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --sql-mode='' --server-id=2749 --log-bin=mysql-bin --binlog_format=ROW --binlog_row_image=FULL --max-allowed-packet=256M"
     healthcheck:
-      test: "mysql --user=${OPENMRS_DB_USER:-openmrs} --password=${OPENMRS_DB_PASSWORD:-openmrs} --execute \"SHOW DATABASES;\""
+      test: "mysql --user=${OPENMRS_DB_USER:-openmrs} --password=${OPENMRS_DB_PASSWORD:?set OPENMRS_DB_PASSWORD (generate-secrets.sh writes .env.local)} --execute \"SHOW DATABASES;\""
       interval: 3s
       timeout: 1s
       retries: 5
@@ -154,7 +154,7 @@ services:
       - PORT=${ODOO_DB_PORT}
       - ODOO_DB_NAME=${ODOO_DB_NAME}
       - ODOO_ADMIN_EMAIL=${ODOO_ADMIN_EMAIL:-nidan}
-      - ODOO_ADMIN_PASSWORD=${ODOO_ADMIN_PASSWORD:-nidan}
+      - ODOO_ADMIN_PASSWORD=${ODOO_ADMIN_PASSWORD:?set ODOO_ADMIN_PASSWORD (generate-secrets.sh writes .env.local)}
       # PostgreSQL superuser for database creation
       - POSTGRES_USER=${ODOO_POSTGRES_USER}
       - POSTGRES_PASSWORD=${ODOO_POSTGRES_PASSWORD}
@@ -275,12 +275,12 @@ services:
       ORTHANC__POSTGRESQL__PORT: "5432"
       ORTHANC__POSTGRESQL__DATABASE: "${ORTHANC_DB_NAME:-orthanc}"
       ORTHANC__POSTGRESQL__USERNAME: "${ORTHANC_DB_USER:-orthanc}"
-      ORTHANC__POSTGRESQL__PASSWORD: "${ORTHANC_DB_PASSWORD:-orthanc}"
+      ORTHANC__POSTGRESQL__PASSWORD: "${ORTHANC_DB_PASSWORD:?set ORTHANC_DB_PASSWORD (generate-secrets.sh writes .env.local)}"
       # Authentication (dynamic/secrets)
       ORTHANC__REGISTERED_USERS: |
-        {"${ORTHANC_USERNAME:-nidan}": "${ORTHANC_PASSWORD:-nidan}"}
+        {"${ORTHANC_USERNAME:-nidan}": "${ORTHANC_PASSWORD:?set ORTHANC_PASSWORD (generate-secrets.sh writes .env.local)}"}
       ORTHANC_USERNAME: "${ORTHANC_USERNAME:-nidan}"
-      ORTHANC_PASSWORD: "${ORTHANC_PASSWORD:-nidan}"
+      ORTHANC_PASSWORD: "${ORTHANC_PASSWORD:?set ORTHANC_PASSWORD (generate-secrets.sh writes .env.local)}"
     networks:
       - nidan-network
     depends_on:
@@ -337,8 +337,8 @@ services:
     environment:
       POSTGRES_DB: clinlims
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${OPENELIS_DB_PASSWORD:-changeme}
-      DB_PASSWORD: ${OPENELIS_DB_PASSWORD:-changeme}
+      POSTGRES_PASSWORD: ${OPENELIS_DB_PASSWORD:?set OPENELIS_DB_PASSWORD (generate-secrets.sh writes .env.local)}
+      DB_PASSWORD: ${OPENELIS_DB_PASSWORD:?set OPENELIS_DB_PASSWORD (generate-secrets.sh writes .env.local)}
       DB_SUPERUSER_PASSWORD: ${OPENELIS_DB_ROOT_PASSWORD:-${OPENELIS_DB_PASSWORD:-changeme}}
     volumes:
       - openelis-db-data:/var/lib/postgresql/data
@@ -367,10 +367,10 @@ services:
       openelis-db:
         condition: service_healthy
     environment:
-      - DEFAULT_PW=${OPENELIS_DEFAULT_ADMIN_PASSWORD:-adminADMIN!}
+      - DEFAULT_PW=${OPENELIS_DEFAULT_ADMIN_PASSWORD:?set OPENELIS_DEFAULT_ADMIN_PASSWORD (generate-secrets.sh writes .env.local)}
       - TZ=${OPENELIS_TZ:-UTC}
       # Database connection
-      - CATALINA_OPTS=-Ddatasource.url=jdbc:postgresql://openelis-db:5432/clinlims -Ddatasource.username=clinlims -Ddatasource.password=${OPENELIS_DB_PASSWORD:-changeme}
+      - CATALINA_OPTS=-Ddatasource.url=jdbc:postgresql://openelis-db:5432/clinlims -Ddatasource.username=clinlims -Ddatasource.password=${OPENELIS_DB_PASSWORD:?set OPENELIS_DB_PASSWORD (generate-secrets.sh writes .env.local)}
       # Disable Odoo integration
       - ODOO_ENABLED=false
       - ORG_OPENELISGLOBAL_ODOO_ENABLED=false
@@ -429,7 +429,7 @@ services:
     environment:
       POSTGRES_DB: ${INTEGRATION_DB_NAME:-nidan_integration}
       POSTGRES_USER: ${INTEGRATION_DB_USER:-nidan}
-      POSTGRES_PASSWORD: ${INTEGRATION_DB_PASSWORD:-nidan}
+      POSTGRES_PASSWORD: ${INTEGRATION_DB_PASSWORD:?set INTEGRATION_DB_PASSWORD (generate-secrets.sh writes .env.local)}
     volumes:
       - nidan-integration-db-data:/var/lib/postgresql/data
     networks:
@@ -484,7 +484,7 @@ services:
       # Database
       - INTEGRATION_DB_URL=jdbc:postgresql://${INTEGRATION_DB_HOST:-nidan-integration-db}:${INTEGRATION_DB_PORT:-5432}/${INTEGRATION_DB_NAME:-nidan_integration}
       - INTEGRATION_DB_USER=${INTEGRATION_DB_USER:-nidan}
-      - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_PASSWORD:-nidan}
+      - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_PASSWORD:?set INTEGRATION_DB_PASSWORD (generate-secrets.sh writes .env.local)}
       - MANAGEMENT_HEALTH_REDIS_ENABLED=${MANAGEMENT_HEALTH_REDIS_ENABLED:-false}
       # OpenMRS database (used by Debezium)
       - OPENMRS_DB_HOST=${OPENMRS_DB_HOST:-openmrs-db}
@@ -496,7 +496,7 @@ services:
       - OPENMRS_ENABLED=${OPENMRS_ENABLED:-true}
       - OPENMRS_BASE_URL=${OPENMRS_BASE_URL:-http://openmrs-backend:8080/openmrs}
       - OPENMRS_USERNAME=${OPENMRS_USERNAME:-admin}
-      - OPENMRS_PASSWORD=${OPENMRS_PASSWORD:-Admin123}
+      - OPENMRS_PASSWORD=${OPENMRS_PASSWORD:?set OPENMRS_PASSWORD (generate-secrets.sh writes .env.local)}
       - OPENMRS_IDENTIFIER_TYPE_UUID=${OPENMRS_IDENTIFIER_TYPE_UUID:-05a29f94-c0ed-11e2-94be-8c13b969e334}
       - OPENMRS_DEFAULT_LOCATION_UUID=${OPENMRS_DEFAULT_LOCATION_UUID:-44c3efb0-2583-4c80-a79e-1f756a03c0a1}
       - OPENMRS_FHIR_EXTENSION_URL=${OPENMRS_FHIR_EXTENSION_URL:-http://fhir.openmrs.org/ext/patient/identifier#location}
@@ -504,7 +504,7 @@ services:
       - ORTHANC_ENABLED=${ORTHANC_ENABLED:-true}
       - ORTHANC_BASE_URL=${ORTHANC_BASE_URL:-http://orthanc:8042}
       - ORTHANC_USERNAME=${ORTHANC_USERNAME:-orthanc}
-      - ORTHANC_PASSWORD=${ORTHANC_PASSWORD:-orthanc}
+      - ORTHANC_PASSWORD=${ORTHANC_PASSWORD:?set ORTHANC_PASSWORD (generate-secrets.sh writes .env.local)}
       - ORTHANC_DICOM_UID_ROOT=${ORTHANC_DICOM_UID_ROOT:-1.2.840.10008}
       # OpenELIS
       - OPENELIS_ENABLED=${OPENELIS_ENABLED:-false}
@@ -513,7 +513,7 @@ services:
       - OPENELIS_FHIR_BASE_URL=${OPENELIS_FHIR_BASE_URL:-http://openelis-fhir:8080}
       - OPENELIS_ORDER_BUNDLE_PATH=${OPENELIS_ORDER_BUNDLE_PATH:-/fhir/tasks}
       - OPENELIS_USERNAME=${OPENELIS_USERNAME:-admin}
-      - OPENELIS_PASSWORD=${OPENELIS_PASSWORD:-adminADMIN!}
+      - OPENELIS_PASSWORD=${OPENELIS_PASSWORD:?set OPENELIS_PASSWORD (generate-secrets.sh writes .env.local)}
       - JAVA_TOOL_OPTIONS=${CIS_JAVA_TOOL_OPTIONS:--Djavax.net.ssl.trustStore=/etc/ssl/certs/gateway-truststore.p12 -Djavax.net.ssl.trustStorePassword=gatewayTrust123 -Djdk.internal.httpclient.disableHostnameVerification=true}
       # Integration
       - INTEGRATION_SOURCE_SYSTEM=${INTEGRATION_SOURCE_SYSTEM:-CIS}
@@ -565,7 +565,7 @@ services:
       # Database
       - INTEGRATION_DB_URL=jdbc:postgresql://${INTEGRATION_DB_HOST:-nidan-integration-db}:${INTEGRATION_DB_PORT:-5432}/${INTEGRATION_DB_NAME:-nidan_integration}
       - INTEGRATION_DB_USER=${INTEGRATION_DB_USER:-nidan}
-      - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_PASSWORD:-nidan}
+      - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_PASSWORD:?set INTEGRATION_DB_PASSWORD (generate-secrets.sh writes .env.local)}
       - MANAGEMENT_HEALTH_REDIS_ENABLED=${MANAGEMENT_HEALTH_REDIS_ENABLED:-false}
       # Kafka
       - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:${KAFKA_PORT:-9092}
@@ -575,10 +575,10 @@ services:
       - ODOO_DATABASE=${ODOO_DB_NAME:-nidan}
       - ODOO_USERNAME=${ODOO_USERNAME:-nidan}
       - NIDAN_OIS_URL=${NIDAN_OIS_URL:-http://nidan-ois:8082}
-      - NIDAN_OIS_SECRET=${NIDAN_OIS_SECRET:-nidan-secret-password}
-      - ODOO_PASSWORD=${ODOO_PASSWORD:-nidan}
+      - NIDAN_OIS_SECRET=${NIDAN_OIS_SECRET:?set NIDAN_OIS_SECRET (generate-secrets.sh writes .env.local)}
+      - ODOO_PASSWORD=${ODOO_PASSWORD:?set ODOO_PASSWORD (generate-secrets.sh writes .env.local)}
       # Integration
-      - OIS_WEBHOOK_SECRET=${NIDAN_OIS_SECRET:-nidan-secret-password}
+      - OIS_WEBHOOK_SECRET=${NIDAN_OIS_SECRET:?set NIDAN_OIS_SECRET (generate-secrets.sh writes .env.local)}
       - SKIP_SOURCE_SYSTEMS_FOR_ODOO=${SKIP_SOURCE_SYSTEMS_FOR_ODOO:-ODOO}
       - ORTHANC_ENABLED=${ORTHANC_ENABLED:-true}
       - INTEGRATION_FLOW_RADIOLOGY_MWL_ENABLED=${INTEGRATION_FLOW_RADIOLOGY_MWL_ENABLED:-true}

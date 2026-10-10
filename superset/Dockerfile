@@ -5,7 +5,10 @@ FROM apache/superset:latest
 
 USER root
 
-RUN uv pip install --no-cache-dir psycopg2-binary pymysql
+# authlib: Flask-AppBuilder's OAuth login (central login, KC-39). Without it Superset with SUPERSET_SSO_ENABLED=true
+# stops at start with "No module named 'authlib'" (found on the harness, 2026-10-10). Pinned: the version KC-39 was
+# checked against.
+RUN uv pip install --no-cache-dir psycopg2-binary pymysql authlib==1.3.2
 
 # Brand assets (rebrandable): drop replacement files in this folder + rebuild.
 # Referenced by APP_ICON / FAVICONS in superset_config.py. Served under

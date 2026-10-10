@@ -96,6 +96,47 @@ if [ -d /openmrs/custom_modules ] && ls /openmrs/custom_modules/*.omod 1>/dev/nu
   cp -f /openmrs/custom_modules/*.omod "${DATA_DIR}/modules/"
 fi
 
+# Central login (backlog KC-34). On: render oauth2.properties, install oauth2login, trust the gateway's
+# X-Forwarded-Proto/Port in Tomcat so redirect_uri is https with the right port. Off: no oauth2login at all,
+# OpenMRS behaves exactly as without central login (KC-34-05).
+OPENMRS_SSO="${OPENMRS_SSO_ENABLED:-${NIDAN_SSO_ENABLED:-false}}"
+mkdir -p "${DATA_DIR}/modules"
+if [ "${OPENMRS_SSO}" = "true" ]; then
+  for v in KEYCLOAK_PUBLIC_URL KC_OPENMRS_CLIENT_SECRET GATEWAY_DOMAIN; do
+    [ -n "${!v:-}" ] || { echo "OpenMRS central login: ${v} is not set" >&2; exit 1; }
+  done
+  ls /openmrs/distribution/sso_modules/oauth2login-*.omod >/dev/null 2>&1 \
+    || { echo "OpenMRS central login: no oauth2login OMOD in /openmrs/distribution/sso_modules" >&2; exit 1; }
+  # Values are URLs and [A-Za-z0-9] secrets (generate-secrets.sh): safe with "|" as the sed delimiter.
+  sed -e "s|@KEYCLOAK_PUBLIC_URL@|${KEYCLOAK_PUBLIC_URL}|g" \
+      -e "s|@KC_OPENMRS_CLIENT_SECRET@|${KC_OPENMRS_CLIENT_SECRET}|g" \
+      -e "s|@GATEWAY_DOMAIN@|${GATEWAY_DOMAIN}|g" \
+      /openmrs/distribution/sso/oauth2.properties.template > "${DATA_DIR}/oauth2.properties"
+  chmod 600 "${DATA_DIR}/oauth2.properties"
+  cp -f /openmrs/distribution/sso_modules/oauth2login-*.omod "${DATA_DIR}/modules/"
+  # After a Keycloak login, back to the O3 SPA (KC-35-01), not the legacy UI at "/". Initializer loads it at start;
+  # the rsync --delete above removes it again on the first start with central login off.
+  mkdir -p "${DATA_DIR}/configuration/globalproperties/nidan-sso"
+  cat > "${DATA_DIR}/configuration/globalproperties/nidan-sso/globalproperties.xml" <<'GP'
+<config>
+    <globalProperties>
+        <globalProperty>
+            <property>oauth2login.redirectUriAfterLogin</property>
+            <value>/spa/home</value>
+        </globalProperty>
+    </globalProperties>
+</config>
+GP
+  # The RemoteIpValve (https + the gateway's port in redirect_uri) is added at image build time: server.xml is
+  # root-owned, so editing it here as the runtime user failed and, with set -e, stopped OpenMRS from starting.
+  grep -q RemoteIpValve /usr/local/tomcat/conf/server.xml \
+    || echo "WARNING: no RemoteIpValve in server.xml (rebuild the image): login redirects may use http" >&2
+  echo "OpenMRS central login: on"
+else
+  rm -f "${DATA_DIR}/oauth2.properties" "${DATA_DIR}/modules/"oauth2login-*.omod
+  echo "OpenMRS central login: off"
+fi
+
 if [ -f "${OMRS_RUNTIME_PROPERTIES_FILE}" ]; then
   echo "Force updating ${OMRS_RUNTIME_PROPERTIES_FILE} with database connection"
   # Update connection.url and remove potential backslash escapes
