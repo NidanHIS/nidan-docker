@@ -1,0 +1,18 @@
+# Workflows that publish an image from a branch push / dispatch / schedule / PR (KC-46-02). Reported, not failed, until
+# the release process moves to tags (needs the user: it changes how every team ships). Format: path  reason
+.github/workflows/openmrs-build.yml  publishes on push (branches)
+.github/workflows/openmrs-frontend-build.yml  publishes on push (branches)
+OpenELIS-Global-2/.github/workflows/patch-safe-ci.yml  publishes on pull_request, push (branches), workflow_dispatch
+OpenELIS-Global-2/.github/workflows/publish-and-test.yml  publishes on push (branches), workflow_dispatch
+OpenELIS-Global-2/.github/workflows/publish-qa.yml  publishes on push (branches), workflow_dispatch
+OpenIMIS 11.26.05/backend/.github/workflows/docker-manual.yml  publishes on workflow_dispatch
+OpenIMIS 11.26.05/backend/.github/workflows/docker.yml  publishes on workflow_dispatch, schedule
+nidan-dhis2-integration/.github/workflows/ci.yml  publishes on push (branches)
+nidan-docker/.github/workflows/openmrs-build.yml  publishes on workflow_dispatch, push (branches)
+nidan-docker/.github/workflows/openmrs-db-build.yml  publishes on workflow_dispatch, push (branches)
+nidan-docker/.github/workflows/openmrs-frontend-build.yml  publishes on workflow_dispatch, push (branches)
+nidan-docker/.github/workflows/proxy-build.yml  publishes on workflow_dispatch, push (branches)
+nidan-docker/.github/workflows/superset-build.yml  publishes on workflow_dispatch, push (branches)
+nidan-middleware/.github/workflows/docker-build-push.yml  publishes on push (branches)
+nidan_odoo_extra_addons/.github/workflows/build-odoo-pro-image.yml  publishes on push (branches), workflow_dispatch
+odoo_19_addons/.github/workflows/build-odoo-image.yml  publishes on push (branches), workflow_dispatch

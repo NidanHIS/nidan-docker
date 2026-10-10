@@ -1,0 +1,3 @@
+# Scripts that still write plaintext DB dumps / pass DB passwords on argv (KC-28-01/04). Reported, not failed,
+# until their removal is approved; scripts/volume-backup.sh (age-encrypted, no credentials) replaces them.
+backup_utils.sh  sourced by backup_nidanEHR.sh: mysqldump/pg_dump to ./backup-artifacts in plaintext, --password= on argv

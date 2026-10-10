@@ -1,0 +1,37 @@
+# Unpinned images/refs accepted for now (KC-46-01). Fix and delete lines; never add.
+backup-age/Dockerfile: FROM alpine:3.20: no @sha256 digest
+docker-compose.yml: service gateway: trigonaltechnology/gateway:latest: moving tag 'latest'
+docker-compose.yml: service nidan-certbot: certbot/certbot:latest: moving tag 'latest'
+docker-compose.yml: service nidan-cis: nidan-cis:local: moving tag 'local'
+docker-compose.yml: service nidan-dhis2-db: mysql:8.0: no @sha256 digest
+docker-compose.yml: service nidan-dhis2: trigonaltechnology/nidan-dhis2-integration:latest: moving tag 'latest'
+docker-compose.yml: service nidan-integration-db: postgres:15: no @sha256 digest
+docker-compose.yml: service nidan-kafka: confluentinc/cp-kafka:7.5.0: no @sha256 digest
+docker-compose.yml: service nidan-ois: nidan-ois:local: moving tag 'local'
+docker-compose.yml: service nidan-zookeeper: confluentinc/cp-zookeeper:7.5.0: no @sha256 digest
+docker-compose.yml: service odoo-db: postgres:15: no @sha256 digest
+docker-compose.yml: service odoo: trigonaltechnology/nidan_odoo:latest: moving tag 'latest'
+docker-compose.yml: service openelis-db: trigonaltechnology/openelis-global-2-database:latest: moving tag 'latest'
+docker-compose.yml: service openelis-frontend: trigonaltechnology/openelis-global-2-frontend:latest: moving tag 'latest'
+docker-compose.yml: service openelis: trigonaltechnology/openelis-global-2:latest: moving tag 'latest'
+docker-compose.yml: service openmrs-backend: trigonaltechnology/openmrs-backend:latest: moving tag 'latest'
+docker-compose.yml: service openmrs-db: trigonaltechnology/openmrs-db:latest: moving tag 'latest'
+docker-compose.yml: service openmrs-frontend: trigonaltechnology/openmrs-frontend:latest: moving tag 'latest'
+docker-compose.yml: service orthanc-db: postgres:15: no @sha256 digest
+docker-compose.yml: service orthanc: orthancteam/orthanc:26.6.0: no @sha256 digest
+docker-compose.yml: service superset: trigonaltechnology/superset:latest: moving tag 'latest'
+openmrs-db/Dockerfile: FROM mariadb:10.11: no @sha256 digest
+openmrs/Dockerfile.local-content: FROM openmrs/openmrs-core:2.8.x-amazoncorretto-21: moving tag '2.8.x-amazoncorretto-21'
+openmrs/Dockerfile.local-content: FROM openmrs/openmrs-core:2.8.x-dev-amazoncorretto-21: moving tag '2.8.x-dev-amazoncorretto-21'
+openmrs/Dockerfile: FROM alpine:3.19: no @sha256 digest
+openmrs/Dockerfile: FROM openmrs/openmrs-core:2.8.x-amazoncorretto-21: moving tag '2.8.x-amazoncorretto-21'
+openmrs/Dockerfile: FROM openmrs/openmrs-core:2.8.x-dev-amazoncorretto-21: moving tag '2.8.x-dev-amazoncorretto-21'
+openmrs/Dockerfile: git clone of moving ref ${CONTENT_REPO_REF} (= main)
+openmrs/frontend/Dockerfile.vanilla: FROM nginx:1.25-alpine: no @sha256 digest
+openmrs/frontend/Dockerfile.vanilla: FROM node:22-alpine: no @sha256 digest
+openmrs/frontend/Dockerfile.vanilla: package openmrs@next without an exact version
+openmrs/frontend/Dockerfile: FROM nginx:1.25-alpine: no @sha256 digest
+openmrs/frontend/Dockerfile: FROM node:22-alpine: no @sha256 digest
+openmrs/frontend/Dockerfile: package openmrs@next without an exact version
+proxy/Dockerfile: FROM nginx:alpine: moving tag 'alpine'
+superset/Dockerfile: FROM apache/superset:latest: moving tag 'latest'

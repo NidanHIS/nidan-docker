@@ -1,0 +1,44 @@
+# Secret scan (backlog KC-52-01). Fails when a commit adds a secret that is not in .gitleaksignore.
+# History findings up to 2026-10-08 are triaged in .gitleaksignore; config in .gitleaks.toml.
+
+name: Secret scan
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    env:
+      GITLEAKS_VERSION: 8.30.1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks (pinned, checksum-verified)
+        run: |
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSLO "$base/$tarball"
+          curl -fsSL "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt" | grep " $tarball\$" | sha256sum -c -
+          tar -xzf "$tarball" gitleaks
+          sudo install gitleaks /usr/local/bin/gitleaks
+
+      - name: Scan all history
+        # Blobs over 5 MB (SQL dumps, packaged modules) are skipped: a full scan otherwise takes
+        # over 20 minutes. Secrets belong in env/properties/config files, which are all small.
+        run: |
+          gitleaks git . \
+            --config .gitleaks.toml \
+            --gitleaks-ignore-path .gitleaksignore \
+            --log-opts="--all" \
+            --max-target-megabytes 5 \
+            --redact \
+            --no-banner \
+            --verbose

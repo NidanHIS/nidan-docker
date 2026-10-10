@@ -1,0 +1,207 @@
+# Committed build artifacts (backlog KC-46-03). scripts/check-artifacts.py --write, then fill
+# source_commit for each from the build that produced it.
+artifacts:
+  openmrs/custom_modules/appointments-2.2.0-nidan-SNAPSHOT.omod:
+    added_in: 5b9fa12
+    auth_relevant: false
+    sha256: 0a3b5f496d7f60bc6edf842369e32ca7c1b81b5edb00feaab05e23c1868b338a
+    source: openmrs-backend/openmrs-module-appointments
+    source_commit: unknown
+  openmrs/custom_modules/attachments-4.1.0-nidan-SNAPSHOT.omod:
+    added_in: 693274e
+    auth_relevant: false
+    sha256: c3a2989790ae24a2204f5082eba51df7aa508920b57ae1c33c4d8fa661e2d307
+    source: openmrs-backend/openmrs-module-attachments
+    source_commit: unknown
+  openmrs/custom_modules/bahmni-ipd-1.2.0-nidan-SNAPSHOT.omod:
+    added_in: 693274e
+    auth_relevant: false
+    sha256: 69539b3c14fa0a250d94f3e26054988d1ce96726eade7b171507c4bc182e7c1c
+    source: openmrs-backend/openmrs-module-ipd
+    source_commit: unknown
+  openmrs/custom_modules/bedmanagement-7.3.0-nidan-SNAPSHOT.omod:
+    added_in: 938c256
+    auth_relevant: false
+    sha256: 349f44e8cadfc0860a8f51f758a9c9a512f2295139bf24d5ff8d39c277a204bf
+    source: openmrs-backend/openmrs-module-bedmanagement
+    source_commit: unknown
+  openmrs/custom_modules/communication-1.3.0-nidan-SNAPSHOT.omod:
+    added_in: 693274e
+    auth_relevant: false
+    sha256: bdf3b3ed49c40de8de246e9c3432f3acca9fba464f7c8ca76562fa19080603fc
+    source: openmrs-backend/openmrs-module-communication
+    source_commit: unknown
+  openmrs/custom_modules/fhir2-4.3.0-nidan-SNAPSHOT.omod:
+    added_in: c5e03e1
+    auth_relevant: true
+    sha256: 050638ba931b9f7c1e61947f35edda0616827c8d7b743a1560a169319d0adbd1
+    source: openmrs-backend/openmrs-module-fhir2
+    source_commit: unknown
+  openmrs/custom_modules/legacyui-2.0.1-nidan-SNAPSHOT.omod:
+    added_in: 6917f29
+    auth_relevant: false
+    sha256: b8107d4a3806be1bc54fdcdeb25090d42d5dd636af7aa676a601293091880607
+    source: openmrs-backend/openmrs-module-legacyui
+    source_commit: unknown
+  openmrs/custom_modules/medication-administration-2.0.0-nidan-SNAPSHOT.omod:
+    added_in: 693274e
+    auth_relevant: false
+    sha256: 465cca52d239578f2eefc216b6c69875b1308ebc2b4802cf2ca10fd5d702b49d
+    source: openmrs-backend/openmrs-module-medicationadministration
+    source_commit: unknown
+  openmrs/custom_modules/nidancore-1.0.0-SNAPSHOT.omod:
+    added_in: 693274e
+    auth_relevant: true
+    sha256: 9e5fec637e22933361ac726a929eb39308c81fd8c70827182580735492cb057d
+    source: openmrs-backend/openmrs-module-nidancore
+    source_commit: unknown
+  openmrs/custom_modules/orderexpansion-1.0.1-nidan-SNAPSHOT.omod:
+    added_in: 693274e
+    auth_relevant: false
+    sha256: 0bd1c3da3a25f7a6c5796530780c505ab48bf0d3928421c903b7c66afae5bd89
+    source: openmrs-backend/openmrs-module-orderexpansion
+    source_commit: unknown
+  openmrs/custom_modules/teleconsultation-2.1.0-nidan-SNAPSHOT.omod:
+    added_in: 5b9fa12
+    auth_relevant: false
+    sha256: 1554ca487f0872220621ff2742675d267c9a52c5909bbc9a2f043a920872715e
+    source: openmrs-backend/openmrs-module-teleconsultation
+    source_commit: unknown
+  openmrs/frontend/packages/kenyaemr-esm-bed-orders-app-4.0.5.tgz:
+    added_in: 1d0433c
+    auth_relevant: false
+    sha256: 470fba0b0809531018132d62469c6024b75c9e1a54de86238650923230b17663
+    source: not in monorepo
+    source_commit: unknown
+  openmrs/frontend/packages/kenyaemr-esm-imaging-orders-app-4.0.5.tgz:
+    added_in: b3fa3ca
+    auth_relevant: false
+    sha256: f1a895c1be9cbf3685653f278321771da3a02e47e62f688cdebc8268265a97c6
+    source: not in monorepo
+    source_commit: unknown
+  openmrs/frontend/packages/kenyaemr-esm-medical-supply-orders-app-4.0.5.tgz:
+    added_in: 5378d0e
+    auth_relevant: false
+    sha256: 7f1b506a3593409c256fd015bc7e46ff3b94a29768497e1c49bce7d96ffb6f6f
+    source: not in monorepo
+    source_commit: unknown
+  openmrs/frontend/packages/kenyaemr-esm-procedure-orders-app-4.0.5.tgz:
+    added_in: 5378d0e
+    auth_relevant: false
+    sha256: 53d1293eaeeeb1f06969505224c84f691a3e65c69c7f59a216362d7f4e39f487
+    source: not in monorepo
+    source_commit: unknown
+  openmrs/frontend/packages/nidan-esm-nepali-calendar-1.0.0.tgz:
+    added_in: 34c0104
+    auth_relevant: false
+    sha256: fe21a0f6b3df8c15b38e122fb3e0520a2bc58357d780c5b3b632d5e7258e8776
+    source: openmrs-frontend/nidan-esm-nepali-calendar
+    source_commit: unknown
+  openmrs/frontend/packages/openmrs-esm-appointments-app-10.0.2.tgz:
+    added_in: e6400d2
+    auth_relevant: false
+    sha256: 16854e8ba51921d7caa838050faaf5fd83828082e4b782e935eb2f39d893a6f6
+    source: not in monorepo
+    source_commit: unknown
+  openmrs/frontend/packages/openmrs-esm-form-builder-app-3.4.1-trigonal.tgz:
+    added_in: 8533e8d
+    auth_relevant: false
+    sha256: 50c862e2ee5464aac44cc32032f4eed7f50675622381f265c1176d25d61f1734
+    source: openmrs-frontend/openmrs-esm-form-builder
+    source_commit: unknown
+  openmrs/frontend/packages/openmrs-esm-form-engine-app-12.1.0-trigonal.tgz:
+    added_in: 8533e8d
+    auth_relevant: false
+    sha256: d0d3030826a71eaf138e2bdf9e9990b120515d92f02639a8291727920005393d
+    source: openmrs-frontend/openmrs-esm-form-engine-lib
+    source_commit: unknown
+  openmrs/frontend/packages/openmrs-esm-login-app-10.0.0-nidan.tgz:
+    added_in: c25c917
+    auth_relevant: true
+    sha256: 37a91c3be3a5347c1e8c710e3fe668b45280aff2809a1ed8ce614a530c7a2352
+    source: not in monorepo
+    source_commit: unknown
+  openmrs/frontend/packages/openmrs-esm-nidan-core-app-1.0.0.tgz:
+    added_in: 32856c8
+    auth_relevant: false
+    sha256: 79833e04cbedf4d2d5a96c3f66b7788b743820b57393319bdde709b2c5cfc23a
+    source: not in monorepo
+    source_commit: unknown
+  openmrs/frontend/packages/openmrs-esm-orderset-app-12.0.1.tgz:
+    added_in: b02396f
+    auth_relevant: false
+    sha256: a19d21b9b0b0e1efa0b9fc6dd3fc84a76c81df1569a1eec30f66fbd5b6c2777e
+    source: not in monorepo
+    source_commit: unknown
+  openmrs/frontend/packages/openmrs-esm-patient-chart-app-12.1.0.tgz:
+    added_in: c916d33
+    auth_relevant: false
+    sha256: a9a31e3905e5daaea9d30274ec717a1a963d6718e22fce8a17aa175863094ab2
+    source: openmrs-frontend/openmrs-esm-patient-chart
+    source_commit: unknown
+  openmrs/frontend/packages/openmrs-esm-patient-forms-app-12.1.0.tgz:
+    added_in: c916d33
+    auth_relevant: false
+    sha256: 06040c744e01b68057562442b23ae922fa2ab11e6bba1255669d92f78db6b2d0
+    source: openmrs-frontend/openmrs-esm-patient-chart
+    source_commit: unknown
+  openmrs/frontend/packages/openmrs-esm-patient-medications-app-12.1.0-trigonal.tgz:
+    added_in: cee746f
+    auth_relevant: false
+    sha256: e930b4e89a3afbdc7bf99e8924fcb45e66df25e03fea80924111fba3671537c6
+    source: openmrs-frontend/openmrs-esm-patient-chart
+    source_commit: unknown
+  openmrs/frontend/packages/openmrs-esm-patient-notes-app-12.1.0.tgz:
+    added_in: c0f95d7
+    auth_relevant: false
+    sha256: e61291120976cc018780f4bb405f6faf722e1a430a67fb4e261b7e09e0112bea
+    source: openmrs-frontend/openmrs-esm-patient-chart
+    source_commit: unknown
+  openmrs/frontend/packages/openmrs-esm-patient-orders-app-12.1.0.tgz:
+    added_in: c916d33
+    auth_relevant: false
+    sha256: 619df321071a7c7a0c5e73339d171d0b29c94e58aad56db38916a163a6f20838
+    source: openmrs-frontend/openmrs-esm-patient-chart
+    source_commit: unknown
+  openmrs/frontend/packages/openmrs-esm-patient-orders-fast-app-12.0.1.tgz:
+    added_in: b02396f
+    auth_relevant: false
+    sha256: 087405b4e079036eebb00df96e91d83b44003dcedbdbf85ff2e523814faaa283
+    source: openmrs-frontend/openmrs-esm-patient-chart
+    source_commit: unknown
+  openmrs/frontend/packages/openmrs-esm-paywall-app-1.0.0.tgz:
+    added_in: 497cb7a
+    auth_relevant: true
+    sha256: b2af5c46924106d354e87c925f4014bd056928e5d04948dd30bf246f901c3925
+    source: not in monorepo
+    source_commit: unknown
+  openmrs/frontend/packages/openmrs-esm-service-queues-app-10.0.2.tgz:
+    added_in: 0f04a19
+    auth_relevant: false
+    sha256: e1b2c86e304ad73cbc49cd7e3f569bfeb4148783f452c760d47999674467fbbc
+    source: not in monorepo
+    source_commit: unknown
+  openmrs/frontend/packages/trigonal-esm-ipd-app-1.0.0.tgz:
+    added_in: 914b32c
+    auth_relevant: false
+    sha256: 7e123347ac770d2b3b525ea77d416bdb5aefd865235a8aa2f8b025c1e267c017
+    source: openmrs-frontend/trigonal-esm-ipd-app
+    source_commit: unknown
+  openmrs/frontend/packages/trigonal-esm-patient-report-app-1.0.0.tgz:
+    added_in: 93ed752
+    auth_relevant: false
+    sha256: 11c3bd5bb09482ac320bde140b826b7fe41aa34646910cf76fef3c13f2c6dac5
+    source: not in monorepo
+    source_commit: unknown
+  openmrs/frontend/packages/trigonal-esm-patient-tests-app-1.0.0.tgz:
+    added_in: f04e231
+    auth_relevant: false
+    sha256: 1847843f75f6e8e5e5774c506f233bf847b6c8a7b898f212086ee10db92f6b08
+    source: not in monorepo
+    source_commit: unknown
+  openmrs/frontend/packages/trigonal-esm-ward-app-1.0.0.tgz:
+    added_in: 938c256
+    auth_relevant: false
+    sha256: 1fb2e9a9a3a7e17173691a9798d2ed0d28c977eb6f11a586a1d26e826017b182
+    source: not in monorepo
+    source_commit: unknown

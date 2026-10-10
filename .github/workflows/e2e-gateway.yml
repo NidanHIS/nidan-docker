@@ -1,0 +1,185 @@
+# Gateway contract (backlog KC-42-01, first project): the real gateway image from ./proxy with every upstream
+# stubbed (tests/e2e-auth/harness), Playwright sso-off and sso-on against it on every push and PR. Tests tagged
+# @needs-app assert behaviour of a real app (CIS, Superset) and run only in the full-stack prod-like job.
+
+name: E2E gateway
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "40 1 * * *"     # nightly: includes @slow and the Keycloak-outage test, posts their timings (KC-42-04)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gateway:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GATEWAY_URL: https://localhost:18443
+      GATEWAY_HTTP: http://localhost:18080
+      GATEWAY_OE_URL: https://localhost:18444
+      STAFF_URL: https://127.0.0.1:18445
+      HARNESS: tests/e2e-auth/harness/docker-compose.yml
+      STAFF_ECHO: "1"             # staff-api.spec.ts: the harness echoes in place of Keycloak
+      SSO_HARNESS: "1"            # gate.spec.ts: roles come from the stand-in oauth2-proxy cookie
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tests/e2e-auth/package-lock.json
+
+      - name: Playwright (pinned in package-lock)
+        working-directory: tests/e2e-auth
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: sso-off
+        run: |
+          HARNESS_SSO=false docker compose -f "$HARNESS" up -d --build --wait
+          cd tests/e2e-auth
+          rc=0; npx playwright test --project sso-off --grep-invert @needs-app || rc=$?
+          mkdir -p reports && cp test-results/report.json reports/sso-off.json; exit $rc
+
+      - name: sso-on
+        run: |
+          HARNESS_SSO=true docker compose -f "$HARNESS" up -d --wait
+          cd tests/e2e-auth
+          rc=0; npx playwright test --project sso-on --grep-invert @needs-app || rc=$?
+          mkdir -p reports && cp test-results/report.json reports/sso-on.json; exit $rc
+
+      - name: A patient name in a failing request reaches no log (KC-13-02, gateway part)
+        run: |
+          docker compose -f "$HARNESS" stop upstreams
+          code=$(curl -sk -o /dev/null -w '%{http_code}' 'https://localhost:18443/openmrs/ws/rest/v1/patient?q=RamBahadurCI')
+          [ "$code" = 502 ] || { echo "expected 502 with the upstream down, got $code" >&2; exit 1; }
+          sleep 1
+          gw=$(docker compose -f "$HARNESS" ps -q gateway)
+          if docker logs "$gw" 2>&1 | grep -q RamBahadurCI; then echo "name in docker logs" >&2; exit 1; fi
+          if docker exec "$gw" grep -q RamBahadurCI /var/log/nidan/access.log; then echo "name in access log" >&2; exit 1; fi
+          docker exec "$gw" grep -q '"GET /openmrs/ws/rest/v1/patient HTTP/1.1" status:502' /var/log/nidan/access.log \
+            || { echo "the 502 is not in the access log with its path" >&2; exit 1; }
+
+      - name: Access log names user and app, never the query (KC-13-01)
+        run: |
+          docker compose -f "$HARNESS" start upstreams
+          HARNESS_SSO=true docker compose -f "$HARNESS" up -d --wait
+          code=$(curl -sk -o /dev/null -w '%{http_code}' -H 'Accept: application/json' \
+            -H 'Cookie: _oauth2_proxy=ok:app-openmrs' 'https://localhost:18443/openmrs/ws/rest/v1/patient?q=RamLogCI')
+          [ "$code" = 200 ] || { echo "expected 200 with an app-openmrs session, got $code" >&2; exit 1; }
+          sleep 1
+          gw=$(docker compose -f "$HARNESS" ps -q gateway)
+          line=$(docker exec "$gw" grep '"GET /openmrs/ws/rest/v1/patient HTTP/1.1" status:200' /var/log/nidan/access.log | tail -n 1)
+          echo "$line"
+          case "$line" in *"user:nurse1 app:openmrs "*) ;; *) echo "no user/app in the access log line" >&2; exit 1 ;; esac
+          if docker exec "$gw" grep -q 'RamLogCI\|q=' /var/log/nidan/access.log; then echo "query in the access log" >&2; exit 1; fi
+
+      - name: Gateway log on failure
+        if: failure()
+        run: docker compose -f "$HARNESS" logs gateway | tail -n 200
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-gateway-report
+          path: |
+            tests/e2e-auth/playwright-report/
+            tests/e2e-auth/reports/
+          retention-days: 14
+
+  sso-full:
+    # The real login path (KC-10-04/05/07, KC-11-01/04, KC-19-01, KC-56-01/07): gateway + pinned oauth2-proxy with
+    # proxy/oauth2-proxy.cfg + pinned Keycloak with the imported realm + stub apps (tests/e2e-auth/harness/sso.yml).
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      F: tests/e2e-auth/harness/sso.yml
+      SSO_FULL: "1"
+      KEYCLOAK_URL: http://localhost:18180/auth
+      GATEWAY_URL: https://localhost:18443
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tests/e2e-auth/package-lock.json
+
+      - name: Keycloak + realm, then gateway and oauth2-proxy
+        run: |
+          export KC_USERNAME_PATTERN="$(python3 -I scripts/reserved-usernames.py | sed -n 's/^KC_USERNAME_PATTERN=//p')"
+          docker compose -f "$F" up -d --build --wait keycloak
+          docker compose -f "$F" --profile import run --rm config-cli
+          docker compose -f "$F" up -d --build --wait
+
+      - name: Log in for real (@slow only nightly / on demand)
+        working-directory: tests/e2e-auth
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          if [ "${{ github.event_name }}" = schedule ] || [ "${{ github.event_name }}" = workflow_dispatch ]; then
+            npx playwright test sso-flow --project=sso-on
+          else
+            npx playwright test sso-flow --project=sso-on --grep-invert @slow
+          fi
+          mkdir -p reports && cp test-results/report.json reports/sso-full.json
+
+      - name: Keycloak outage, last (stops Keycloak; its in-memory realm is gone afterwards) - KC-11-03
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        working-directory: tests/e2e-auth
+        env:
+          SSO_DOCKER: "1"
+        run: |
+          npx playwright test sso-flow -g "KC-11-03" --project=sso-on
+          cp test-results/report.json reports/sso-outage.json
+
+      - name: Timings of the slow checks (KC-42-04)
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        working-directory: tests/e2e-auth
+        run: python3 -I ../../scripts/slow-timings.py reports/*.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose -f "$F" logs gateway oauth2-proxy keycloak | tail -n 300
+
+  orthanc:
+    # Orthanc's own read-only layer (KC-30-02/05): the pinned Orthanc image with orthanc/orthanc.json and its Lua.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tests/e2e-auth/package-lock.json
+      - name: Orthanc
+        run: |
+          docker compose -f tests/e2e-auth/harness/orthanc.yml up -d
+          for i in $(seq 1 60); do curl -sf -u nidan:harness-orthanc-admin http://127.0.0.1:18042/system >/dev/null && break; sleep 3; done   # gitleaks:allow (throwaway CI harness credential)
+      - name: Probe it
+        working-directory: tests/e2e-auth
+        env:
+          ORTHANC_URL: http://127.0.0.1:18042
+        run: |
+          npm ci
+          npx playwright test orthanc.spec --project=sso-off
+
+
+  network:
+    # Network segmentation (KC-43-01, KC-43-03, KC-07-05): stand-ins on the REAL merged compose networks; checks who can
+    # open a TCP connection to whom (apps never reach Keycloak; gateway/Keycloak never reach databases or Kafka).
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe the compose network layout
+        run: python3 -I tests/e2e-auth/harness/net-probe.py

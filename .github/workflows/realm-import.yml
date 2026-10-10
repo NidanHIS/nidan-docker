@@ -1,0 +1,83 @@
+# Realm as code (backlog KC-01-01, KC-08-01): keycloak/realm/** imports into an empty Keycloak (the pinned 26.8
+# image) with the pinned keycloak-config-cli, and a forced second import changes nothing (admin-API snapshot diff).
+
+name: Realm import
+
+on:
+  push:
+    paths: ["keycloak/**", "docker-compose.yml", "tests/e2e-auth/harness/keycloak.yml", "tests/e2e-auth/harness/realm-snapshot.py", "tests/e2e-auth/specs/realm.spec.ts", "scripts/keycloak-admin-permissions.py", "scripts/realm-audit.py", ".github/workflows/realm-import.yml"]
+  pull_request:
+    paths: ["keycloak/**", "docker-compose.yml", "tests/e2e-auth/harness/keycloak.yml", "tests/e2e-auth/harness/realm-snapshot.py", "tests/e2e-auth/specs/realm.spec.ts", "scripts/keycloak-admin-permissions.py", "scripts/realm-audit.py", ".github/workflows/realm-import.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      F: tests/e2e-auth/harness/keycloak.yml
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Keycloak (dev mode, in-memory)
+        run: docker compose -f "$F" up -d --wait keycloak
+
+      - name: First import, then a forced second one; the realm must not change
+        run: |
+          export KC_USERNAME_PATTERN="$(python3 -I scripts/reserved-usernames.py | sed -n 's/^KC_USERNAME_PATTERN=//p')"
+          docker compose -f "$F" --profile import run --rm config-cli
+          python3 -I tests/e2e-auth/harness/realm-snapshot.py /tmp/after-1.json
+          docker compose -f "$F" --profile import run --rm -e IMPORT_CACHE_ENABLED=false config-cli
+          python3 -I tests/e2e-auth/harness/realm-snapshot.py /tmp/after-2.json
+          diff /tmp/after-1.json /tmp/after-2.json
+
+      - name: Without the bootstrap admin (KC-07-07); incident client scoped to realm nidan (KC-50)
+        run: |
+          export KC_USERNAME_PATTERN="$(python3 -I scripts/reserved-usernames.py | sed -n 's/^KC_USERNAME_PATTERN=//p')"
+          secret=harness-only-not-a-real-secret-0123456789
+          docker compose -f "$F" --profile import run --rm -e IMPORT_CACHE_ENABLED=false \
+            -e KEYCLOAK_AVAILABILITYCHECK_TIMEOUT=30s -e KEYCLOAK_GRANTTYPE=client_credentials \
+            -e KEYCLOAK_CLIENTID=nidan-config-cli -e KEYCLOAK_CLIENTSECRET=$secret -e KEYCLOAK_USER= -e KEYCLOAK_PASSWORD= config-cli
+          python3 -I tests/e2e-auth/harness/realm-snapshot.py /tmp/after-3.json
+          diff /tmp/after-2.json /tmp/after-3.json
+          B=http://127.0.0.1:18180/auth
+          T=$(curl -s -d grant_type=client_credentials -d client_id=nidan-incident -d client_secret=$secret \
+            "$B/realms/master/protocol/openid-connect/token" | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+          code() { curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $T" "$@"; }
+          [ "$(code "$B/admin/realms/nidan/users?max=1")" = 200 ]
+          [ "$(code -X POST "$B/admin/realms/nidan/push-revocation")" = 200 ]
+          [ "$(code "$B/admin/realms/master/users?max=1")" = 403 ]
+
+      - name: Hospital-admin permissions (KC-09) - apply, then nothing left to do
+        run: |
+          tok() { curl -s -d grant_type=password -d client_id=admin-cli -d username=admin -d password=harness-admin-password \
+            http://127.0.0.1:18180/auth/realms/master/protocol/openid-connect/token \
+            | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])" > /tmp/kc-token; }
+          tok; KC_TOKEN_FILE=/tmp/kc-token python3 -I scripts/keycloak-admin-permissions.py --apply --url http://127.0.0.1:18180/auth
+          tok; KC_TOKEN_FILE=/tmp/kc-token python3 -I scripts/keycloak-admin-permissions.py --url http://127.0.0.1:18180/auth | grep -q 'up to date'
+          # a fresh realm is clean, read through the automation client the nightly cron uses
+          KC_AUTOMATION_CLIENT_SECRET=harness-only-not-a-real-secret-0123456789 \
+            python3 -I scripts/realm-audit.py --client nidan-incident --url http://127.0.0.1:18180/auth
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tests/e2e-auth/package-lock.json
+
+      - name: Realm behaviour against the imported Keycloak (KC-01/09/17/54/55/57)
+        working-directory: tests/e2e-auth
+        env:
+          KEYCLOAK_URL: http://127.0.0.1:18180/auth
+          KC_ADMIN_PERMISSIONS: "1"
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium   # KC-17 login-page tests use a browser
+          npx playwright test realm.spec --project=sso-off
+
+      - name: Keycloak log on failure
+        if: failure()
+        run: docker compose -f "$F" logs keycloak | tail -n 200

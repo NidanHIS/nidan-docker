@@ -1,0 +1,4 @@
+# Deployments that route a public hostname past the gateway or to it over plain HTTP (KC-44-01). Reported, not
+# failed, until the Coolify demo is changed (approval needed: it is the live public demo). Format: file service reason
+docker-compose-resolved gateway  Traefik/Caddy forward demo.nidanehr.com to gateway:80 over HTTP
+docker-compose-resolved odoo     demo-odoo.nidanehr.com goes straight to odoo:8069, past the gateway

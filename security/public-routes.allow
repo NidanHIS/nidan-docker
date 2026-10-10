@@ -1,0 +1,77 @@
+# Reviewed unauthenticated routes (backlog KC-53-05). Checked by scripts/check-public-routes.py.
+# Format: component | path | check | reason
+# check: shared-secret | secret-or-admin | payment-token | signed-token | static-asset | login-page | health | error-page | NONE
+# signed-token = a JWT signed by Keycloak, verified against its JWKS (issuer, audience, age) before anything happens
+# secret-or-admin = AdminAccessFilter: service webhook secret or the dead-letter admin (HTTP Basic), fails closed
+# NONE = known hole, listed so it is tracked; the check fails until it is fixed (story in the reason).
+# A new auth="public"/permitAll route fails the check until someone adds it here with a real check.
+
+# --- Odoo: service-to-service APIs (X-Nidan-Webhook-Secret, fail closed when unset, constant-time) ---
+odoo | /api/nidan/bed-type-catalog | shared-secret | NIDAN_ODOO_SECRET, OIS -> Odoo
+odoo | /api/nidan/clinical-order/upsert | shared-secret | NIDAN_ODOO_SECRET, OIS -> Odoo
+odoo | /api/nidan/orders/lines/dispense | shared-secret | NIDAN_ODOO_SECRET
+odoo | /api/nidan/lab-catalog | shared-secret | NIDAN_ODOO_SECRET
+odoo | /api/nidan/location-catalog | shared-secret | NIDAN_ODOO_SECRET
+odoo | /api/nidan/orders | shared-secret | NIDAN_ODOO_SECRET
+odoo | /api/nidan/orders/<int:order_id> | shared-secret | NIDAN_ODOO_SECRET (PUT and DELETE)
+odoo | /api/nidan/prescribe | shared-secret | NIDAN_ODOO_SECRET
+odoo | /api/nidan/patients/sync | shared-secret | NIDAN_ODOO_SECRET
+odoo | /api/nidan/orders/cancel | shared-secret | NIDAN_ODOO_SECRET (server callers); browser callers need an Odoo session
+odoo | /api/nidan/outbox/drain | shared-secret | NIDAN_ODOO_SECRET, OIS -> Odoo
+odoo | /api/nidan/provider-catalog | shared-secret | NIDAN_ODOO_SECRET
+odoo | /api/nidan/visit/upsert | shared-secret | NIDAN_ODOO_SECRET
+odoo | /api/nidan/patient/payment-status | shared-secret | NIDAN_ODOO_SECRET; OpenMRS/OpenELIS paywall, internal only
+odoo | /api/nidan/billing/snapshot | shared-secret | NIDAN_OIS_SECRET, portal-sync -> Odoo (default removed 2026-10-07)
+odoo | /api/nidan/portal-enrolment | shared-secret | NIDAN_OIS_SECRET, portal-sync -> Odoo (default removed 2026-10-07)
+odoo | /api/nidan/portal-appointments | shared-secret | NIDAN_OIS_SECRET, portal-sync -> Odoo (default removed 2026-10-07)
+odoo | /api/nidan/portal-appointments/assigned | shared-secret | NIDAN_OIS_SECRET
+odoo | /api/nidan/portal-appointments/collected | shared-secret | NIDAN_OIS_SECRET
+odoo | /api/nidan/portal-appointments/cancelled | shared-secret | NIDAN_OIS_SECRET
+odoo | /api/tenant/create | NONE | trigonal_ird: sudo() res.company create with no check at all; remove or secure (KC-53-04, needs approval)
+
+odoo | /auth_oauth/backchannel_logout | signed-token | OIDC back-channel logout from Keycloak via the gateway relay (KC-37-08); RS256, iss, aud, events, iat
+
+# --- Odoo: payment QR callbacks opened by anonymous payer phones ---
+odoo | /pos_esewa_qr/pay | payment-token | consteq against a link token signed with the database secret
+odoo | /pos_esewa_qr/return | static-asset | renders a static return page; no lookup, no write
+odoo | /pos_khalti_qr/return/<int:method_id>/<string:token> | payment-token | consteq against the method's signed return token
+
+# --- CIS ---
+cis | /actuator/** | health | exposure is health,info,metrics; gateway exposes only /cis/actuator/health
+cis | /error | error-page | Spring error page
+cis | /dead-letters/** | secret-or-admin | AdminAccessFilter (OpenELIS secret or DEAD_LETTER_ADMIN_PASSWORD); cis-admin SSO gate replaces Basic in KC-10
+cis | /api/dead-letters/** | secret-or-admin | AdminAccessFilter; OpenELIS retry client sends the webhook secret
+cis | /openelis/catalog/** | shared-secret | OPENELIS_CATALOG_WEBHOOK_SECRET via SharedSecrets (fail closed)
+cis | /openelis/lab-result | shared-secret | OPENELIS_CATALOG_WEBHOOK_SECRET via SharedSecrets (fail closed)
+cis | /openelis/sample-collected | shared-secret | OPENELIS_CATALOG_WEBHOOK_SECRET via SharedSecrets (fail closed)
+cis | /openelis/patient | shared-secret | OPENELIS_CATALOG_WEBHOOK_SECRET via SharedSecrets (fail closed)
+cis | /orthanc/webhook | shared-secret | ORTHANC_WEBHOOK_SECRET sent by webhook.lua, checked via SharedSecrets (fail closed, 2026-10-08)
+
+# --- OIS ---
+ois | /actuator/** | health | exposure is health,info,metrics
+ois | /odoo/webhooks/** | shared-secret | OIS_WEBHOOK_SECRET via SharedSecrets (fail closed)
+ois | /error | error-page | Spring error page
+ois | /dead-letters/** | secret-or-admin | AdminAccessFilter (Odoo NIDAN_OIS_SECRET or DEAD_LETTER_ADMIN_PASSWORD)
+ois | /api/dead-letters/** | secret-or-admin | AdminAccessFilter; Odoo pos_session retry sends the webhook secret
+ois | /admin/visit-dlt/replay/** | shared-secret | X-Nidan-Admin-Key (nidan.visit-sync.admin-api-key) via SharedSecrets; 503 when unset
+# OIS anyRequest() is denyAll() since 2026-10-08 (was permitAll, KC-53-06)
+
+# --- OpenELIS ---
+openelis | /LoginPage | login-page | login form
+openelis | /ValidateLogin | login-page | login POST (local password login; gated behind SSO in KC-38-05)
+openelis | /session | login-page | session probe used by the login page
+openelis | /ChangePasswordLogin | login-page | password change before login
+openelis | /UpdateLoginChangePassword | login-page | password change before login
+openelis | /fontawesome-free-5.13.1-web/** | static-asset | static
+openelis | /select2/** | static-asset | static
+openelis | /css/** | static-asset | static
+openelis | /favicon/** | static-asset | static
+openelis | /images/** | static-asset | static
+openelis | /documentation/** | static-asset | static
+openelis | /scripts/** | static-asset | static
+openelis | /jsp/** | static-asset | static JSP fragments
+openelis | /docs/UserManual | static-asset | user manual
+openelis | /health/** | health | health probe
+openelis | /rest/open-configuration-properties | login-page | config the login page needs before auth
+openelis | /rest/site-branding/** | login-page | logo/branding for the login page
+openelis | /rest/supportedlocales/active | login-page | locale list for the login page

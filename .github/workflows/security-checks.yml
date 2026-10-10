@@ -1,0 +1,140 @@
+# Offline security checks (backlog KC-42 / E-1). No running stack needed; every push and PR.
+# Each step is a checker or a self-test from scripts/ or superset/tests/.
+
+name: Security checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tooling
+        run: python3 -m pip install --quiet pyyaml==6.0.3
+
+      - name: AC coverage integrity (KC-42-03)
+        # Tags/evidence point at real ACs, security ACs' tests carry @security, evidence files exist; stories
+        # listed here are fully covered and must stay so (add a story once its last AC has a test).
+        run: python3 -I tests/e2e-auth/ac-coverage.py KC-48 KC-50 KC-58
+
+      - name: Realm lint (KC-54-01, KC-01-03 static, KC-04-03)
+        run: |
+          python3 -I scripts/check-realm.py
+          python3 -I scripts/test_check_realm.py
+
+      - name: Role catalogs match app sources; no superuser role in a staff job (KC-24-01/02, KC-57-01)
+        run: python3 -I scripts/check-catalog.py
+
+      - name: Gateway routes match the contract proxy/routes.yaml exactly (KC-10); port 80 is redirect + ACME (KC-47-02)
+        run: |
+          python3 -I scripts/check-routes.py
+          python3 -I scripts/test_port80_contract.py
+
+      - name: Checker self-tests (routes, public routes, secret compare, auth check)
+        run: |
+          python3 -I scripts/test_check_routes.py
+          python3 -I scripts/test_check_public_routes.py
+          python3 -I scripts/test_check_secret_compare.py
+          python3 -I scripts/test_nidan_auth_check.py
+          python3 -I scripts/test_check_catalog.py
+          python3 -I scripts/test_bootstrap_export.py
+          python3 -I scripts/test_dry_run_diff.py
+          python3 -I scripts/test_apply_links.py
+          python3 -I scripts/test_fetch_keycloak_ids.py
+          python3 -I scripts/test_incident.py
+          python3 -I scripts/test_rotate_access_log.py
+          python3 -I scripts/test_volume_backup.py
+          python3 -I scripts/check-backup-safety.py
+          python3 -I scripts/test_check_backup_safety.py
+          python3 -I scripts/check-ingress.py
+          python3 -I scripts/test_check_ingress.py
+          python3 -I scripts/check-publish.py
+          python3 -I scripts/test_check_publish.py
+          python3 -I scripts/check-esm-login.py
+          python3 -I scripts/test_check_esm_login.py
+          python3 -I scripts/test_openmrs_weak_passwords.py
+          python3 -I scripts/test_disable_sso.py
+          python3 -I scripts/test_keycloak_db_isolation.py
+          python3 -I scripts/test_legacy_realms.py
+          python3 -I scripts/test_staff_config.py
+          python3 -I scripts/test_keycloak_admin_permissions.py
+          python3 -I scripts/test_realm_audit.py
+          python3 -I scripts/test_slow_timings.py
+          python3 -I scripts/test_keycloak_events.py
+          python3 -I scripts/test_release_gate.py
+          python3 -I scripts/test_hsts_decide.py
+          python3 -I scripts/test_dicom_lockdown.py
+          python3 -I scripts/test_reporting_db_users.py
+          python3 -I scripts/test_reserved_usernames.py
+
+      - name: Gateway page translations have the same keys (KC-18-03)
+        run: |
+          python3 -I - <<'PY'
+          import json
+          en = json.load(open("proxy/assets/i18n/messages_en.json"))
+          ne = json.load(open("proxy/assets/i18n/messages_ne.json")); ne.pop("_review", None)
+          assert set(en) == set(ne), ("missing in ne", sorted(set(en) - set(ne)), "extra", sorted(set(ne) - set(en)))
+          assert all(str(v).strip() for v in ne.values()), "empty Nepali string"
+          print(len(en), "keys, en == ne")
+          PY
+
+      - name: Tracked demo .env holds only approved demo values (KC-05-07)
+        run: |
+          python3 -I scripts/check-demo-env.py
+          python3 -I scripts/test_check_demo_env.py
+
+      - name: Image and ref pins, ratchet against security/unpinned.baseline (KC-46-01)
+        run: |
+          python3 -I scripts/check-pins.py
+          python3 -I scripts/test_check_pins.py
+
+      - name: OpenMRS Basic-auth client inventory (KC-32-06; this repo's part, siblings are checked locally)
+        run: |
+          python3 -I scripts/check-openmrs-basic-clients.py
+          python3 -I scripts/test_check_openmrs_basic_clients.py
+
+      - name: Committed artifacts match their manifest (KC-46-03)
+        run: |
+          python3 -I scripts/check-artifacts.py
+          python3 -I scripts/test_check_artifacts.py
+
+      - name: Every compose variable and script is documented (KC-29-01)
+        run: |
+          python3 -I scripts/check-docs.py
+          python3 -I scripts/test_check_docs.py
+
+      - name: Keycloak theme escaping and messages (KC-17-06, KC-17-02 copy)
+        run: |
+          python3 -I scripts/check-theme.py
+          python3 -I scripts/test_check_theme.py
+
+      - name: Superset fail-closed config + central login (KC-03, KC-39)
+        run: |
+          python3 -I superset/tests/test_config_guards.py
+          python3 -I superset/tests/test_sso.py
+          python3 -I superset/tests/test_sso_wiring.py
+
+      - name: Secrets tooling (KC-05-01/02/04)
+        run: python3 -I scripts/test_secrets_tooling.py
+
+      - name: Per-site CA (KC-12-04/05)
+        run: python3 -I scripts/test_site_ca.py
+
+      - name: Auth modes, paywall URLs, published ports (KC-27, KC-14-06)
+        run: python3 -I scripts/nidan-auth-check.py
+
+      - name: Production preflight refuses the public demo .env (KC-05-03)
+        run: |
+          python3 -I scripts/preflight.py            # demo mode: reports only
+          if NIDAN_DEPLOYMENT=production python3 -I scripts/preflight.py >/dev/null 2>&1; then
+            echo "preflight accepted the tracked demo .env in production mode" >&2
+            exit 1
+          fi

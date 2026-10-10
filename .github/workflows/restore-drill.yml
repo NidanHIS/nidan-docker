@@ -1,0 +1,23 @@
+# Keycloak restore drill (backlog KC-28-06): backup with scripts/volume-backup.sh (throwaway age key), restore into a
+# new volume, a staff user logs in on the restored Keycloak; the whole drill must finish within 15 minutes.
+name: Restore drill
+
+on:
+  schedule:
+    - cron: "10 2 * * *"
+  push:
+    paths: ["scripts/volume-backup.sh", "scripts/keycloak-restore-drill.sh", "backup-age/**", "keycloak/**",
+            "tests/e2e-auth/harness/restore-drill.yml", "tests/e2e-auth/harness/drill-login.py", ".github/workflows/restore-drill.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Drill (time is printed and enforced)
+        run: scripts/keycloak-restore-drill.sh "$RUNNER_TEMP/drill"

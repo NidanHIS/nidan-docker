@@ -1,0 +1,23 @@
+# Files that read an OpenMRS password = OpenMRS Basic-auth clients (backlog KC-32-06). Ratchet:
+# a new file fails CI; when a file stops reading one, delete its line. Format: path  story / note
+nidan-docker/.env  config carrier (public demo values, KC-05-07)
+nidan-docker/env.template  config carrier
+nidan-docker/docker-compose.yml  config carrier: passes OPENMRS_* / NIDAN_SYNC_* to cis, odoo, openmrs
+nidan-docker/dev.docker-compose.yml  config carrier (local dev)
+nidan-docker/scripts/generate-secrets.sh  tooling: generates the values
+nidan-docker/scripts/preflight.py  tooling: rejects weak values
+nidan-middleware/integration/cis/src/main/resources/application.yml  CIS basic fallback; jwt via OPENMRS_AUTH_MODE (KC-32)
+nidan-middleware/integration/cis/src/main/java/org/nidan/integration/cis/openmrs/OpenmrsAuthHeaderProvider.java  CIS basic|jwt switch (KC-32)
+nidan-middleware/integration/cis/src/main/java/org/nidan/integration/cis/service/impl/FhirOpenmrsClient.java  CIS FHIR client, via the header provider (KC-32)
+nidan-middleware/integration/cis/src/main/java/org/nidan/integration/cis/service/impl/LabResultIngestionServiceImpl.java  CIS lab results, via the header provider (KC-32)
+nidan-middleware/integration/cis/src/main/java/org/nidan/integration/cis/provisioning/CisSyncUserProvisioner.java  creates the sync user with OpenMRS admin creds; removed when service accounts come from Keycloak (KC-32)
+nidan-middleware/integration/ois/src/main/java/org/nidan/integration/ois/provisioning/OisSyncUserProvisioner.java  same, OIS (KC-32)
+odoo_19_addons/nidan_connector/models/openmrs_client.py  Odoo -> OpenMRS, basic|jwt via openmrs_auth.py (KC-32)
+odoo_19_addons/nidan_connector/models/res_config_settings.py  Odoo settings field for the basic password (KC-32)
+odoo_19_addons/nidan_connector/views/res_config_settings_views.xml  same, view (KC-32)
+nidan-patient-portal/portal-sync/src/main/resources/application.yml  portal-sync FHIR pull, Basic nidan-sync (KC-59)
+nidan-patient-portal/deploy/.env  portal demo env, public DEMO values (KC-59-03)
+nidan-patient-portal/deploy/docker-compose.yml  portal compose (KC-59-03)
+nidan-patient-portal/deploy/provision.sh  stores the operator-supplied portal FHIR password in secrets.env (KC-59-03; goes with KC-59-01)
+nidan-patient-portal/deployment/docker-compose.yml  portal compose (KC-59-03)
+nidan-patient-portal/deployment/env.template  portal env template (KC-59-03)

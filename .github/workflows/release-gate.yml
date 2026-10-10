@@ -1,0 +1,20 @@
+# Go-live gate (backlog KC-49-03): a site release tag is refused while any @security acceptance criterion
+# is red or skipped. Feed it the Playwright JSON report of the prod-like run when that job exists.
+name: Release gate
+
+on:
+  push:
+    tags: ["site-*", "v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m pip install --quiet pyyaml==6.0.3
+      - name: Every @security AC green (evidence or Playwright report)
+        run: python3 -I scripts/release-gate.py --playwright tests/e2e-auth/test-results/report.json

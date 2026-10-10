@@ -1,0 +1,38 @@
+# Secret scanning config (backlog KC-52-01). CI: .github/workflows/gitleaks.yml.
+# History findings were triaged on 2026-10-08 (rotation register R1-R8, kept outside the repo);
+# their fingerprints are in .gitleaksignore, so only NEW findings fail.
+
+[extend]
+useDefault = true
+
+# The default rules miss short passwords (the Federal HMIS password leak was one). Flag any
+# secret-named variable with a real value in env-style and properties files.
+[[rules]]
+id = "nidan-env-secret"
+description = "Secret-named variable with a value in an env or properties file"
+regex = '''(?m)^[ \t]*-?[ \t]*([A-Za-z0-9_.]*(?i:password|secret|_key|token|\.key)[A-Za-z0-9_.]*)[ \t]*[=:][ \t]*["']?([^\s"'#]{4,})'''
+secretGroup = 2
+path = '''(^|/)(\.env[^/]*|env\.template|[^/]*\.properties)$'''
+keywords = ["password", "secret", "_key", "token", ".key"]
+
+  [[rules.allowlists]]
+  description = "placeholders, references and non-secret flags"
+  regexTarget = "secret"
+  regexes = [
+    '''^CHANGEME''',
+    '''^\$\{''',
+    '''^(true|false|none|null|yes|no)$''',
+    # public demo values in the tracked .env are named sample*; preflight.py refuses them in production
+    '''^sample([-_]|$)''',
+  ]
+
+[allowlist]
+description = "Triaged false positives (2026-10-08)"
+paths = [
+  # DHIS2 dataElement / categoryOptionCombo UIDs, not keys
+  '''(^|/)dhis2/mappings/.*\.ya?ml$''',
+  # OpenMRS privilege names ("API Token", "access privilege") in the seed dump
+  '''(^|/)openmrs-db/db_backup/openmrsdb_backup\.sql$''',
+  # Keycloak login theme translations ("password=Password"): UI labels, not values
+  '''(^|/)keycloak/themes/[^/]+/login/messages/messages_[a-z]+\.properties$''',
+]
