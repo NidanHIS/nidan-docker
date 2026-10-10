@@ -36,3 +36,11 @@ paths = [
   # Keycloak login theme translations ("password=Password"): UI labels, not values
   '''(^|/)keycloak/themes/[^/]+/login/messages/messages_[a-z]+\.properties$''',
 ]
+regexes = [
+  # throwaway test-harness values are named harness-* (tests/e2e-auth/harness); never used on a real site
+  '''^harness-[A-Za-z0-9-]+$''',
+  # RFC 6455's sample Sec-WebSocket-Key, used by the websocket tests
+  '''^dGhlIHNhbXBsZSBub25jZQ==$''',
+  # the port/database tail of a JDBC URL (jdbc:postgresql://host:5432/db): no credential in it
+  '''^[0-9]{2,5}/[A-Za-z0-9_]+$''',
+]

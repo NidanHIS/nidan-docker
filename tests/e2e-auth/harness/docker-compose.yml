@@ -1,0 +1,50 @@
+# Gateway contract harness (backlog KC-42-01): the real gateway image built from ../../../proxy, every
+# upstream replaced by harness/stub.py under the services' own hostnames. Runs in CI and on a laptop:
+#
+#   HARNESS_SSO=false docker compose -f tests/e2e-auth/harness/docker-compose.yml up -d --build --wait
+#   GATEWAY_URL=https://localhost:18443 GATEWAY_HTTP=http://localhost:18080 npx playwright test --project sso-off
+#
+# Tests that need a real app (Superset, CIS dead-letter auth, docker exec) skip or fail here by design:
+# they belong to the full-stack projects.
+name: nidan-gateway-harness
+
+services:
+  gateway:
+    build: ../../../proxy
+    environment:
+      GATEWAY_DOMAIN: localhost
+      NIDAN_SSO_ENABLED: ${HARNESS_SSO:-false}
+      GATEWAY_HSTS: ${HARNESS_HSTS:-off}
+      OPENELIS_CONTEXT_PATH: /api/OpenELIS-Global/
+      ORTHANC_USERNAME: harness-orthanc
+      ORTHANC_PASSWORD: harness-orthanc-password
+      ORTHANC_VIEWER_PASSWORD: harness-orthanc-viewer
+    volumes:
+      - ./staff-site:/etc/nginx/staff-site:ro   # two jobs (Nurse, Cashier) as scripts/staff-config.py writes them
+    ports:
+      - "127.0.0.1:18443:443"
+      - "127.0.0.1:18444:8443"
+      - "127.0.0.1:18445:9443"
+      - "127.0.0.1:18080:80"
+    depends_on:
+      upstreams:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsk", "https://localhost/"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [harness]
+
+  upstreams:
+    image: python:3.12-alpine@sha256:1b668429b3511ab407d8e00648891631b0b1a4d7e15e3ca70f38ab5b91ad4ab4
+    command: ["python3", "-I", "/stub/stub.py"]
+    volumes:
+      - ./stub.py:/stub/stub.py:ro
+    networks:
+      harness:
+        aliases: [openmrs-backend, openmrs-frontend, odoo, openelis, openelis-frontend, orthanc, superset,
+                  nidan-cis, nidan-dhis2, keycloak, oauth2-proxy]
+
+networks:
+  harness: {}

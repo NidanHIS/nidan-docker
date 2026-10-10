@@ -1,0 +1,460 @@
+# Central login into the REAL OpenMRS (backlog KC-34, KC-58, KC-10-12): sso.yml's Keycloak, oauth2-proxy and
+# gateway (on port 443 here, so OpenMRS's own redirect_uri matches the realm), the OpenMRS image with central login
+# on, its MariaDB, the O3 SPA with the patched esm-login (KC-35), and stub apps for everything else.
+#
+#   OpenMRS image: `nidan-openmrs-harness` = the published image + this repo's startup-custom.sh, sso/ template,
+#   the oauth2login OMOD and the server.xml step of openmrs/Dockerfile (built in a scratch context, see
+#   docs in the progress log). First start initialises an empty database: allow ~15 minutes.
+#
+#   Two things this harness proved (2026-10-09):
+#   * after OpenMRS's first-run setup the module's /oauth2login servlet is not registered until OpenMRS restarts
+#     (known oauth2login limitation: the servlet context is already initialised) - restart once after install;
+#   * the distro's `authentication` module overrides the authentication scheme too, so OpenMRS falls back to its
+#     default scheme and every Keycloak login is refused ("Multiple authentication schemes overrides ...").
+#     KC-34-01 (remove it from the distro) is required; here it is stopped via the REST moduleaction API.
+#
+#   Keycloak here is dev-mem: anything that restarts it (also scripts/volume-backup.sh, which stops the whole
+#   project) loses the realm. Re-import: KC_USERNAME_PATTERN="$(python3 -I scripts/reserved-usernames.py | sed -n
+#   's/^KC_USERNAME_PATTERN=//p')" docker compose -f sso-openmrs.yml up --no-deps config-cli
+#
+#   OPENMRS_CUSTOM_MODULES points the custom OMODs at another directory (e.g. a scratch copy holding a freshly
+#   built nidancore) without touching nidan-docker/openmrs/custom_modules. openmrs-locale-race.sh checks the
+#   OpenMRS 2.8 locale-cache race on this harness.
+name: nidan-sso-openmrs-harness
+
+services:
+  keycloak:
+    extends: { file: sso.yml, service: keycloak }
+    networks: [sso]
+  config-cli:
+    extends: { file: sso.yml, service: config-cli }
+    environment:
+      GATEWAY_DOMAIN: localhost                          # https://localhost/... on port 443
+    networks: [sso]
+  oauth2-proxy:
+    extends: { file: sso.yml, service: oauth2-proxy }
+    environment:
+      OAUTH2_PROXY_WHITELIST_DOMAINS: localhost
+      OAUTH2_PROXY_TRUSTED_PROXY_IPS: 172.31.252.10/32
+    networks: [sso]
+  gateway:
+    extends: { file: sso.yml, service: gateway }
+    environment:
+      # every test logs in from the host (Docker Desktop: the bridge gateway address); KC-12-07 is tested from a
+      # container on the sso network, which keeps the 10/min limit
+      KC_LOGIN_RATE_EXEMPT: 172.31.252.1/32
+    ports: !override
+      - "127.0.0.1:443:443"
+      - "127.0.0.1:18444:8443"
+      - "127.0.0.1:18445:9443"                       # Keycloak's public origin (D1) + Staff page
+      - "127.0.0.1:8069:8069"                        # Odoo through the gateway (app-odoo gate)
+    networks:
+      sso:
+        ipv4_address: 172.31.252.10
+  upstreams:     # defined in full: `extends` would merge sso.yml's aliases and keep "openmrs-backend" on the stub
+    image: python:3.12-alpine@sha256:1b668429b3511ab407d8e00648891631b0b1a4d7e15e3ca70f38ab5b91ad4ab4
+    command: ["python3", "-I", "/stub/stub.py"]
+    volumes:
+      - ./stub.py:/stub/stub.py:ro
+    networks:
+      sso:
+        aliases: [nidan-cis, nidan-dhis2]   # odoo, superset, openelis(-frontend), orthanc: real ones (profiles)
+
+  # The published SPA plus the patched esm-login bundle, config-sso.json and this repo's startup.sh (image
+  # nidan-openmrs-frontend-harness, built like nidan-openmrs-harness in a scratch context: see the progress log).
+  openmrs-frontend:
+    image: nidan-openmrs-frontend-harness
+    environment:
+      SPA_PATH: /openmrs/spa
+      API_URL: /openmrs
+      SPA_CONFIG_URLS: /openmrs/spa/config-core_demo.json
+      OPENMRS_SSO_ENABLED: "true"
+    networks: [sso]
+
+  # Real Odoo for central-login tests (KC-37), profile odoo: `--profile odoo`. nidan_keycloak_sso comes from
+  # odoo_19_addons; OCA auth_oidc (19.0) and python-jose are NOT vendored (licence decision pending): point
+  # OCA_AUTH_OIDC at a server-auth/auth_oidc checkout and ODOO_PYLIBS at a dir holding jose, ecdsa, rsa, pyasn1.
+  # People reach it through the gateway on https://localhost:8069 (app-odoo gate), as in production; 18069 is a
+  # harness-only back door for test setup over JSON-RPC (production publishes no Odoo port).
+  odoo-db:
+    profiles: ["odoo"]
+    image: postgres:15
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: harness-odoo-db
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data
+    networks: [sso]
+
+  odoo:
+    profiles: ["odoo"]
+    image: trigonaltechnology/nidan_odoo:latest
+    command: ["odoo", "-d", "nidan", "--proxy-mode"]
+    environment:
+      HOST: odoo-db
+      USER: nidan
+      PASSWORD: harness-odoo-app
+      PORT: "5432"
+      ODOO_DB_NAME: nidan
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: harness-odoo-db
+      ADDONS_INIT_DIRS: /mnt/sso-addons            # first run: base + auth_oidc; the rest installed explicitly (-i)
+      ODOO_ADMIN_PASSWORD: Harness-Odoo-Admin-0123456789
+      NIDAN_ODOO_SECRET: harness                    # = openmrs-backend NIDANCORE_ODOO_PAYMENT_SECRET (paywall, KC-14)
+      NIDAN_OIS_SECRET: harness-ois-secret-0123456789   # middleware / portal-sync -> /api/nidan/* (KC-14-08)
+      NIDAN_SSO_ENABLED: "true"
+      NIDAN_KEYCLOAK_CLIENT_ID: odoo
+      NIDAN_KEYCLOAK_CLIENT_SECRET: harness-only-not-a-real-secret-0123456789
+      NIDAN_KEYCLOAK_AUTH_URL: https://localhost:18445/auth/realms/nidan/protocol/openid-connect/auth
+      NIDAN_KEYCLOAK_TOKEN_URL: http://gateway:8099/auth/realms/nidan/protocol/openid-connect/token
+      NIDAN_KEYCLOAK_JWKS_URL: http://gateway:8099/auth/realms/nidan/protocol/openid-connect/certs
+      ODOO_WEB_BASE_URL: https://localhost:8069
+      OPENMRS_AUTH_MODE: jwt                        # KC-33: odoo-sync token -> OpenMRS nidan-odoo (read only)
+      OPENMRS_AUTH_TOKEN_URL: http://gateway:8099/auth/realms/nidan/protocol/openid-connect/token
+      OPENMRS_AUTH_CLIENT_ID: odoo-sync
+      OPENMRS_AUTH_CLIENT_SECRET: harness-only-not-a-real-secret-0123456789
+      PYTHONPATH: /mnt/pylibs
+    ports:
+      - "127.0.0.1:18069:8069"   # harness only: test setup over JSON-RPC. People use the gateway's :8069
+    volumes:
+      - odoo-data:/var/lib/odoo
+      - ./odoo.conf:/mnt/odoo.conf.template:ro
+      - ../../../../odoo_19_addons:/mnt/extra-addons:ro                 # working tree, not the image's copies
+      - ../../../../nidan_odoo_extra_addons:/mnt/extra-addons-2:ro
+      - ../../../../odoo_payment_gateway:/mnt/payment-gateway:ro
+      - ${OCA_AUTH_OIDC:-./missing-auth_oidc}:/mnt/sso-addons/auth_oidc:ro
+      - ${ODOO_PYLIBS:-./missing-pylibs}:/mnt/pylibs:ro
+    depends_on:
+      odoo-db:
+        condition: service_healthy
+    networks:
+      sso:
+        aliases: [odoo]
+
+  # Superset with central login on (profile superset). KEYCLOAK_PUBLIC_URL is the gateway's https :9443 (D1), so
+  # interactive Superset login works here too.
+  superset:
+    profiles: ["superset"]
+    image: trigonaltechnology/superset:latest
+    command: ["/bin/sh", "/app/docker-entrypoint.sh"]
+    environment:
+      SUPERSET_SECRET_KEY: harness-superset-secret-key-0123456789-abcdef
+      SUPERSET_ADMIN_USERNAME: admin
+      SUPERSET_ADMIN_PASSWORD: Harness-Superset-Admin-0123456789
+      SUPERSET_SSO_ENABLED: "true"
+      KEYCLOAK_PUBLIC_URL: https://localhost:18445/auth
+      KC_SUPERSET_CLIENT_SECRET: harness-only-not-a-real-secret-0123456789
+      SUPERSET_LOAD_EXAMPLES: "no"
+      PYTHONPATH: /app/pythonpath:/mnt/superset-pylibs     # authlib until the image is rebuilt (superset/Dockerfile)
+      SUPERSET_APP_ROOT: /superset
+      SUPERSET_PORT: "8088"
+      OPENMRS_DB_HOST: openmrs-db
+      OPENMRS_DB_USER: openmrs
+      OPENMRS_DB_PASSWORD: harness-openmrs-db
+      ODOO_DB_HOST: odoo-db
+      ODOO_DB_USER: nidan
+      ODOO_DB_PASSWORD: harness-odoo-app
+      OPENELIS_DB_HOST: openelis-db
+      OPENELIS_DB_PASSWORD: not-on-this-harness
+    volumes:
+      - superset-home:/app/superset_home
+      - ../../../superset/superset_config.py:/app/pythonpath/superset_config.py:ro
+      - ../../../superset/nidan_sso.py:/app/pythonpath/nidan_sso.py:ro
+      - ../../../superset/init_superset_metadata.py:/app/pythonpath/init_superset_metadata.py:ro
+      - ../../../superset/pager.js:/app/pythonpath/pager.js:ro
+      - ../../../superset/scroller.js:/app/pythonpath/scroller.js:ro
+      - ../../../superset/docker-entrypoint.sh:/app/docker-entrypoint.sh:ro
+      - ../../../superset/metadata:/app/superset_metadata:ro
+      - ${SUPERSET_PYLIBS:-./missing-superset-pylibs}:/mnt/superset-pylibs:ro
+    networks:
+      sso:
+        aliases: [superset]
+
+  # OpenELIS with central login on (profile openelis). Image nidan-openelis-harness = the published image + a WAR built
+  # from the OpenELIS working tree (KC-38 changes); amd64, emulated on arm64. No CIS here: the sync URLs point nowhere.
+  openelis-db:
+    profiles: ["openelis"]
+    image: trigonaltechnology/openelis-global-2-database:latest
+    platform: linux/amd64
+    environment:
+      POSTGRES_DB: clinlims
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: harness-openelis-root
+      DB_PASSWORD: harness-openelis-db
+      DB_SUPERUSER_PASSWORD: harness-openelis-root
+    volumes:
+      - openelis-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d clinlims"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    networks: [sso]
+
+  openelis:
+    profiles: ["openelis"]
+    image: nidan-openelis-harness
+    platform: linux/amd64
+    depends_on:
+      openelis-db:
+        condition: service_healthy
+    environment:
+      DEFAULT_PW: Harness-OpenELIS-Admin-0123456789
+      TZ: UTC
+      CATALINA_OPTS: >-
+        -Ddatasource.url=jdbc:postgresql://openelis-db:5432/clinlims -Ddatasource.username=clinlims
+        -Ddatasource.password=harness-openelis-db
+        -Dorg.openelisglobal.middleware.test.sync.enabled=false -Dorg.openelisglobal.middleware.result.sync.enabled=false
+        -Dorg.openelisglobal.middleware.test.sync.url=http://no-cis:8081/x -Dorg.openelisglobal.middleware.result.sync.url=http://no-cis:8081/x
+        -Dorg.openelisglobal.nidan.testorder.enabled=false -Dorg.openelisglobal.nidan.testorder.url=http://no-cis:8081/x
+        -Dorg.openelisglobal.nidan.paywall.enabled=true -Dorg.openelisglobal.nidan.paywall.odoo.url=http://odoo:8069
+        -Dorg.openelisglobal.nidan.paywall.insurance.bypass=true
+        -Dorg.openelisglobal.nidan.cisretry.list.url=http://no-cis:8081/x -Dorg.openelisglobal.nidan.cisretry.retry.url=http://no-cis:8081/x
+        -Dorg.itech.login.oauth=true -Dorg.itech.login.oauth.config=https://localhost:18445/auth/realms/nidan
+        -Dorg.itech.login.oauth.clientID=openelis
+        -Dorg.itech.login.oauth.authorizationUri=https://localhost:18445/auth/realms/nidan/protocol/openid-connect/auth
+        -Dorg.itech.login.oauth.tokenUri=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/token
+        -Dorg.itech.login.oauth.jwkSetUri=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/certs
+        -Dorg.itech.login.oauth.userInfoUri=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/userinfo
+        -Dorg.itech.login.oauth.issuerUri=https://localhost:18445/auth/realms/nidan
+        -Dorg.itech.login.oauth.redirectUri=https://localhost/api/OpenELIS-Global/login/oauth2/code/nidan-keycloak
+        -Dorg.itech.login.oauth.successUrl=https://localhost/openelis/
+      ORG_OPENELISGLOBAL_MIDDLEWARE_TEST_SYNC_SECRET: harness-openelis-sync-0123456789
+      ORG_OPENELISGLOBAL_MIDDLEWARE_RESULT_SYNC_SECRET: harness-openelis-sync-0123456789
+      ORG_OPENELISGLOBAL_NIDAN_PAYWALL_ODOO_SECRET: harness
+      ORG_ITECH_LOGIN_OAUTH_CLIENTSECRET: harness-only-not-a-real-secret-0123456789
+      ODOO_ENABLED: "false"
+      ORG_OPENELISGLOBAL_ODOO_ENABLED: "false"
+      OPENELIS_ENABLE_HTTPS: "false"
+    volumes:
+      - ../../../openelis/tomcat/server.xml:/usr/local/tomcat/conf/server.xml:ro
+      - openelis-properties:/var/lib/openelis-global/properties
+      - ../../../openelis/volume/configuration:/var/lib/openelis-global/configuration:ro
+      - ../../../openelis/volume/branding:/var/lib/openelis-global/branding:ro
+      - ../../../openelis/volume/plugins:/var/lib/openelis-global/plugins:ro
+      - ../../../openelis/volume/ocl:/var/lib/openelis-global/ocl:ro
+      - ../../../openelis/volume/analyzer:/var/lib/openelis-global/analyzer:ro
+      - ../../../openelis/volume/odoo:/var/lib/openelis-global/odoo:ro
+      - ../../../openelis/volume/properties/common.properties:/run/secrets/common.properties:ro
+      - ../../../openelis/volume/certs:/etc/openelis-global:ro
+    networks:
+      sso:
+        aliases: [openelis]
+
+  openelis-frontend:
+    profiles: ["openelis"]
+    image: trigonaltechnology/openelis-global-2-frontend:latest
+    platform: linux/amd64
+    environment:
+      PUBLIC_URL: /openelis
+      REACT_APP_BASE_PATH: /openelis
+    networks:
+      sso:
+        aliases: [openelis-frontend]
+
+  openmrs-db:
+    image: trigonaltechnology/openmrs-db:latest
+    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --max-allowed-packet=512M
+    environment:
+      MYSQL_DATABASE: openmrs
+      MYSQL_USER: openmrs
+      MYSQL_PASSWORD: harness-openmrs-db
+      MYSQL_ROOT_PASSWORD: harness-openmrs-root
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - openmrs-db-data:/var/lib/mysql
+    networks: [sso]
+
+  openmrs-backend:
+    image: nidan-openmrs-harness
+    environment:
+      OMRS_DB: mysql
+      OMRS_DB_HOSTNAME: openmrs-db
+      OMRS_DB_PORT: "3306"
+      OMRS_DB_URL: jdbc:mysql://openmrs-db:3306/openmrs?useUnicode=true&characterEncoding=UTF-8&sessionVariables=storage_engine=InnoDB
+      OMRS_DB_USERNAME: openmrs
+      OMRS_DB_PASSWORD: harness-openmrs-db
+      OMRS_DB_DRIVER_CLASS: com.mysql.cj.jdbc.Driver
+      OMRS_CONFIG_MODULE_WEB_ADMIN: "true"
+      OMRS_CONFIG_AUTO_UPDATE_DATABASE: "true"
+      OMRS_CONFIG_CREATE_TABLES: "true"
+      OMRS_CONFIG_HAS_CURRENT_OPENMRS_DATABASE: "true"
+      OMRS_JAVA_MEMORY_OPTS: "-Xmx1536m -Xms512m -XX:MaxMetaspaceSize=512m"
+      _JAVA_OPTIONS: "-Dcsrf.enabled=false"
+      OPENMRS_SSO_ENABLED: "true"
+      KEYCLOAK_PUBLIC_URL: https://localhost:18445/auth
+      KC_OPENMRS_CLIENT_SECRET: harness-only-not-a-real-secret-0123456789
+      GATEWAY_DOMAIN: localhost
+      NIDANCORE_ODOO_PAYMENT_SECRET: harness
+      OPENMRS_ADMIN_PASSWORD: Harness-Admin-Pass-0123456789   # replaces the stock Admin123 at start (KC-05-06)
+    volumes:
+      - openmrs-data:/openmrs/data
+      - ${OPENMRS_CUSTOM_MODULES:-../../../openmrs/custom_modules}:/openmrs/custom_modules:ro
+    depends_on:
+      openmrs-db:
+        condition: service_healthy
+    networks:
+      sso:
+        aliases: [openmrs-backend]
+
+  # DHIS2 reporting app with its own local login (profile dhis2, KC-40-03): what it runs when central login is off.
+  # Image nidan-dhis2-harness = docker build of the working tree (nidan-dhis2-integration). 15003 is harness-only.
+  dhis2-db:
+    profiles: [dhis2]
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: nidan_dhis2
+      MYSQL_USER: nidan
+      MYSQL_PASSWORD: harness-dhis2-db-0123456789
+      MYSQL_ROOT_PASSWORD: harness-dhis2-root-0123456789
+    tmpfs: [/var/lib/mysql]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "nidan", "-pharness-dhis2-db-0123456789"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    networks: [sso]
+  dhis2-local:
+    profiles: [dhis2]
+    image: nidan-dhis2-harness
+    environment:
+      SECRET_KEY: harness-dhis2-secret-key-0123456789abcdef
+      NIDAN_DEPLOYMENT: production                 # the real-site checks (secret key, password lengths) apply
+      DATABASE_URL: mysql+pymysql://nidan:harness-dhis2-db-0123456789@dhis2-db:3306/nidan_dhis2
+      AUTH_PROVIDER: env_file
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: Harness-Dhis2-Admin-0123456789
+      REPORTER_USERNAME: reporter
+      REPORTER_PASSWORD: Harness-Dhis2-Reporter-0123456789
+    ports:
+      - "127.0.0.1:15003:5000"
+    depends_on:
+      dhis2-db:
+        condition: service_healthy
+    networks: [sso]
+
+  # CIS with Kafka (profile cis, KC-32): CIS consumes events and writes to OpenMRS with a Keycloak token for its own
+  # client (cis -> nidan-sync), retrying while Keycloak is away. Image nidan-cis-harness = the working-tree jar.
+  zookeeper:
+    profiles: [cis]
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment: {ZOOKEEPER_CLIENT_PORT: "2181", ZOOKEEPER_TICK_TIME: "2000", ZOOKEEPER_HEAP_OPTS: "-Xmx256m -Xms256m"}
+    networks: [sso]
+  kafka:
+    profiles: [cis]
+    image: confluentinc/cp-kafka:7.5.0
+    environment:
+      KAFKA_BROKER_ID: "1"
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_HEAP_OPTS: "-Xmx512m -Xms512m"
+    depends_on: [zookeeper]
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    networks:
+      sso:
+        aliases: [nidan-kafka]
+  integration-db:
+    profiles: [cis]
+    image: postgres:15
+    environment: {POSTGRES_DB: nidan_integration, POSTGRES_USER: nidan, POSTGRES_PASSWORD: harness-integration-db-0123456789}
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nidan -d nidan_integration"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [sso]
+  cis:
+    profiles: [cis]
+    image: nidan-cis-harness
+    environment:
+      INTEGRATION_DB_URL: jdbc:postgresql://integration-db:5432/nidan_integration
+      INTEGRATION_DB_USER: nidan
+      INTEGRATION_DB_PASSWORD: harness-integration-db-0123456789
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      OPENMRS_ENABLED: "true"
+      OPENMRS_BASE_URL: http://openmrs-backend:8080/openmrs
+      OPENMRS_AUTH_MODE: jwt
+      OPENMRS_AUTH_TOKEN_URL: http://gateway:8099/auth/realms/nidan/protocol/openid-connect/token
+      OPENMRS_AUTH_CLIENT_ID: cis
+      OPENMRS_AUTH_CLIENT_SECRET: harness-only-not-a-real-secret-0123456789
+      OPENMRS_USERNAME: nidan-sync
+      OPENMRS_PASSWORD: unused-in-jwt-mode-0123456789
+      OPENMRS_ADMIN_PASSWORD: unused-in-jwt-mode-0123456789
+      OPENMRS_DB_URL: jdbc:mysql://openmrs-db:3306/openmrs
+      OPENMRS_DB_USER: openmrs
+      OPENMRS_DB_PASSWORD: harness-openmrs-db
+      OPENELIS_ENABLED: "false"
+      ORTHANC_ENABLED: "false"
+      INTEGRATION_FLOW_RADIOLOGY_MWL_ENABLED: "false"
+      INTEGRATION_FLOW_LAB_OPENELIS_ENABLED: "false"
+      MANAGEMENT_HEALTH_REDIS_ENABLED: "false"
+      VISIT_SYNC_LOCK_ENABLED: "false"
+      INTEGRATION_SKIP_SOURCE_SYSTEMS: OPENMRS
+      # KC-32-03: a Keycloak outage of a few minutes must not dead-letter events (production defaults: 8 attempts)
+      INTEGRATION_KAFKA_RETRY_ENABLED: "true"
+      INTEGRATION_KAFKA_RETRY_ATTEMPTS: "8"
+      INTEGRATION_KAFKA_RETRY_INITIAL_DELAY: 3s
+      INTEGRATION_KAFKA_RETRY_MULTIPLIER: "2.0"
+      INTEGRATION_KAFKA_RETRY_MAX_DELAY: 30s
+    depends_on:
+      kafka: {condition: service_healthy}
+      integration-db: {condition: service_healthy}
+    networks: [sso]
+
+  # Orthanc with the OHIF and DICOMweb plugins (profile orthanc, KC-30-01): the repo's orthanc.json and Lua scripts,
+  # SQLite index + files on tmpfs (production: PostgreSQL index). Credentials = the gateway's harness ones.
+  orthanc:
+    profiles: [orthanc]
+    image: orthancteam/orthanc:26.6.0
+    environment:
+      DICOM_WEB_PLUGIN_ENABLED: "true"
+      OHIF_PLUGIN_ENABLED: "true"
+      ORTHANC_EXPLORER_2_ENABLED: "true"
+      POSTGRESQL_PLUGIN_ENABLED: "false"
+      ORTHANC__REGISTERED_USERS: '{"harness-orthanc": "harness-orthanc-password", "nidan-viewer": "harness-orthanc-viewer"}'
+      ORTHANC_VIEWER_USERNAME: nidan-viewer
+      ORTHANC_WEBHOOK_URL: http://nidan-cis:8081/orthanc/webhook
+      ORTHANC_WEBHOOK_SECRET: ""
+    volumes:
+      - ../../../orthanc/orthanc.json:/etc/orthanc/orthanc.json:ro
+      - ../../../orthanc/webhook.lua:/etc/orthanc/webhook.lua:ro
+      - ../../../orthanc/viewer-readonly.lua:/etc/orthanc/viewer-readonly.lua:ro
+    tmpfs: [/var/lib/orthanc/db, /var/lib/orthanc/worklists]
+    networks:
+      sso:
+        aliases: [orthanc]
+
+networks:
+  sso:
+    ipam:
+      config:
+        - subnet: 172.31.252.0/24
+
+volumes:
+  openmrs-db-data: {}
+  openelis-db-data: {}
+  openelis-properties: {}
+  superset-home: {}
+  odoo-db-data: {}
+  odoo-data: {}
+  openmrs-data: {}

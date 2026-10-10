@@ -1,0 +1,146 @@
+# Full central-login harness (backlog KC-10/11/19/56): the real gateway image, the pinned oauth2-proxy with
+# proxy/oauth2-proxy.cfg, the pinned Keycloak with the imported realm, and stub apps. A browser logs in for real.
+#
+#   export KC_USERNAME_PATTERN=...   (scripts/reserved-usernames.py)
+#   docker compose -f tests/e2e-auth/harness/sso.yml up -d --build --wait keycloak
+#   docker compose -f tests/e2e-auth/harness/sso.yml --profile import run --rm config-cli
+#   docker compose -f tests/e2e-auth/harness/sso.yml up -d --build --wait
+#   SSO_FULL=1 KEYCLOAK_URL=http://localhost:18180/auth npx playwright test sso-flow --project=sso-on
+#
+# The browser reaches Keycloak through the gateway's :9443 (published as 18445), as in production (decision D1);
+# oauth2-proxy uses the back-channel keycloak:8080. 18180 is the admin API only (production: SSH tunnel to
+# 127.0.0.1:8180). Throwaway secrets only.
+name: nidan-sso-harness
+
+x-secret: &secret harness-only-not-a-real-secret-0123456789
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.0@sha256:b0f60d489d51c5d113390bdf5461d4c06e6051be026c05549f2e1e10ec352bcc
+    command: ["start-dev"]
+    environment:
+      KC_DB: dev-mem
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HOSTNAME: https://localhost:18445/auth         # the gateway's :9443 (D1): issuer everyone agrees on
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_PROXY_HEADERS: xforwarded                      # client IP from the gateway only (KC-56-05)
+      KC_PROXY_TRUSTED_ADDRESSES: 172.31.251.10,172.31.252.10   # sso.yml and sso-openmrs.yml gateways
+      KC_HEALTH_ENABLED: "true"
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: harness-admin-password
+    volumes:
+      - ../../../keycloak/themes/nidan:/opt/keycloak/themes/nidan:ro
+      - ../../../keycloak/password-blocklist.txt:/opt/keycloak/data/password-blacklists/nidan.txt:ro
+    ports:
+      - "127.0.0.1:18180:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /auth/health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+    networks: [sso]
+
+  config-cli:
+    image: adorsys/keycloak-config-cli:6.5.1-26.5.5@sha256:0955d98c8a341898b7aa177477edf8a1e90569ae50bbe7598141c1270b773274
+    profiles: ["import"]
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080/auth
+      KEYCLOAK_GRANTTYPE: password
+      KEYCLOAK_CLIENTID: admin-cli
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: harness-admin-password
+      KEYCLOAK_AVAILABILITYCHECK_ENABLED: "true"
+      KEYCLOAK_AVAILABILITYCHECK_TIMEOUT: 180s
+      IMPORT_FILES_LOCATIONS: /config/base/*.yaml,/config/master/*.yaml
+      IMPORT_VARSUBSTITUTION_ENABLED: "true"
+      IMPORT_MANAGED_GROUP: full
+      GATEWAY_DOMAIN: localhost:18443                    # redirect URIs https://localhost:18443/oauth2/callback
+      NIDAN_SYNC_USERNAME: nidan-sync
+      # reserved names are tested on harness/keycloak.yml; a default here keeps `stop`/`down` usable without the export
+      KC_USERNAME_PATTERN: '${KC_USERNAME_PATTERN:-^[a-z][a-z0-9._-]{2,39}$}'
+      DEFAULT_LOCALE: en
+      KC_GATEWAY_CLIENT_SECRET: *secret
+      KC_OPENMRS_CLIENT_SECRET: *secret
+      KC_ODOO_CLIENT_SECRET: *secret
+      KC_DHIS2_CLIENT_SECRET: *secret
+      KC_SUPERSET_CLIENT_SECRET: *secret
+      KC_OPENELIS_CLIENT_SECRET: *secret
+      KC_CIS_CLIENT_SECRET: *secret
+      KC_ODOO_SYNC_CLIENT_SECRET: *secret
+      KC_PORTAL_SYNC_CLIENT_SECRET: *secret
+      KC_CONFIG_CLI_CLIENT_SECRET: *secret
+      KC_AUTOMATION_CLIENT_SECRET: *secret
+    volumes:
+      - ../../../keycloak/realm:/config:ro
+    networks: [sso]
+    depends_on:
+      keycloak:
+        condition: service_healthy
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.5@sha256:8498b0d0ef0a7b29686414000a08aee467f02d0299c9ed1e006a8f33fc017916
+    command: ["--config=/etc/oauth2-proxy.cfg"]
+    environment:
+      OAUTH2_PROXY_CLIENT_SECRET: *secret
+      OAUTH2_PROXY_COOKIE_SECRET: harness-cookie-secret-32-bytes!!
+      OAUTH2_PROXY_OIDC_ISSUER_URL: https://localhost:18445/auth/realms/nidan
+      OAUTH2_PROXY_LOGIN_URL: https://localhost:18445/auth/realms/nidan/protocol/openid-connect/auth
+      OAUTH2_PROXY_REDEEM_URL: http://keycloak:8080/auth/realms/nidan/protocol/openid-connect/token
+      OAUTH2_PROXY_OIDC_JWKS_URL: http://keycloak:8080/auth/realms/nidan/protocol/openid-connect/certs
+      OAUTH2_PROXY_WHITELIST_DOMAINS: localhost:18443
+      OAUTH2_PROXY_TRUSTED_PROXY_IPS: 172.31.251.10/32  # the harness gateway (production: 172.31.250.10)
+    volumes:
+      - ../../../proxy/oauth2-proxy.cfg:/etc/oauth2-proxy.cfg:ro
+    networks: [sso]
+    depends_on:
+      keycloak:
+        condition: service_healthy
+
+  gateway:
+    build: ../../../proxy
+    environment:
+      GATEWAY_DOMAIN: localhost
+      NIDAN_SSO_ENABLED: "true"
+      KEYCLOAK_PUBLIC_URL: https://localhost:18445/auth
+      KC_LOGIN_RATE_EXEMPT: 172.31.251.1/32               # the host (Docker Desktop bridge): tests log in often
+      ORTHANC_USERNAME: harness-orthanc
+      ORTHANC_PASSWORD: harness-orthanc-password
+      ORTHANC_VIEWER_PASSWORD: harness-orthanc-viewer
+      GATEWAY_HSTS: "off"
+      OPENELIS_CONTEXT_PATH: /api/OpenELIS-Global/
+    volumes:
+      - ./staff-site:/etc/nginx/staff-site:ro
+    ports:
+      - "127.0.0.1:18443:443"
+      - "127.0.0.1:18444:8443"
+      - "127.0.0.1:18445:9443"
+      - "127.0.0.1:18080:80"
+    depends_on:
+      oauth2-proxy:
+        condition: service_started
+      upstreams:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsk", "https://localhost/"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks:
+      sso:
+        ipv4_address: 172.31.251.10
+
+  upstreams:
+    image: python:3.12-alpine@sha256:1b668429b3511ab407d8e00648891631b0b1a4d7e15e3ca70f38ab5b91ad4ab4
+    command: ["python3", "-I", "/stub/stub.py"]
+    volumes:
+      - ./stub.py:/stub/stub.py:ro
+    networks:
+      sso:
+        aliases: [openmrs-backend, openmrs-frontend, odoo, openelis, openelis-frontend, orthanc, superset,
+                  nidan-cis, nidan-dhis2]
+
+networks:
+  sso:
+    ipam:
+      config:
+        - subnet: 172.31.251.0/24

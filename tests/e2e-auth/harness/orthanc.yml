@@ -1,0 +1,19 @@
+# Orthanc read-only layer (backlog KC-30-02/05): the pinned Orthanc image with orthanc/orthanc.json and its Lua
+# scripts, an admin and a viewer account, its own SQLite index (nothing kept). Probed directly, as a client inside
+# the Docker network would.
+name: nidan-orthanc-harness
+services:
+  orthanc:
+    image: orthancteam/orthanc:26.6.0
+    environment:
+      DICOM_WEB_PLUGIN_ENABLED: "true"
+      ORTHANC__REGISTERED_USERS: '{"nidan": "harness-orthanc-admin", "nidan-viewer": "harness-orthanc-viewer"}'
+      ORTHANC_VIEWER_USERNAME: nidan-viewer
+      ORTHANC_WEBHOOK_URL: http://127.0.0.1:9/none
+      ORTHANC_WEBHOOK_SECRET: harness
+    volumes:
+      - ../../../orthanc/orthanc.json:/etc/orthanc/orthanc.json:ro
+      - ../../../orthanc/webhook.lua:/etc/orthanc/webhook.lua:ro
+      - ../../../orthanc/viewer-readonly.lua:/etc/orthanc/viewer-readonly.lua:ro
+    ports:
+      - "127.0.0.1:18042:8042"
