@@ -2,9 +2,9 @@
 # gateway (on port 443 here, so OpenMRS's own redirect_uri matches the realm), the OpenMRS image with central login
 # on, its MariaDB, the O3 SPA with the patched esm-login (KC-35), and stub apps for everything else.
 #
-#   OpenMRS image: `nidan-openmrs-harness` = the published image + this repo's startup-custom.sh, sso/ template,
-#   the oauth2login OMOD and the server.xml step of openmrs/Dockerfile (built in a scratch context, see
-#   docs in the progress log). First start initialises an empty database: allow ~15 minutes.
+#   Images (nidan-openmrs-harness, nidan-openmrs-frontend-harness, nidan-openelis-harness, nidan-cis-harness,
+#   nidan-dhis2-harness) and the Odoo/Superset add-on libraries: images/build.sh, from the working tree. Bring-up and
+#   the suite: ../README.md, ../run-keycloak-suite.sh. First start initialises an empty database: allow ~15 minutes.
 #
 #   Two things this harness proved (2026-10-09):
 #   * after OpenMRS's first-run setup the module's /oauth2login servlet is not registered until OpenMRS restarts
@@ -61,7 +61,7 @@ services:
         aliases: [nidan-cis, nidan-dhis2]   # odoo, superset, openelis(-frontend), orthanc: real ones (profiles)
 
   # The published SPA plus the patched esm-login bundle, config-sso.json and this repo's startup.sh (image
-  # nidan-openmrs-frontend-harness, built like nidan-openmrs-harness in a scratch context: see the progress log).
+  # nidan-openmrs-frontend-harness, images/build.sh frontend).
   openmrs-frontend:
     image: nidan-openmrs-frontend-harness
     environment:
@@ -72,8 +72,8 @@ services:
     networks: [sso]
 
   # Real Odoo for central-login tests (KC-37), profile odoo: `--profile odoo`. nidan_keycloak_sso comes from
-  # odoo_19_addons; OCA auth_oidc (19.0) and python-jose are NOT vendored (licence decision pending): point
-  # OCA_AUTH_OIDC at a server-auth/auth_oidc checkout and ODOO_PYLIBS at a dir holding jose, ecdsa, rsa, pyasn1.
+  # odoo_19_addons; OCA auth_oidc (19.0) and python-jose are NOT vendored (licence decision pending): images/build.sh
+  # libs fetches them into harness/.build, where compose.sh points OCA_AUTH_OIDC and ODOO_PYLIBS by default.
   # People reach it through the gateway on https://localhost:8069 (app-odoo gate), as in production; 18069 is a
   # harness-only back door for test setup over JSON-RPC (production publishes no Odoo port).
   odoo-db:

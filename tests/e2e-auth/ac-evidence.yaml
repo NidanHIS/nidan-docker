@@ -89,6 +89,10 @@ KC-02-01:
   - {path: nidan-docker/scripts/nidan-auth-check.py, test: nidan-docker/scripts/test_nidan_auth_check.py, status: passing, note: "CI: published ports = gateway 80/443/8443/8069/9443, orthanc 4242 (DICOM_BIND_IP), keycloak-admin-proxy 127.0.0.1:8180; PORT_PENDING empty since the 2026-10-10 closing. Live lan-probe TCP scan still needs the full stack"}
 KC-47-02:
   - {test: nidan-docker/scripts/test_port80_contract.py, status: passing, note: "in security-checks.yml with check-routes.py (0 differences)"}
+KC-27-04:
+  - {path: nidan-docker/tests/e2e-auth/run-keycloak-suite.sh, status: tool, note: "--all runs the suite in sso-off (contract stage), sso-on (full + contract) and prod-like (realm, perimeter); the matrix shows the per-criterion result"}
+KC-42-05:
+  - {path: nidan-docker/.github/workflows/e2e-gateway.yml, status: pending, note: "prod-like job: real compose, generated secrets, NIDAN_DEPLOYMENT=production, probes from a lan-probe container; continue-on-error until its first CI runs are triaged"}
 KC-32-04:
   - {test: nidan-middleware/integration/cis/src/test/java/org/nidan/integration/cis/openmrs/OpenmrsAuthHeaderProviderTest.java, status: passing, note: "basicModeSendsBasicCredentials, basicModeNeverRetries; live run needs a central-login-off OpenMRS in the harness - skipped by decision 2026-10-10"}
 KC-51-04:

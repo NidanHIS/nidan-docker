@@ -59,7 +59,7 @@
    "id": "KC-03-02",
    "harness": "PW",
    "security": false,
-   "summary": "One dashboard granted by the documented step renders anonymously; a non-granted one is denied."
+   "summary": "No dashboard is ever shown without login (decision 2026-10-10: no public dashboards): anonymous dashboard, chart and data requests are refused, and the Public role holds no permissions."
   },
   {
    "id": "KC-03-03",
@@ -1781,7 +1781,7 @@
    "id": "KC-39-02",
    "harness": "PW",
    "security": false,
-   "summary": "(on) KC-03 public dashboards still render anonymously."
+   "summary": "(on) With central login on, no dashboard renders anonymously either (no public dashboards, 2026-10-10)."
   },
   {
    "id": "KC-39-03",
@@ -1829,13 +1829,15 @@
    "id": "KC-41-01",
    "harness": "API",
    "security": true,
-   "summary": "(on) Viewer link token opens its study only."
+   "summary": "(on) Viewer link token opens its study only.",
+   "deferred": "phase 2 (D30); user decision 2026-10-11"
   },
   {
    "id": "KC-41-02",
    "harness": "API",
    "security": true,
-   "summary": "(on) Expired token refused."
+   "summary": "(on) Expired token refused.",
+   "deferred": "phase 2 (D30); user decision 2026-10-11"
   },
   {
    "id": "KC-42-01",

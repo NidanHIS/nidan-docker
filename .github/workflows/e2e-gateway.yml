@@ -94,6 +94,58 @@ jobs:
             tests/e2e-auth/reports/
           retention-days: 14
 
+
+  prod-like:
+    # KC-42-05: the REAL docker-compose.yml (not a harness) with generated secrets, NIDAN_DEPLOYMENT=production,
+    # central login on and the gateway image built from this checkout. Every probe runs from lan-probe, a container
+    # on its own network that reaches only the host's published ports, never nidan-network. Apps are not started:
+    # this checks the perimeter (KC-02 scan, KC-10 gates, KC-12 TLS, KC-47 port 80, KC-53, KC-56).
+    # continue-on-error until its first runs are triaged (it cannot run on a developer laptop next to the harness).
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    env:
+      COMPOSE_ENV_FILES: .env,.env.ci.local
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generated secrets, production mode
+        run: |
+          scripts/generate-secrets.sh --fresh-install .env.ci.local
+          printf '%s\n' NIDAN_DEPLOYMENT=production NIDAN_SSO_ENABLED=true GATEWAY_DOMAIN=lan \
+            GATEWAY_IMAGE=nidan-gateway:ci GATEWAY_HSTS=off >> .env.ci.local
+
+      - name: The production config renders; preflight report (site-only items are expected)
+        run: |
+          docker compose --profile '*' config --quiet
+          python3 -I scripts/preflight.py | tee -a "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Gateway and central login from the real compose
+        run: |
+          docker build -t nidan-gateway:ci proxy
+          export KC_USERNAME_PATTERN="$(python3 -I scripts/reserved-usernames.py | sed -n 's/^KC_USERNAME_PATTERN=//p')"
+          docker compose --profile sso up -d --wait keycloak-db keycloak
+          docker compose --profile sso up --no-deps --exit-code-from keycloak-config-cli keycloak-config-cli
+          docker compose --profile sso up -d --wait --no-deps oauth2-proxy keycloak-admin-proxy gateway
+
+      - name: Probe from lan-probe (outside every compose network)
+        run: |
+          docker network create lan-probe
+          docker run --rm --network lan-probe --add-host lan:host-gateway -v "$PWD:/w" -w /w/tests/e2e-auth \
+            -e LAN_HOST=lan -e GATEWAY_URL=https://lan -e GATEWAY_HTTP=http://lan \
+            mcr.microsoft.com/playwright:v1.58.2-noble \
+            sh -c 'npm ci && npx playwright test --project prod-like --grep-invert @needs-app specs/live-exposure.spec.ts specs/routes.spec.ts'
+
+      - name: Gateway and Keycloak logs on failure
+        if: failure()
+        run: docker compose --profile sso logs gateway keycloak oauth2-proxy | tail -n 300
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: prod-like-report
+          path: tests/e2e-auth/test-results/report.json
+          retention-days: 14
   sso-full:
     # The real login path (KC-10-04/05/07, KC-11-01/04, KC-19-01, KC-56-01/07): gateway + pinned oauth2-proxy with
     # proxy/oauth2-proxy.cfg + pinned Keycloak with the imported realm + stub apps (tests/e2e-auth/harness/sso.yml).

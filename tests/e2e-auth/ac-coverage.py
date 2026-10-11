@@ -57,7 +57,8 @@ def state(a):
         return "ev"
     if a["id"] in pending:
         return "pending"
-    return "manual" if a["harness"] == "MAN" else "none"
+    # a deferred criterion (later phase, by decision) is not a gap: counted with the manual ones
+    return "manual" if a["harness"] == "MAN" or a.get("deferred") else "none"
 
 required = set(sys.argv[1:])
 missing = []
