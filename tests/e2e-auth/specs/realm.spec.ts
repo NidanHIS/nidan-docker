@@ -12,6 +12,9 @@ import { parse as parseYaml } from 'yaml';
  * are not removed (the harness Keycloak keeps nothing).
  */
 const KC = process.env.KEYCLOAK_URL ?? '';
+// Login pages as a browser reaches them: the gateway's :9443 on the full harness (D1); the admin API, token and
+// account endpoints stay on KC. Unset = KC (the standalone realm harness serves both on one address).
+const KC_PUBLIC = process.env.KEYCLOAK_PUBLIC_URL ?? KC;
 const ADMIN_USER = process.env.KEYCLOAK_ADMIN_USER ?? 'admin';
 const ADMIN_PASSWORD = process.env.KEYCLOAK_ADMIN_PASSWORD ?? 'harness-admin-password';
 const SECRET = process.env.KC_HARNESS_CLIENT_SECRET ?? 'harness-only-not-a-real-secret-0123456789';
@@ -89,7 +92,7 @@ class KcSession {
     const cookie = () => Object.entries(this.jar).map(([k, v]) => `${k}=${v}`).join('; ');
     let r = await this.request.fetch(url, { method, form, headers: { Cookie: cookie() }, maxRedirects: 0 });
     this.keep(r);
-    while ([302, 303].includes(r.status()) && (r.headers()['location'] ?? '').startsWith(KC) && !/[?&]code=/.test(r.headers()['location'])) {
+    while ([302, 303].includes(r.status()) && [KC, KC_PUBLIC].some((o) => (r.headers()['location'] ?? '').startsWith(o)) && !/[?&]code=/.test(r.headers()['location'])) {
       r = await this.request.get(r.headers()['location'], { headers: { Cookie: cookie() }, maxRedirects: 0 });
       this.keep(r);
     }
@@ -99,7 +102,7 @@ class KcSession {
   async password(clientId: string, redirectUri: string, username: string, challenge: string) {
     const q = new URLSearchParams({ client_id: clientId, redirect_uri: redirectUri, response_type: 'code', scope: 'openid',
       state: 'harness', code_challenge: challenge, code_challenge_method: 'S256' });
-    const page = await this.go('GET', `${KC}/realms/nidan/protocol/openid-connect/auth?${q}`);
+    const page = await this.go('GET', `${KC_PUBLIC}/realms/nidan/protocol/openid-connect/auth?${q}`);
     expect(page.status, `${clientId} login page`).toBe(200);
     return this.go('POST', formAction(page.body), { username, password: 'Harness-Pass-123' });
   }
@@ -236,7 +239,7 @@ test.describe('realm against a live Keycloak', () => {
     const id = users[0].id;
     await admin(request, `/users/${id}`, { method: 'PUT', data: { ...users[0], attributes: { gender: ['F'], nidan_shops: ['Main Pharmacy'] } } });
     const before = await (await admin(request, `/users/${id}`)).json();
-    const t = await userToken(request, 'account-console', `${KC}/realms/nidan/account/`, username);
+    const t = await userToken(request, 'account-console', `${KC_PUBLIC}/realms/nidan/account/`, username);
     const auth = { Authorization: `Bearer ${t.__raw}`, 'Content-Type': 'application/json' };
     for (const change of [
       { attributes: { ...before.attributes, nidan_shops: ['Every Shop'] } },
@@ -334,7 +337,7 @@ test.describe('realm against a live Keycloak', () => {
     const id = (await (await admin(request, `/users?username=${adm}&exact=true`)).json())[0].id;
     const otpId = ((await (await admin(request, `/users/${id}/credentials`)).json()) as Array<{ id: string; type: string }>)
       .find((c) => c.type === 'otp')!.id;
-    const acct = await userToken(request, 'account-console', `${KC}/realms/nidan/account/`, adm);
+    const acct = await userToken(request, 'account-console', `${KC_PUBLIC}/realms/nidan/account/`, adm);
     const del = await request.delete(`${KC}/realms/nidan/account/credentials/${otpId}`,
       { headers: { Authorization: `Bearer ${acct.__raw}`, Accept: 'application/json' } });
     expect([401, 403], 'account API delete of her own OTP').toContain(del.status());
@@ -349,7 +352,7 @@ test.describe('realm against a live Keycloak', () => {
   });
 
   // KC-17: the login page as a person sees it.
-  const loginUrl = (locale?: string) => `${KC}/realms/nidan/protocol/openid-connect/auth?` + new URLSearchParams({ client_id: 'nidan-gateway',
+  const loginUrl = (locale?: string) => `${KC_PUBLIC}/realms/nidan/protocol/openid-connect/auth?` + new URLSearchParams({ client_id: 'nidan-gateway',
     redirect_uri: `https://${DOMAIN}/oauth2/callback`, response_type: 'code', scope: 'openid',
     code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM', code_challenge_method: 'S256', ...(locale ? { ui_locales: locale } : {}) });
 
@@ -438,10 +441,8 @@ test.describe('realm against a live Keycloak', () => {
   });
 
   test('a disabled account with the RIGHT password reads like any failed login @KC-17-02 @security', async ({ page, playwright }) => {
-    // Same words, but keycloak.v2 shows the disabled-account message as a page alert above the form instead of under
-    // the username field, so the page text order differs: someone who already holds the password learns the account
-    // is disabled. Closing it needs a login.ftl override (KC-17-06 audit); pending decision.
-    test.fixme(true, 'keycloak.v2 renders USER_DISABLED as a global alert; needs a login.ftl override');
+    // keycloak.v2 showed this one as a page alert above the form instead of under the username field, telling someone
+    // who holds the password that the account is disabled; the Nidan login.ftl override puts it in the same place.
     const request = await playwright.request.newContext();
     const disabled = await makeUser(request, ['staff/Nurse']);
     const id = (await (await admin(request, `/users?username=${disabled}&exact=true`)).json())[0].id;
@@ -527,7 +528,7 @@ test.describe('realm against a live Keycloak', () => {
       const kc = new KcSession(request);
       const q = new URLSearchParams({ client_id: 'nidan-gateway', redirect_uri: GWCB, response_type: 'code', scope: 'openid',
         code_challenge: CH, code_challenge_method: 'S256' });
-      const page = await kc.go('GET', `${KC}/realms/nidan/protocol/openid-connect/auth?${q}`);
+      const page = await kc.go('GET', `${KC_PUBLIC}/realms/nidan/protocol/openid-connect/auth?${q}`);
       await kc.go('POST', formAction(page.body), { username: user, password: `Wrong-${i}-pass` });
       await new Promise((r) => setTimeout(r, 1100));
     }

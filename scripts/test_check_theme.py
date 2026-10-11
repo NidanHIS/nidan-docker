@@ -20,4 +20,10 @@ with tempfile.TemporaryDirectory() as d:
     assert any("x contains HTML" in p for p in out), out
     assert any("accountDisabledMessage differs" in p for p in out), out
     assert any("en/ne keys differ" in p for p in out), out
+    assert any("does not say which Keycloak version" in p for p in out), out
+    (t / "login.ftl").write_text('<#-- Copied from keycloak.v2 login.ftl, Keycloak 26.7.0 -->\n<p>${msg("a")}</p>\n')
+    out = ct.problems(Path(d), keycloak_version="26.8.0")
+    assert any("copied from Keycloak 26.7.0 but compose runs 26.8.0" in p for p in out), out
+    (t / "login.ftl").write_text('<#-- Copied from keycloak.v2 login.ftl, Keycloak 26.8.0 -->\n<p>${msg("a")}</p>\n')
+    assert not any("login.ftl" in p for p in ct.problems(Path(d), keycloak_version="26.8.0"))
 print("check-theme: OK")
