@@ -41,6 +41,7 @@ jobs:
       - name: Checker self-tests (routes, public routes, secret compare, auth check)
         run: |
           python3 -I scripts/test_check_routes.py
+          python3 -I scripts/test_app_db_roles.py
           python3 -I scripts/test_check_public_routes.py
           python3 -I scripts/test_check_secret_compare.py
           python3 -I scripts/test_nidan_auth_check.py

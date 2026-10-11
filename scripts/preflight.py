@@ -88,7 +88,7 @@ def db_superuser_findings(services):
                 continue
             db, su = superusers[value]
             if su in users and key != "POSTGRES_PASSWORD":
-                notes.append(f"{name} runs as {su!r}, the superuser of its own {db} (separate app role: follow-up)")
+                notes.append(f"{name} runs as {su!r}, the superuser of its own {db} (own login: scripts/app-db-roles.py)")
             else:
                 problems.append(f"{name}: {key} is the superuser password of {db} ({su!r}); the app should not hold it")
     return problems, sorted(set(notes))

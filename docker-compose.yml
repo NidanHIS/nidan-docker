@@ -394,8 +394,9 @@ services:
       ORTHANC__POSTGRESQL__HOST: "${ORTHANC_DB_HOST:-orthanc-db}"
       ORTHANC__POSTGRESQL__PORT: "5432"
       ORTHANC__POSTGRESQL__DATABASE: "${ORTHANC_DB_NAME:-orthanc}"
-      ORTHANC__POSTGRESQL__USERNAME: "${ORTHANC_DB_USER:-orthanc}"
-      ORTHANC__POSTGRESQL__PASSWORD: "${ORTHANC_DB_PASSWORD:?set ORTHANC_DB_PASSWORD (generate-secrets.sh writes .env.local)}"
+      # own non-superuser login once scripts/app-db-roles.py has run (ORTHANC_DB_APP_*); the superuser otherwise
+      ORTHANC__POSTGRESQL__USERNAME: "${ORTHANC_DB_APP_USER:-${ORTHANC_DB_USER:-orthanc}}"
+      ORTHANC__POSTGRESQL__PASSWORD: "${ORTHANC_DB_APP_PASSWORD:-${ORTHANC_DB_PASSWORD:?set ORTHANC_DB_PASSWORD (generate-secrets.sh writes .env.local)}}"
       # Authentication (dynamic/secrets)
       # admin (CIS, the Orthanc UI for orthanc-admin) + read-only viewer (image viewer routes; orthanc/viewer-readonly.lua)
       ORTHANC__REGISTERED_USERS: |
@@ -684,8 +685,9 @@ services:
     environment:
       # Database
       - INTEGRATION_DB_URL=jdbc:postgresql://${INTEGRATION_DB_HOST:-nidan-integration-db}:${INTEGRATION_DB_PORT:-5432}/${INTEGRATION_DB_NAME:-nidan_integration}
-      - INTEGRATION_DB_USER=${INTEGRATION_DB_USER:-nidan}
-      - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_PASSWORD:?set INTEGRATION_DB_PASSWORD (generate-secrets.sh writes .env.local)}
+      # own non-superuser login once scripts/app-db-roles.py has run (INTEGRATION_DB_APP_*); the superuser otherwise
+      - INTEGRATION_DB_USER=${INTEGRATION_DB_APP_USER:-${INTEGRATION_DB_USER:-nidan}}
+      - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_APP_PASSWORD:-${INTEGRATION_DB_PASSWORD:?set INTEGRATION_DB_PASSWORD (generate-secrets.sh writes .env.local)}}
       # Secret OpenELIS sends on its result/sample/patient/test webhooks (same value OpenELIS gets).
       # Unset = CIS refuses every OpenELIS webhook; NIDAN_DEPLOYMENT=production also refuses demo values.
       - OPENELIS_CATALOG_WEBHOOK_SECRET=${OPENELIS_MIDDLEWARE_SYNC_SECRET:-}
@@ -835,8 +837,9 @@ services:
     environment:
       # Database
       - INTEGRATION_DB_URL=jdbc:postgresql://${INTEGRATION_DB_HOST:-nidan-integration-db}:${INTEGRATION_DB_PORT:-5432}/${INTEGRATION_DB_NAME:-nidan_integration}
-      - INTEGRATION_DB_USER=${INTEGRATION_DB_USER:-nidan}
-      - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_PASSWORD:?set INTEGRATION_DB_PASSWORD (generate-secrets.sh writes .env.local)}
+      # own non-superuser login once scripts/app-db-roles.py has run (INTEGRATION_DB_APP_*); the superuser otherwise
+      - INTEGRATION_DB_USER=${INTEGRATION_DB_APP_USER:-${INTEGRATION_DB_USER:-nidan}}
+      - INTEGRATION_DB_PASSWORD=${INTEGRATION_DB_APP_PASSWORD:-${INTEGRATION_DB_PASSWORD:?set INTEGRATION_DB_PASSWORD (generate-secrets.sh writes .env.local)}}
       - MANAGEMENT_HEALTH_REDIS_ENABLED=${MANAGEMENT_HEALTH_REDIS_ENABLED:-false}
       # Kafka
       - KAFKA_BOOTSTRAP_SERVERS=nidan-kafka:${KAFKA_PORT:-9092}
@@ -1125,8 +1128,9 @@ services:
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-db:5432/${KEYCLOAK_DB_NAME:-keycloak}
-      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
-      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD (generate-secrets.sh writes .env.local)}
+      # own non-superuser login once scripts/app-db-roles.py has run (KEYCLOAK_DB_APP_*); the superuser otherwise
+      KC_DB_USERNAME: ${KEYCLOAK_DB_APP_USER:-${KEYCLOAK_DB_USER:-keycloak}}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_APP_PASSWORD:-${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD (generate-secrets.sh writes .env.local)}}
       KC_HTTP_ENABLED: "true"                  # TLS ends at the gateway; keycloak is only on auth-net
       KC_HTTP_RELATIVE_PATH: /auth
       KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}

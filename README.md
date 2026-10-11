@@ -87,6 +87,10 @@ This repository contains the containerized architecture for **NidanEHR**, orches
    **Login limits and staff:** Keycloak login/token requests are limited per client IP (`KC_LOGIN_RATE_PER_MIN`,
    default 10); if every user reaches the gateway through one NAT address, list it in `KC_LOGIN_RATE_EXEMPT`.
    Disabling someone on the Staff page now signs them out of every app first (open Odoo POS sessions close).
+   **Own database logins (optional):** Keycloak, CIS/OIS and Orthanc can stop using their database's superuser:
+   `KEYCLOAK_DB_APP_PASSWORD=... scripts/app-db-roles.py --apply keycloak` (likewise `integration`, `orthanc`) creates
+   a non-superuser owner role, then set the printed `*_DB_APP_USER` / `*_DB_APP_PASSWORD` in `.env.local` and
+   `docker compose up -d`. Back up first (scripts/volume-backup.sh); without the settings nothing changes.
 
 ### 1. OpenMRS 3.0 Frontend (SPA)
 The frontend is built using `npx openmrs assemble` to create a custom distribution of micro-frontends.
