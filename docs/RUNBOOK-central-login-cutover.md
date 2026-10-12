@@ -55,7 +55,7 @@ user with any of those names, so nobody can claim an unlinked local account.
 2. Run the diff. It must exit 0:
 
    ```bash
-   scripts/dry-run-diff.py /secure/cutover/export.json /secure/cutover [--site keycloak/realm/sites/<site>]
+   scripts/dry-run-diff.py /secure/cutover/export.json /secure/cutover   # role data from the export (this site)
    ```
 
    A loss is fixed by changing the job, or signed off in `accept_loss`. Superuser roles held today
