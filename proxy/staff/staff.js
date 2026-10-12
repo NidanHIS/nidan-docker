@@ -16,6 +16,9 @@
   let jobs = [];          // [{name, id}] from staff-config.json
   let people = [];        // [{user, job}] loaded per job
   const $ = (id) => document.getElementById(id);
+  // texts from /staff/i18n/messages_<lang>.json (i18n.js); English is the fallback for any missing key
+  const I = window.NidanI18n;
+  const t = (key, vars) => (I && I.t(key, vars)) || key;
 
   async function api(method, path, body) {
     const res = await fetch(API + path, {
@@ -55,7 +58,7 @@
   // ---------------------------------------------------------------- list
   async function loadPeople() {
     const state = $('list-state');
-    state.textContent = 'Loading…';
+    state.textContent = t('staff.loading');
     state.hidden = false;
     $('people').hidden = true;
     try {
@@ -69,13 +72,13 @@
       render();
     } catch (e) {
       if (e.status === 401) {               // the gateway session ended: sign in again and come back here
-        state.textContent = 'Your session has ended. ';
+        state.textContent = t('staff.sessionEnded');
         const a = document.createElement('a');
         a.href = '/oauth2/start?rd=/staff/';
-        a.textContent = 'Sign in again';
+        a.textContent = t('staff.signInAgain');
         state.append(a);
       } else {
-        state.textContent = e.status === 403 ? 'You are not allowed to manage staff.' : 'Could not load staff. Try again.';
+        state.textContent = e.status === 403 ? t('staff.notAllowed') : t('staff.loadFailed');
       }
     }
   }
@@ -90,15 +93,15 @@
       const tr = document.createElement('tr');
       if (user.enabled === false) tr.className = 'disabled-row';
       tr.append(cell(((user.firstName || '') + ' ' + (user.lastName || '')).trim()), cell(user.username), cell(job.name),
-        cell(user.enabled === false ? 'Disabled' : 'Active'));
+        cell(user.enabled === false ? t('staff.disabled') : t('staff.active')));
       const actions = document.createElement('td');
-      actions.append(button('Details', () => openPlaces(user)), button('Reset password', () => resetPassword(user)),
-        button(user.enabled === false ? 'Enable' : 'Disable', () => toggle(user)),
+      actions.append(button(t('staff.details'), () => openPlaces(user)), button(t('staff.resetPassword'), () => resetPassword(user)),
+        button(user.enabled === false ? t('staff.enable') : t('staff.disable'), () => toggle(user)),
         jobSelect(user, job));
       tr.append(actions);
       tbody.append(tr);
     }
-    $('list-state').textContent = rows.length ? '' : 'No staff found.';
+    $('list-state').textContent = rows.length ? '' : t('staff.noStaff');
     $('list-state').hidden = !!rows.length;
     $('people').hidden = !rows.length;
   }
@@ -113,7 +116,7 @@
 
   function jobSelect(user, current) {
     const s = document.createElement('select');
-    s.setAttribute('aria-label', 'Change job for ' + user.username);
+    s.setAttribute('aria-label', t('staff.changeJobFor', { name: user.username }));
     for (const j of jobs) {
       const o = document.createElement('option');
       o.value = j.id;
@@ -131,25 +134,25 @@
     try {
       await api('PUT', '/users/' + user.id + '/groups/' + to.id);
       await api('DELETE', '/users/' + user.id + '/groups/' + from.id);
-      notice(user.username + ' is now ' + to.name + '. It takes effect at their next login (at most 12 hours).');
+      notice(t('staff.jobChanged', { name: user.username, job: to.name }));
       await loadPeople();
     } catch (e) {
-      notice('Could not change the job: ' + (e.detail || e.message));
+      notice(t('staff.jobChangeFailed', { error: e.detail || e.message }));
     }
   }
 
   async function toggle(user) {
     const disabling = user.enabled !== false;
-    if (disabling && !confirm('Disable ' + user.username + '? They will be locked out of every application within 6 minutes.')) return;
+    if (disabling && !confirm(t('staff.confirmDisable', { name: user.username }))) return;
     try {
       // Sign them out everywhere first: Keycloak sends the apps a back-channel logout (Odoo ends the session and an
       // open POS websocket closes). Disabling alone ends Keycloak's sessions silently (KC-11-02).
       if (disabling) await api('POST', '/users/' + user.id + '/logout');
       await api('PUT', '/users/' + user.id, { enabled: !disabling });
-      notice(user.username + (disabling ? ' is disabled.' : ' is enabled again.'));
+      notice(t(disabling ? 'staff.isDisabled' : 'staff.isEnabled', { name: user.username }));
       await loadPeople();
     } catch (e) {
-      notice('Could not change ' + user.username + ': ' + (e.detail || e.message));
+      notice(t('staff.changeFailed', { name: user.username, error: e.detail || e.message }));
     }
   }
 
@@ -159,7 +162,7 @@
       await api('PUT', '/users/' + user.id + '/reset-password', { type: 'password', value: pw, temporary: true });
       showSlip(user, pw);
     } catch (e) {
-      notice('Could not reset the password: ' + (e.detail || e.message));
+      notice(t('staff.resetFailed', { error: e.detail || e.message }));
     }
   }
 
@@ -169,9 +172,9 @@
 
   function parsePlaces(text) {
     const values = [...new Set(String(text || '').split(',').map((v) => v.trim()).filter(Boolean))];
-    if (values.length > 30) throw new Error('At most 30 per field.');
+    if (values.length > 30) throw new Error(t('staff.tooManyPlaces'));
     for (const v of values) {
-      if (v.length > 64 || /[\u0000-\u001f<>]/.test(v)) throw new Error('"' + v.slice(0, 20) + '" is not a valid name.');
+      if (v.length > 64 || /[\u0000-\u001f<>]/.test(v)) throw new Error(t('staff.badPlace', { value: v.slice(0, 20) }));
     }
     return values;
   }
@@ -180,7 +183,7 @@
     try {
       placesFor = await api('GET', '/users/' + user.id);
     } catch (e) {
-      notice('Could not load ' + user.username + ': ' + (e.detail || e.message));
+      notice(t('staff.loadOneFailed', { name: user.username, error: e.detail || e.message }));
       return;
     }
     const form = $('places-form');
@@ -188,7 +191,11 @@
     for (const name of PLACES) form.elements[name].value = (attrs[name] || []).join(', ');
     form.elements.email.value = placesFor.email || '';
     form.elements.phone.value = (attrs.phone || [])[0] || '';
-    $('places-user').textContent = placesFor.username;
+    const [before, after] = I ? I.parts('staff.details.title', 'name') : ['Details for ', ''];
+    const who = document.createElement('span');
+    who.id = 'places-user';
+    who.textContent = placesFor.username;
+    $('places-title').replaceChildren(before, who, after);
     $('places-error').hidden = true;
     $('places-dialog').showModal();
   }
@@ -202,7 +209,7 @@
     try {
       placesFor = Object.assign(await api('GET', '/users/' + placesFor.id), { opened: placesFor.opened || placesFor });
     } catch (e) {
-      err.textContent = 'Could not save: ' + (e.detail || e.message);
+      err.textContent = t('staff.saveFailed', { error: e.detail || e.message });
       err.hidden = false;
       return;
     }
@@ -221,7 +228,7 @@
     const email = form.elements.email.value.trim();
     const phone = form.elements.phone.value.trim();
     if (phone && !/^\+?[0-9 ]{7,16}$/.test(phone)) {
-      err.textContent = 'Phone: digits, optional + and spaces (7-16).';
+      err.textContent = t('staff.badPhone');
       err.hidden = false;
       return;
     }
@@ -234,9 +241,9 @@
     try {
       await api('PUT', '/users/' + placesFor.id, body);
       $('places-dialog').close();
-      notice('Details saved for ' + placesFor.username + '. Places apply at the next login.');
+      notice(t('staff.detailsSaved', { name: placesFor.username }));
     } catch (e) {
-      err.textContent = 'Could not save: ' + (e.detail || e.message);
+      err.textContent = t('staff.saveFailed', { error: e.detail || e.message });
       err.hidden = false;
     }
   }
@@ -254,11 +261,11 @@
     err.hidden = true;
     const username = (f.username || '').trim().toLowerCase();
     let problem = '';
-    if (!f.firstName || !f.lastName) problem = 'First and last name are required.';
-    else if (!/^[a-z][a-z0-9._-]{2,39}$/.test(username)) problem = 'Username: 3–40 lowercase letters, digits, . _ -';
-    else if (RESERVED.has(username) || /^[0-9]+-[0-9]$/.test(username)) problem = 'That username is reserved.';
-    else if (!f.gender) problem = 'Gender is required.';
-    else if (!jobs.some((j) => j.id === f.job)) problem = 'Choose a job.';
+    if (!f.firstName || !f.lastName) problem = t('staff.namesRequired');
+    else if (!/^[a-z][a-z0-9._-]{2,39}$/.test(username)) problem = t('staff.badUsername');
+    else if (RESERVED.has(username) || /^[0-9]+-[0-9]$/.test(username)) problem = t('staff.reserved');
+    else if (!f.gender) problem = t('staff.genderRequired');
+    else if (!jobs.some((j) => j.id === f.job)) problem = t('staff.chooseJob');
     if (problem) {
       err.textContent = problem;
       err.hidden = false;
@@ -274,7 +281,7 @@
     if (f.email) body.email = f.email.trim();
     if (f.phone) {
       if (!/^\+?[0-9 ]{7,16}$/.test(f.phone.trim())) {
-        err.textContent = 'Phone: digits, optional + and spaces (7-16).';
+        err.textContent = t('staff.badPhone');
         err.hidden = false;
         return false;
       }
@@ -294,9 +301,9 @@
       await loadPeople();
       return true;
     } catch (e) {
-      err.textContent = e.status === 409 ? 'That username already exists.'
-        : e.detail === 'nidanUsernameReserved' ? 'That username is reserved.'  // realm user-profile pattern (KC-55-03)
-          : 'Could not add the person: ' + (e.detail || e.message);
+      err.textContent = e.status === 409 ? t('staff.usernameTaken')
+        : e.detail === 'nidanUsernameReserved' ? t('staff.reserved')  // realm user-profile pattern (KC-55-03)
+          : t('staff.addFailed', { error: e.detail || e.message });
       err.hidden = false;
       return false;
     }
@@ -321,7 +328,7 @@
         tbody.append(tr);
       }
     } catch (e) {
-      notice('Could not load activity.');
+      notice(t('staff.activityFailed'));
     }
   }
 
@@ -332,13 +339,18 @@
       const res = await fetch('/oauth2/userinfo', { cache: 'no-cache', credentials: 'same-origin' });
       if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return;
       const info = await res.json();
-      $('who-name').textContent = info.preferredUsername || info.user || '';
+      const [before, after] = I ? I.parts('staff.signedInAs', 'name') : ['Signed in as ', ''];
+      const name = document.createElement('strong');
+      name.id = 'who-name';
+      name.textContent = info.preferredUsername || info.user || '';
+      $('who-line').replaceChildren(before, name, after);
       $('to-apps').href = 'https://' + location.hostname + '/';
       $('who').hidden = false;
     } catch (e) { /* header stays without the name */ }
   }
 
   async function start() {
+    if (I) await I.ready;
     showWho();
     try {
       const res = await fetch('/staff/staff-config.json', { cache: 'no-cache' });
@@ -347,17 +359,17 @@
       jobs = ((await res.json()).jobs || []).filter((j) => j && j.name && /^[0-9a-f-]{36}$/.test(j.id)
         && j.path === '/staff/' + j.name);
     } catch (e) {
-      $('list-state').textContent = 'Staff configuration is missing (staff-config.json).';
+      $('list-state').textContent = t('staff.configMissing');
       return;
     }
     if (!jobs.length) {   // the placeholder shipped with the image, or a site that never ran scripts/staff-config.py
-      $('list-state').textContent = 'No jobs are set up for this hospital yet (staff-config.json). Ask IT to run scripts/staff-config.py.';
+      $('list-state').textContent = t('staff.noJobs');
       return;
     }
     const filter = $('job-filter');
     const all = document.createElement('option');
     all.value = '';
-    all.textContent = 'All jobs';
+    all.textContent = t('staff.allJobs');
     filter.append(all);
     for (const j of jobs) {
       for (const sel of [filter, $('add-job')]) {

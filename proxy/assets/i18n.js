@@ -1,7 +1,9 @@
-// Gateway page translations (backlog KC-18). Locale = cookie `nidan_locale` (en | ne), shared with
-// the Keycloak login theme; default en. Elements with data-i18n="key" get the text; scripts use
-// NidanI18n.t(key, {var}) and NidanI18n.parts(key, 'name') to build text around a name node.
-// Unknown keys fall back to English, never to the raw key.
+// Gateway page translations (backlog KC-18). Locale = cookie `nidan_locale` (en | ne | es | fr | ar), shared
+// with the Keycloak login theme; default en. Elements with data-i18n="key" get the text, data-i18n-placeholder /
+// -title / -aria-label the attribute; scripts use NidanI18n.t(key, {var}) and NidanI18n.parts(key, 'name') to build
+// text around a name node. Unknown keys fall back to English, never to the raw key.
+// A page with its own messages sets data-messages / data-brand on this <script> (the Staff page: /staff/i18n,
+// /staff/brand); default /assets/i18n and /assets/brand.
 (function () {
   'use strict';
   const SUPPORTED = ['en', 'ne', 'es', 'fr', 'ar'];   // the login theme's languages too (keycloak/themes/nidan)
@@ -11,9 +13,12 @@
   let msgs = {};
   let en = {};
 
+  const me = document.currentScript;
+  const msgDir = (me && me.dataset.messages) || '/assets/i18n';
+  const brandDir = (me && me.dataset.brand) || '/assets/brand';
   const get = (url) => fetch(url, { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   // the hospital's branding folder may override any text (assets/brand/README.md)
-  const load = (loc) => Promise.all([get('/assets/i18n/messages_' + loc + '.json'), get('/assets/brand/messages_' + loc + '.json')])
+  const load = (loc) => Promise.all([get(msgDir + '/messages_' + loc + '.json'), get(brandDir + '/messages_' + loc + '.json')])
     .then(([base, brand]) => Object.assign({}, base, brand));
 
   function t(key, vars) {
@@ -32,6 +37,12 @@
       const s = t(el.getAttribute('data-i18n'));
       if (s) el.textContent = s;
     });
+    for (const attr of ['placeholder', 'title', 'aria-label']) {
+      (root || document).querySelectorAll('[data-i18n-' + attr + ']').forEach((el) => {
+        const s = t(el.getAttribute('data-i18n-' + attr));
+        if (s) el.setAttribute(attr, s);
+      });
+    }
   }
   function setLocale(loc) {
     if (!SUPPORTED.includes(loc)) return;

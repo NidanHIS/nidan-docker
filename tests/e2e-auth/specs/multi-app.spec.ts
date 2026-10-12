@@ -402,6 +402,16 @@ test.describe('people with several apps', () => {
     await page.selectOption('#job-filter', { label: 'Nurse' });
     await expect(page.locator('#people tbody tr', { hasText: nurse.username }), 'a nurse in the list').toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Your session has ended'), 'no session error').toHaveCount(0);
+    // in Arabic the page turns right to left, names stay in place, and the list still loads; back to English after
+    await page.selectOption('#locale-picker', 'ar');
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+    await expect(page.locator('#who-line')).toContainText('تم تسجيل الدخول باسم');
+    await expect(page.locator('#who-name')).toHaveText(username);
+    await expect(page.locator('#add-open')).toHaveText('إضافة شخص');
+    await page.selectOption('#job-filter', { label: 'Nurse' });
+    await expect(page.locator('#people tbody tr', { hasText: nurse.username })).toBeVisible({ timeout: 15_000 });
+    await page.selectOption('#locale-picker', 'en');
+    await expect(page.locator('#add-open')).toHaveText('Add person');
     await ctx.close();
   });
 

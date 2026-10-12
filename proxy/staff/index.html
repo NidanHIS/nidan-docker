@@ -3,24 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Staff</title>
+  <title data-i18n="staff.title">Staff</title>
   <link rel="icon" href="/staff/brand/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="/staff/staff.css">
   <link rel="stylesheet" href="/staff/brand/brand.css">
 </head>
 <body>
-  <!-- Staff page for hospital admins (backlog KC-20/21/22/23). Talks only to /staff-api on this origin. -->
+  <!-- Staff page for hospital admins (backlog KC-20/21/22/23). Talks only to /staff-api on this origin.
+       Texts: /staff/i18n/messages_<lang>.json (en, ne, es, fr, ar; ar right to left), via /staff/i18n.js. -->
   <header class="bar">
-    <div class="brand"><img src="/staff/brand/logo.svg" alt="" class="logo"><strong>Staff</strong></div>
+    <div class="brand"><img src="/staff/brand/logo.svg" alt="" class="logo"><strong data-i18n="staff.title">Staff</strong></div>
     <nav>
-      <button type="button" class="tab" data-tab="people" aria-pressed="true">People</button>
-      <button type="button" class="tab" data-tab="activity" aria-pressed="false">Activity</button>
+      <button type="button" class="tab" data-tab="people" aria-pressed="true" data-i18n="staff.tab.people">People</button>
+      <button type="button" class="tab" data-tab="activity" aria-pressed="false" data-i18n="staff.tab.activity">Activity</button>
     </nav>
-    <!-- who is signed in, back to the launcher, Sign out (staff.js; textContent only) -->
+    <!-- who is signed in, back to the launcher, Sign out, language (staff.js; textContent only) -->
     <div class="who" id="who" hidden>
-      <span>Signed in as <strong id="who-name"></strong></span>
-      <a id="to-apps" href="/">All apps</a>
-      <a class="sign-out" href="/oauth2/sign_out">Sign out</a>
+      <span id="who-line">Signed in as <strong id="who-name"></strong></span>
+      <a id="to-apps" href="/" data-i18n="staff.allApps">All apps</a>
+      <a class="sign-out" href="/oauth2/sign_out" data-i18n="staff.signOut">Sign out</a>
+      <label class="locale-picker"><span data-i18n="locale.label">Language</span>
+        <select id="locale-picker" aria-label="Language" data-i18n-aria-label="locale.label"><option value="en">English</option><option value="ne">नेपाली</option><option value="es">Español</option><option value="fr">Français</option><option value="ar">العربية</option></select>
+      </label>
     </div>
   </header>
   <main>
@@ -28,67 +32,69 @@
 
     <section id="tab-people">
       <div class="row">
-        <label>Job <select id="job-filter"></select></label>
-        <label>Search <input id="search" type="search" placeholder="Name or username" autocomplete="off"></label>
-        <button type="button" id="add-open">Add person</button>
+        <label><span data-i18n="staff.job">Job</span> <select id="job-filter" autocomplete="off"></select></label>
+        <label><span data-i18n="staff.search">Search</span> <input id="search" type="search" placeholder="Name or username" data-i18n-placeholder="staff.searchPlaceholder" autocomplete="off"></label>
+        <button type="button" id="add-open" data-i18n="staff.addPerson">Add person</button>
       </div>
-      <p id="list-state" class="muted" role="status">Loading…</p>
+      <p id="list-state" class="muted" role="status" data-i18n="staff.loading">Loading…</p>
       <table id="people" hidden>
-        <thead><tr><th>Name</th><th>Username</th><th>Job</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th data-i18n="staff.col.name">Name</th><th data-i18n="staff.col.username">Username</th><th data-i18n="staff.col.job">Job</th><th data-i18n="staff.col.status">Status</th><th></th></tr></thead>
         <tbody></tbody>
       </table>
     </section>
 
     <section id="tab-activity" hidden>
-      <p class="muted">Logins and admin changes in this hospital (read-only).</p>
-      <table id="events"><thead><tr><th>Time</th><th>What</th><th>Who</th><th>Details</th></tr></thead><tbody></tbody></table>
+      <p class="muted" data-i18n="staff.activityHelp">Logins and admin changes in this hospital (read-only).</p>
+      <table id="events"><thead><tr><th data-i18n="staff.col.time">Time</th><th data-i18n="staff.col.what">What</th><th data-i18n="staff.col.who">Who</th><th data-i18n="staff.col.details">Details</th></tr></thead><tbody></tbody></table>
     </section>
   </main>
 
   <dialog id="add-dialog">
     <form id="add-form" method="dialog">
-      <h2>Add a person</h2>
-      <label>First name <input name="firstName" required maxlength="80"></label>
-      <label>Last name <input name="lastName" required maxlength="80"></label>
-      <label>Username <input name="username" required maxlength="40" pattern="[a-z][a-z0-9._-]{2,39}" title="lowercase letters, digits, . _ -"></label>
-      <label>Gender
-        <select name="gender" required><option value="">Choose…</option><option value="M">Male</option><option value="F">Female</option><option value="O">Other</option><option value="U">Unknown</option></select>
+      <h2 data-i18n="staff.add.title">Add a person</h2>
+      <label><span data-i18n="staff.firstName">First name</span> <input name="firstName" required maxlength="80"></label>
+      <label><span data-i18n="staff.lastName">Last name</span> <input name="lastName" required maxlength="80"></label>
+      <label><span data-i18n="staff.username">Username</span> <input name="username" required maxlength="40" pattern="[a-z][a-z0-9._-]{2,39}" title="lowercase letters, digits, . _ -" data-i18n-title="staff.usernameHint"></label>
+      <label><span data-i18n="staff.gender">Gender</span>
+        <select name="gender" required><option value="" data-i18n="staff.choose">Choose…</option><option value="M" data-i18n="staff.gender.M">Male</option><option value="F" data-i18n="staff.gender.F">Female</option><option value="O" data-i18n="staff.gender.O">Other</option><option value="U" data-i18n="staff.gender.U">Unknown</option></select>
       </label>
-      <label>Job <select name="job" required id="add-job"></select></label>
-      <label>Email (optional) <input name="email" type="email" maxlength="120"></label>
-      <label>Phone (optional, for SMS sign-in codes) <input name="phone" type="tel" maxlength="16" pattern="\+?[0-9 ]{7,16}" title="digits, optional + and spaces"></label>
+      <label><span data-i18n="staff.job">Job</span> <select name="job" required id="add-job"></select></label>
+      <label><span data-i18n="staff.emailOptional">Email (optional)</span> <input name="email" type="email" maxlength="120"></label>
+      <label><span data-i18n="staff.phoneOptional">Phone (optional, for SMS sign-in codes)</span> <input name="phone" type="tel" maxlength="16" pattern="\+?[0-9 ]{7,16}" title="digits, optional + and spaces" data-i18n-title="staff.phoneHint"></label>
       <p class="error" id="add-error" role="alert" hidden></p>
-      <div class="row"><button type="submit" value="ok">Add</button><button type="button" id="add-cancel">Cancel</button></div>
+      <div class="row"><button type="submit" value="ok" data-i18n="staff.add">Add</button><button type="button" id="add-cancel" data-i18n="staff.cancel">Cancel</button></div>
     </form>
   </dialog>
 
   <dialog id="places-dialog">
     <form id="places-form" method="dialog">
-      <h2>Details for <span id="places-user"></span></h2>
-      <p class="muted">Email and phone receive sign-in codes when the person turns them on; changing one turns its codes
+      <h2 id="places-title">Details for <span id="places-user"></span></h2>
+      <p class="muted" data-i18n="staff.details.codesHelp">Email and phone receive sign-in codes when the person turns them on; changing one turns its codes
         off until the person confirms the new one.</p>
-      <label>Email <input name="email" type="email" maxlength="120"></label>
-      <label>Phone <input name="phone" type="tel" maxlength="16" pattern="\+?[0-9 ]{7,16}" title="digits, optional + and spaces"></label>
-      <p class="muted">Places: separate several with commas. Takes effect at the person's next login.</p>
-      <label>Locations (OpenMRS) <input name="nidan_locations" maxlength="1000" autocomplete="off"></label>
-      <label>Lab units (OpenELIS) <input name="nidan_lab_units" maxlength="1000" autocomplete="off"></label>
-      <label>POS shops (Odoo) <input name="nidan_shops" maxlength="1000" autocomplete="off"></label>
+      <label><span data-i18n="staff.email">Email</span> <input name="email" type="email" maxlength="120"></label>
+      <label><span data-i18n="staff.phone">Phone</span> <input name="phone" type="tel" maxlength="16" pattern="\+?[0-9 ]{7,16}" title="digits, optional + and spaces" data-i18n-title="staff.phoneHint"></label>
+      <p class="muted" data-i18n="staff.placesHelp">Places: separate several with commas. Takes effect at the person's next login.</p>
+      <label><span data-i18n="staff.locations">Locations (OpenMRS)</span> <input name="nidan_locations" maxlength="1000" autocomplete="off"></label>
+      <label><span data-i18n="staff.labUnits">Lab units (OpenELIS)</span> <input name="nidan_lab_units" maxlength="1000" autocomplete="off"></label>
+      <label><span data-i18n="staff.posShops">POS shops (Odoo)</span> <input name="nidan_shops" maxlength="1000" autocomplete="off"></label>
       <p class="error" id="places-error" role="alert" hidden></p>
-      <div class="row"><button type="submit" value="ok">Save</button><button type="button" id="places-cancel">Cancel</button></div>
+      <div class="row"><button type="submit" value="ok" data-i18n="staff.save">Save</button><button type="button" id="places-cancel" data-i18n="staff.cancel">Cancel</button></div>
     </form>
   </dialog>
 
   <dialog id="slip-dialog">
     <div class="slip" id="slip">
-      <h2>Temporary password</h2>
-      <p>For <strong id="slip-name"></strong> (<span id="slip-user"></span>)</p>
+      <h2 data-i18n="staff.slip.title">Temporary password</h2>
+      <p><span data-i18n="staff.slip.for">For</span> <strong id="slip-name"></strong> (<span id="slip-user"></span>)</p>
       <p class="password" id="slip-password"></p>
-      <p>Shown once. The person must choose their own password at first login. It expires in 7 days.</p>
+      <p data-i18n="staff.slip.help">Shown once. The person must choose their own password at first login. It expires in 7 days.</p>
+      <!-- the printed slip always carries Nepali too: the person reading it may not read the admin's language -->
       <p lang="ne">यो अस्थायी पासवर्ड हो। पहिलो पटक लगइन गर्दा आफ्नै पासवर्ड राख्नुहोस्। यो ७ दिनमा समाप्त हुन्छ।</p>
     </div>
-    <div class="row"><button type="button" id="slip-print">Print slip</button><button type="button" id="slip-close">Done</button></div>
+    <div class="row"><button type="button" id="slip-print" data-i18n="staff.slip.print">Print slip</button><button type="button" id="slip-close" data-i18n="staff.slip.done">Done</button></div>
   </dialog>
 
+  <script src="/staff/i18n.js" data-messages="/staff/i18n" data-brand="/staff/brand" defer></script>
   <script src="/staff/staff.js" defer></script>
 </body>
 </html>

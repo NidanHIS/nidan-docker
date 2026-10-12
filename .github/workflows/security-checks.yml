@@ -79,13 +79,16 @@ jobs:
       - name: Gateway page translations have the same keys (KC-18-03)
         run: |
           python3 -I - <<'PY'
-          import json
-          en = json.load(open("proxy/assets/i18n/messages_en.json"))
-          for loc in ("ne", "es", "fr", "ar"):          # proxy/assets/i18n.js SUPPORTED
-              d = json.load(open(f"proxy/assets/i18n/messages_{loc}.json")); d.pop("_review", None)
-              assert set(en) == set(d), (loc, "missing", sorted(set(en) - set(d)), "extra", sorted(set(d) - set(en)))
-              assert all(str(v).strip() for v in d.values()), f"empty {loc} string"
-          print(len(en), "keys in every language")
+          import json, re
+          for base in ("proxy/assets/i18n", "proxy/staff/i18n"):   # launcher, Staff page
+              en = json.load(open(f"{base}/messages_en.json"))
+              for loc in ("ne", "es", "fr", "ar"):          # proxy/assets/i18n.js SUPPORTED
+                  d = json.load(open(f"{base}/messages_{loc}.json")); d.pop("_review", None)
+                  assert set(en) == set(d), (base, loc, "missing", sorted(set(en) - set(d)), "extra", sorted(set(d) - set(en)))
+                  assert all(str(v).strip() for v in d.values()), f"empty {base} {loc} string"
+                  for k in en:                              # same {placeholders}, or a name / error goes missing
+                      assert set(re.findall(r"{\w+}", en[k])) == set(re.findall(r"{\w+}", d[k])), (base, loc, k)
+              print(base, len(en), "keys in every language")
           PY
 
       - name: Tracked demo .env holds only approved demo values (KC-05-07)
