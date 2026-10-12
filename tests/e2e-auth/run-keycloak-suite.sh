@@ -74,6 +74,7 @@ realm_ready() {
     "$KC/realms/master/protocol/openid-connect/token" | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])' > "$tf"
   KC_TOKEN_FILE="$tf" python3 -I "$ND/scripts/keycloak-admin-permissions.py" --apply --url "$KC" >/dev/null
   python3 -I "$H/manual-users.py" --fixups-only >/dev/null || { echo "harness callbacks failed" >&2; return 1; }
+  "$H/staff-site-sync.sh" >/dev/null || { echo "staff page jobs failed" >&2; return 1; }   # dev-mem: ids change per import
   local prc=$?; rm -f "$tf"            # its own temp file (held the admin token)
   return $prc
 }
@@ -153,7 +154,8 @@ if [ $matrixonly -eq 0 ] && [ $contract -eq 1 ]; then
     pw contract-sso-on --project sso-on --grep-invert @needs-app
     exit $rc ) || rc=1
   docker compose -f "$C" stop >/dev/null
-  [ $paused -eq 1 ] && docker start "$P-gateway-1" >/dev/null
+  # a gateway start re-copies harness/staff-site (fake ids): load the live realm's jobs again
+  [ $paused -eq 1 ] && docker start "$P-gateway-1" >/dev/null && sleep 3 && "$H/staff-site-sync.sh" >/dev/null
 fi
 
 if [ $matrixonly -eq 0 ] && [ $ssostub -eq 1 ]; then
