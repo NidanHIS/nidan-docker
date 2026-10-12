@@ -43,6 +43,12 @@ clients:
     aud: [openmrs]            # audience mapper; checked live by tests/e2e-auth/specs/realm.spec.ts
     required: [openmrs_user]
     openmrs_user: nidan-portal
+  role-sync:
+    grant: client_credentials
+    azp: role-sync
+    aud: [openmrs]            # audience mapper; checked live by tests/e2e-auth/specs/realm.spec.ts
+    required: [openmrs_user]
+    openmrs_user: nidan-rolesync
 
 # Accepting side (KC-58): OpenMRS's service-account filter must require iss == common.iss,
-# azp in {cis, odoo-sync, portal-sync}, typ == Bearer, and openmrs_user; anything else is refused.
+# azp in {cis, odoo-sync, portal-sync, role-sync}, typ == Bearer, and openmrs_user; anything else is refused.

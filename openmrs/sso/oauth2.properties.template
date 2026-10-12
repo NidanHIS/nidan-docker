@@ -26,7 +26,7 @@ openmrs.mapping.user.roles=roles
 #
 # Machine callers (client-credentials Bearer tokens, KC-58-01): only these clients, only this issuer.
 openmrs.mapping.user.username.serviceAccount=openmrs_user
-openmrs.serviceAccount.allowedClients=cis,odoo-sync,portal-sync
+openmrs.serviceAccount.allowedClients=cis,odoo-sync,portal-sync,role-sync
 openmrs.serviceAccount.issuer=@KEYCLOAK_PUBLIC_URL@/realms/nidan
 # Machine tokens must be meant for OpenMRS (realm audience mapper aud=openmrs, KC-01-03).
 openmrs.serviceAccount.audience=openmrs

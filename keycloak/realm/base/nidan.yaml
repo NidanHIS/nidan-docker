@@ -82,7 +82,7 @@ roles:
       - {name: cis-admin, description: Sync Issues (dead letters)}
       - {name: orthanc-admin, description: Orthanc admin UI}
       - {name: hospital-admin, description: Staff page}
-    # Per-app role catalogs (R1) come from keycloak/realm/roles/<app>.yaml (KC-24); job groups map them.
+    # openmrs and odoo roles come from the apps themselves (keycloak/role-sync, hourly); job groups map them.
     openmrs: []
     odoo: []
     openelis:                        # = system_role names (exact match, OidcUserLinking); Global/User Account Administrator only via app-superusers
@@ -398,7 +398,8 @@ clients:
 
   # Machine callers of OpenMRS (D11). The only clients allowed to emit openmrs_user (KC-01-03). Each maps to its own
   # least-privilege OpenMRS account, created by nidancore: cis -> NIDAN_SYNC_USERNAME (writes; the loop-prevention
-  # identity), odoo-sync -> nidan-odoo (read only), portal-sync -> nidan-portal (reads + appointments).
+  # identity), odoo-sync -> nidan-odoo (read only), portal-sync -> nidan-portal (reads + appointments),
+  # role-sync -> nidan-rolesync (the role list only).
   # Written out in full (no YAML anchors/merge keys: keycloak-config-cli's parser may not support them).
   # Launcher "Change password" (KC-55-05): runs Keycloak's UPDATE_PASSWORD (kc_action) and returns to the launcher.
   # Confidential with no secret in this file, so Keycloak generates one nobody holds: the code it returns can never
@@ -480,6 +481,30 @@ clients:
         protocol: openid-connect
         protocolMapper: oidc-hardcoded-claim-mapper
         config: {claim.name: openmrs_user, claim.value: nidan-portal, jsonType.label: String,
+                 access.token.claim: "true", id.token.claim: "false", userinfo.token.claim: "false"}
+      - name: audience-openmrs         # aud = the one API this token is for (KC-01-03 contract)
+        protocol: openid-connect
+        protocolMapper: oidc-audience-mapper
+        config: {included.client.audience: openmrs, access.token.claim: "true", id.token.claim: "false",
+                 userinfo.token.claim: "false", introspection.token.claim: "true"}
+
+  - clientId: role-sync              # keycloak/role-sync reads OpenMRS's role list: nidan-rolesync (Get Roles, Get Privileges)
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:KC_ROLE_SYNC_CLIENT_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+    fullScopeAllowed: false
+    redirectUris: []
+    webOrigins: []
+    attributes: {standard.token.exchange.enabled: "false"}
+    protocolMappers:
+      - name: openmrs-user
+        protocol: openid-connect
+        protocolMapper: oidc-hardcoded-claim-mapper
+        config: {claim.name: openmrs_user, claim.value: nidan-rolesync, jsonType.label: String,
                  access.token.claim: "true", id.token.claim: "false", userinfo.token.claim: "false"}
       - name: audience-openmrs         # aud = the one API this token is for (KC-01-03 contract)
         protocol: openid-connect

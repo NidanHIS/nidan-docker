@@ -18,7 +18,7 @@ const KC_PUBLIC = process.env.KEYCLOAK_PUBLIC_URL ?? KC;
 const ADMIN_USER = process.env.KEYCLOAK_ADMIN_USER ?? 'admin';
 const ADMIN_PASSWORD = process.env.KEYCLOAK_ADMIN_PASSWORD ?? 'harness-admin-password';
 const SECRET = process.env.KC_HARNESS_CLIENT_SECRET ?? 'harness-only-not-a-real-secret-0123456789';
-const MACHINE = ['cis', 'odoo-sync', 'portal-sync'];
+const MACHINE = ['cis', 'odoo-sync', 'portal-sync', 'role-sync'];
 const SYNC_USER = process.env.NIDAN_SYNC_USERNAME ?? 'nidan-sync';
 
 async function adminToken(request: APIRequestContext) {
@@ -184,7 +184,7 @@ test.describe('realm against a live Keycloak', () => {
     expect(ok.status()).toBe(201);
   });
 
-  test('only cis, odoo-sync and portal-sync get service tokens, and theirs match the contract @KC-01-03 @KC-58-02 @security', async ({ request }) => {
+  test('only cis, odoo-sync, portal-sync and role-sync get service tokens, and theirs match the contract @KC-01-03 @KC-58-02 @security', async ({ request }) => {
     const clients: Array<{ clientId: string; publicClient: boolean }> = await (await admin(request, '/clients')).json();
     for (const c of clients.filter((x) => !x.publicClient)) {
       const r = await request.post(`${KC}/realms/nidan/protocol/openid-connect/token`, {
@@ -200,7 +200,7 @@ test.describe('realm against a live Keycloak', () => {
       expect(t.typ).toBe('Bearer');
       expect(t.azp).toBe(c.clientId);
       // each machine client has its own least-privilege OpenMRS account (nidancore ServiceAccounts, KC-32-05)
-      expect(t.openmrs_user).toBe({ cis: SYNC_USER, 'odoo-sync': 'nidan-odoo', 'portal-sync': 'nidan-portal' }[c.clientId]);
+      expect(t.openmrs_user).toBe({ cis: SYNC_USER, 'odoo-sync': 'nidan-odoo', 'portal-sync': 'nidan-portal', 'role-sync': 'nidan-rolesync' }[c.clientId]);
       expect([t.aud].flat(), `${c.clientId}.aud`).toEqual(['openmrs']);
       expect(t.realm_access?.roles ?? [], `${c.clientId} carries realm roles`).toEqual([]);
     }

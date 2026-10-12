@@ -113,7 +113,7 @@ if [ $matrixonly -eq 0 ] && [ $full -eq 1 ]; then
     grep_slow=(--grep-invert @slow); [ "${SLOW:-}" = 1 ] && grep_slow=(--grep .)   # not (): bash 3.2 + set -u
     pw full-apps --project=sso-on --workers=1 "${grep_slow[@]}" \
       specs/openmrs-sso.spec.ts specs/odoo-sso.spec.ts specs/superset-sso.spec.ts specs/openelis-sso.spec.ts \
-      specs/keycloak-origin.spec.ts specs/cis-sync.spec.ts specs/imaging-sso.spec.ts specs/port80.spec.ts specs/multi-app.spec.ts specs/two-step.spec.ts
+      specs/keycloak-origin.spec.ts specs/cis-sync.spec.ts specs/imaging-sso.spec.ts specs/port80.spec.ts specs/multi-app.spec.ts specs/two-step.spec.ts specs/role-sync.spec.ts
     pw full-gateway --project=sso-on --workers=2 \
       specs/launcher.spec.ts specs/status-pages.spec.ts specs/exempt-routes.spec.ts specs/routes.spec.ts \
       specs/live-exposure.spec.ts specs/i18n.spec.ts

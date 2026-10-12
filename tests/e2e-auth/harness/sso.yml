@@ -73,6 +73,8 @@ services:
       KC_PORTAL_SYNC_CLIENT_SECRET: *secret
       KC_CONFIG_CLI_CLIENT_SECRET: *secret
       KC_AUTOMATION_CLIENT_SECRET: *secret
+      KC_ROLE_SYNC_CLIENT_SECRET: *secret
+      KC_ROLE_SYNC_ADMIN_SECRET: *secret
     volumes:
       - ../../../keycloak/realm:/config:ro
     networks: [sso]

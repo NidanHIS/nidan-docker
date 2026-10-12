@@ -56,7 +56,9 @@
   }
 
   // ---------------------------------------------------------------- list
+  let loadSeq = 0;      // a filter change while an earlier load runs: only the newest load may show its list
   async function loadPeople() {
+    const seq = ++loadSeq;
     const state = $('list-state');
     state.textContent = t('staff.loading');
     state.hidden = false;
@@ -64,13 +66,16 @@
     try {
       const filter = $('job-filter').value;
       const wanted = filter ? jobs.filter((j) => j.id === filter) : jobs;
-      people = [];
+      const found = [];
       for (const job of wanted) {
         const members = (await api('GET', '/groups/' + job.id + '/members?first=0&max=500')) || [];
-        for (const u of members) people.push({ user: u, job });
+        for (const u of members) found.push({ user: u, job });
       }
+      if (seq !== loadSeq) return;
+      people = found;
       render();
     } catch (e) {
+      if (seq !== loadSeq) return;
       if (e.status === 401) {               // the gateway session ended: sign in again and come back here
         state.textContent = t('staff.sessionEnded');
         const a = document.createElement('a');

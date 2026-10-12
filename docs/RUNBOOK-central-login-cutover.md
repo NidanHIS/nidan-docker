@@ -71,7 +71,7 @@ docker compose --profile sso up -d keycloak-db keycloak oauth2-proxy keycloak-ad
 docker compose --profile sso run --rm keycloak-config-cli
 ```
 
-The first import runs as the bootstrap admin and creates the two automation clients
+The first import runs as the bootstrap admin and creates the automation clients
 (`keycloak/realm/master/automation.yaml`). Then, once:
 
 1. Hospital-admin scope (KC-09), with an operator admin token from the tunnel kept in a file:
@@ -79,8 +79,15 @@ The first import runs as the bootstrap admin and creates the two automation clie
    `--apply`. Re-run whenever a job group is added. Without it the Staff page can do nothing (Keycloak refuses).
 2. `.env.local`: `KEYCLOAK_CONFIG_CLI_CLIENT=nidan-config-cli`, `KEYCLOAK_CONFIG_CLI_GRANT=client_credentials`;
    run `keycloak-config-cli` again: it must succeed without the bootstrap admin.
-3. Create each operator's own master-realm account with OTP (admin console, through the SSH tunnel).
-4. Remove the bootstrap admin user in the admin console (master realm → Users). From now on nobody
+3. Start the role sync: `docker compose --profile sso up -d keycloak-role-sync`. It reads the roles this site's
+   OpenMRS, Odoo and OpenELIS really have (their own APIs) into Keycloak at start and every hour; a role it made that
+   the app dropped is deleted once nobody holds it. Run it now, after an app change, and before mapping jobs:
+   `docker compose exec keycloak-role-sync python3 -I /app/role_sync.py --once` (exit 1 = read its log: an app it
+   could not read, or a staff job holding a superuser role). Needs `KC_ROLE_SYNC_CLIENT_SECRET`,
+   `KC_ROLE_SYNC_ADMIN_SECRET` and `NIDAN_ROLE_SYNC_SECRET` in `.env.local` (generate-secrets.sh), the apps
+   restarted with them, and nidancore with the role-sync account.
+4. Create each operator's own master-realm account with OTP (admin console, through the SSH tunnel).
+5. Remove the bootstrap admin user in the admin console (master realm → Users). From now on nobody
    signs in to the master realm with a password alone.
 
 On a site whose Keycloak database comes from the old compose (it imported `nidan-realm` and the OpenELIS realm at

@@ -43,6 +43,7 @@ CLIENTS = {
     "cis": ("KC_CIS_CLIENT_SECRET", ["nidan-cis"]),
     "odoo-sync": ("KC_ODOO_SYNC_CLIENT_SECRET", ["odoo"]),
     "portal-sync": ("KC_PORTAL_SYNC_CLIENT_SECRET", []),  # the portal stack runs elsewhere: restart it by hand
+    "role-sync": ("KC_ROLE_SYNC_CLIENT_SECRET", ["keycloak-role-sync"]),
 }
 
 

@@ -19,7 +19,7 @@ bad["clients"].append({"clientId": "console-2", "standardFlowEnabled": False, "i
                        "directAccessGrantsEnabled": False, "fullScopeAllowed": False, "serviceAccountsEnabled": True})
 bad["clients"][1]["standardFlowEnabled"] = True
 out = cr.check(bad, "master")
-assert any("only ['nidan-config-cli', 'nidan-incident']" in p for p in out), out
+assert any("only ['nidan-config-cli', 'nidan-incident', 'nidan-role-sync']" in p for p in out), out
 assert any("nidan-incident: machine client must be service-account only" in p for p in out), out
 
 weak = copy.deepcopy(base)

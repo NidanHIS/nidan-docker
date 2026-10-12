@@ -64,6 +64,23 @@ services:
     ports: ["127.0.0.1:18026:8080"]
     networks: [sso]
 
+  # The apps' roles into Keycloak (keycloak/role-sync). Profile rolesync: tests run it with --once (specs/role-sync.spec.ts)
+  role-sync:
+    profiles: ["rolesync"]
+    image: python:3.12-alpine@sha256:1b668429b3511ab407d8e00648891631b0b1a4d7e15e3ca70f38ab5b91ad4ab4
+    command: ["python3", "-I", "/app/role_sync.py", "--once"]
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080/auth
+      KC_ROLE_SYNC_ADMIN_SECRET: harness-only-not-a-real-secret-0123456789
+      KC_ROLE_SYNC_CLIENT_SECRET: harness-only-not-a-real-secret-0123456789
+      NIDAN_ROLE_SYNC_SECRET: harness-role-sync-secret-0123456789abc
+      OPENMRS_URL: http://openmrs-backend:8080/openmrs
+      ODOO_URL: http://odoo:8069
+      OPENELIS_URL: http://openelis:8080
+    volumes:
+      - ../../../keycloak/role-sync/role_sync.py:/app/role_sync.py:ro
+    networks: [sso]
+
   upstreams:     # defined in full: `extends` would merge sso.yml's aliases and keep "openmrs-backend" on the stub
     image: python:3.12-alpine@sha256:1b668429b3511ab407d8e00648891631b0b1a4d7e15e3ca70f38ab5b91ad4ab4
     command: ["python3", "-I", "/stub/stub.py"]
@@ -121,6 +138,7 @@ services:
       ODOO_ADMIN_PASSWORD: Harness-Odoo-Admin-0123456789
       NIDAN_ODOO_SECRET: harness                    # = openmrs-backend NIDANCORE_ODOO_PAYMENT_SECRET (paywall, KC-14)
       NIDAN_OIS_SECRET: harness-ois-secret-0123456789   # middleware / portal-sync -> /api/nidan/* (KC-14-08)
+      NIDAN_ROLE_SYNC_SECRET: harness-role-sync-secret-0123456789abc   # /api/nidan/role-catalog (role-sync)
       NIDAN_SSO_ENABLED: "true"
       NIDAN_KEYCLOAK_CLIENT_ID: odoo
       NIDAN_KEYCLOAK_CLIENT_SECRET: harness-only-not-a-real-secret-0123456789
@@ -242,6 +260,7 @@ services:
       ORG_OPENELISGLOBAL_MIDDLEWARE_TEST_SYNC_SECRET: harness-openelis-sync-0123456789
       ORG_OPENELISGLOBAL_MIDDLEWARE_RESULT_SYNC_SECRET: harness-openelis-sync-0123456789
       ORG_OPENELISGLOBAL_NIDAN_PAYWALL_ODOO_SECRET: harness
+      NIDAN_ROLE_SYNC_SECRET: harness-role-sync-secret-0123456789abc   # /rest/nidan/role-catalog (role-sync)
       ORG_ITECH_LOGIN_OAUTH_CLIENTSECRET: harness-only-not-a-real-secret-0123456789
       ODOO_ENABLED: "false"
       ORG_OPENELISGLOBAL_ODOO_ENABLED: "false"

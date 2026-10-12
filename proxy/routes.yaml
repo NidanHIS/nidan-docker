@@ -57,6 +57,7 @@ routes:
   - {server: main, match: exact, path: /openelis, gate: app-openelis, kind: redirect}
   - {server: main, match: prefix, path: /openelis/, gate: app-openelis, kind: page}
   - {server: main, match: exact, path: /api/OpenELIS-Global/openelis/, gate: app-openelis, kind: redirect}
+  - {server: main, match: regex, path: "^/(api/)?OpenELIS-Global/rest/nidan/role-catalog", gate: deny, kind: api, reason: "role list for Keycloak role sync: internal network only"}
   - {server: main, match: regex, path: "^/api/OpenELIS-Global/(.*)$", gate: app-openelis, kind: api}
   - {server: main, match: regex, path: "^/OpenELIS-Global/(.*)$", gate: app-openelis, kind: api}
 
@@ -91,6 +92,7 @@ routes:
   - {server: oe-api, match: exact, path: /oauth2/sign_out, gate: exempt, kind: page, reason: logout; expires app cookies}
   - {server: oe-api, match: exact, path: /oauth2/userinfo, gate: exempt, kind: api, reason: identity; 401 without session}
   - {server: oe-api, match: exact, path: /oauth2/auth, gate: deny, kind: api, reason: internal only via /_auth_<app>; external 404}
+  - {server: oe-api, match: regex, path: "^/OpenELIS-Global/rest/nidan/role-catalog", gate: deny, kind: api, reason: "role list for Keycloak role sync: internal network only"}
   - {server: oe-api, match: prefix, path: /OpenELIS-Global/, gate: app-openelis, kind: api}
   - {server: oe-api, match: prefix, path: /, gate: deny, kind: api, reason: catch-all 404}
 

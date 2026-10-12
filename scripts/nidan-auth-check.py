@@ -50,7 +50,9 @@ PORT_PENDING = set()
 KEY_MOUNT_OK = {"gateway", "nidan-certbot"}
 # orthanc mounts certbot-etc read-only but has no TLS setting; removal awaits the user's nod (KC-12-06).
 KEY_MOUNT_PENDING = {"orthanc"}
-AUTH_NET_MEMBERS = {"gateway", "oauth2-proxy", "keycloak", "keycloak-db", "keycloak-config-cli", "keycloak-admin-proxy"}
+# keycloak-role-sync: Keycloak admin API (auth-net) + the apps' role lists (nidan-network); no published ports
+AUTH_NET_MEMBERS = {"gateway", "oauth2-proxy", "keycloak", "keycloak-db", "keycloak-config-cli", "keycloak-admin-proxy",
+                    "keycloak-role-sync"}
 AUTH_ONLY = {"keycloak", "keycloak-db", "keycloak-config-cli"}
 # Databases, Kafka, ZooKeeper: on data-net only, which the gateway and the central-login services never join (KC-43-03)
 DATA_ONLY = {"openmrs-db", "odoo-db", "openelis-db", "orthanc-db", "nidan-integration-db", "nidan-dhis2-db", "nidan-kafka",

@@ -20,7 +20,7 @@ import yaml
 
 HERE = Path(__file__).resolve().parent
 REALM_DIR = HERE.parent / "keycloak" / "realm"
-FIXED = {"admin", "administrator", "root", "nidan", "nidan-sync", "nidan-odoo", "nidan-portal", "daemon", "__system__", "system", "public",
+FIXED = {"admin", "administrator", "root", "nidan", "nidan-sync", "nidan-odoo", "nidan-portal", "nidan-rolesync", "daemon", "__system__", "system", "public",
          "default", "guest", "anonymous", "service-account", "openmrs", "odoo", "openelis", "superset", "dhis2",
          "orthanc", "keycloak", "dead-letter-admin"}
 USER_KEY = re.compile(r"(_USERNAME|_USER|_ADMIN_USER)$")

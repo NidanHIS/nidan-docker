@@ -314,6 +314,7 @@ services:
       - NIDAN_KEYCLOAK_JWKS_URL=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/certs
       - NIDAN_OIS_SECRET=${NIDAN_OIS_SECRET}
       - NIDAN_ODOO_SECRET=${NIDAN_ODOO_SECRET}
+      - NIDAN_ROLE_SYNC_SECRET=${NIDAN_ROLE_SYNC_SECRET:-}   # /api/nidan/role-catalog for keycloak-role-sync; off when unset
       - NIDAN_DEPLOYMENT=${NIDAN_DEPLOYMENT:-}   # production: Odoo refuses short/demo shared secrets (KC-51-04)
       # Odoo -> OpenMRS auth (KC-33): basic (Settings credentials) until OpenMRS SSO is on, then jwt
       # with the realm's odoo-sync client. The secret is env-only, never an Odoo config parameter.
@@ -547,6 +548,7 @@ services:
       - ORG_OPENELISGLOBAL_MIDDLEWARE_TEST_SYNC_SECRET=${OPENELIS_MIDDLEWARE_SYNC_SECRET:?set OPENELIS_MIDDLEWARE_SYNC_SECRET (generate-secrets.sh writes .env.local)}
       - ORG_OPENELISGLOBAL_MIDDLEWARE_RESULT_SYNC_SECRET=${OPENELIS_MIDDLEWARE_SYNC_SECRET:?set OPENELIS_MIDDLEWARE_SYNC_SECRET (generate-secrets.sh writes .env.local)}
       - ORG_OPENELISGLOBAL_NIDAN_PAYWALL_ODOO_SECRET=${NIDAN_ODOO_SECRET}
+      - NIDAN_ROLE_SYNC_SECRET=${NIDAN_ROLE_SYNC_SECRET:-}   # /rest/nidan/role-catalog for keycloak-role-sync; off when unset
       - ORG_ITECH_LOGIN_OAUTH_CLIENTSECRET=${KC_OPENELIS_CLIENT_SECRET:-}
       # Disable Odoo integration
       - ODOO_ENABLED=false
@@ -1238,6 +1240,8 @@ services:
       KC_OPENELIS_CLIENT_SECRET: ${KC_OPENELIS_CLIENT_SECRET:-}
       KC_CONFIG_CLI_CLIENT_SECRET: ${KC_CONFIG_CLI_CLIENT_SECRET:-}     # master/automation.yaml sets the clients' own secrets
       KC_AUTOMATION_CLIENT_SECRET: ${KC_AUTOMATION_CLIENT_SECRET:-}
+      KC_ROLE_SYNC_CLIENT_SECRET: ${KC_ROLE_SYNC_CLIENT_SECRET:-}
+      KC_ROLE_SYNC_ADMIN_SECRET: ${KC_ROLE_SYNC_ADMIN_SECRET:-}
     volumes:
       - ./keycloak/realm:/config:ro
     networks:
@@ -1246,6 +1250,36 @@ services:
       keycloak:
         condition: service_healthy
     restart: "no"
+
+  # The apps' client roles come from the apps (keycloak/role-sync/role_sync.py): at start, then hourly.
+  # On demand: docker compose exec keycloak-role-sync python3 -I /app/role_sync.py --once
+  # On auth-net (Keycloak admin API) and nidan-network (the apps' role lists); reads only, from the apps.
+  keycloak-role-sync:
+    logging: *default-logging
+    profiles: ["sso"]
+    image: python:3.12-alpine@sha256:1b668429b3511ab407d8e00648891631b0b1a4d7e15e3ca70f38ab5b91ad4ab4
+    container_name: nidan-keycloak-role-sync
+    command: ["python3", "-I", "/app/role_sync.py"]
+    user: "65534:65534"
+    read_only: true
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080/auth
+      KC_ROLE_SYNC_ADMIN_SECRET: ${KC_ROLE_SYNC_ADMIN_SECRET:-}
+      KC_ROLE_SYNC_CLIENT_SECRET: ${KC_ROLE_SYNC_CLIENT_SECRET:-}
+      NIDAN_ROLE_SYNC_SECRET: ${NIDAN_ROLE_SYNC_SECRET:-}
+      OPENMRS_URL: http://openmrs-backend:8080/openmrs
+      ODOO_URL: http://odoo:8069
+      OPENELIS_URL: http://openelis:8080
+      ROLE_SYNC_INTERVAL: ${ROLE_SYNC_INTERVAL:-3600}
+    volumes:
+      - ./keycloak/role-sync/role_sync.py:/app/role_sync.py:ro
+    networks:
+      - auth-net
+      - nidan-network
+    depends_on:
+      keycloak-config-cli:
+        condition: service_completed_successfully
+    restart: unless-stopped
 
   oauth2-proxy:
     logging: *default-logging
