@@ -383,13 +383,17 @@ test.describe('people with several apps', () => {
     await page.goto(`${GW}/`);
     await expect(page.locator('#kc-login')).toBeVisible();
     const logo = await page.locator('#kc-header-wrapper').evaluate((e) => getComputedStyle(e).backgroundImage);
-    expect(logo, 'login page logo from brand/').toMatch(/\/login\/nidan\/brand\/logo\.svg/);
+    expect(logo, 'login page logo from brand/ (any format: logo.png/.webp/.jpg/.svg)').toMatch(/\/login\/nidan\/brand\/logo"?\)/);
     const url = /url\("?([^")]+)"?\)/.exec(logo)![1];
     expect((await page.request.get(url)).headers()['content-type']).toContain('image/svg');
     const primary = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--brand-primary').trim());
     expect(primary, 'brand.css loaded on the login page').not.toBe('');
-    const launcher = await ctx.request.get(`${GW}/assets/brand/logo.svg`);
+    const launcher = await ctx.request.get(`${GW}/assets/brand/logo`);
     expect(launcher.status()).toBe(200);
+    // the branding folder's file in its own format: the default folder has logo.svg and favicon.ico
+    expect(launcher.headers()['content-type']).toContain('image/svg');
+    expect((await ctx.request.get(`${GW}/assets/brand/favicon`)).headers()['content-type']).toContain('image/x-icon');
+    expect(await page.locator('link[rel="icon"]').count(), 'login page icon').toBeGreaterThan(0);
     // brand files on the Keycloak origin: an SVG opened directly runs no script there (review 2026-10-12)
     expect((await page.request.get(url)).headers()['content-security-policy'] ?? '').toContain('sandbox');
     await ctx.close();

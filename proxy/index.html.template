@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${NIDAN_BRAND_NAME}</title>
-  <link rel="icon" href="/assets/brand/favicon.ico" type="image/x-icon">
+  <link rel="icon" href="/assets/brand/favicon">
   <link rel="stylesheet" href="/assets/launcher.css">
   <link rel="stylesheet" href="/assets/brand/brand.css">
   <!-- ANALYTICS:BEGIN  opt-in: rendered only when GATEWAY_ANALYTICS_ID is set (public demo).
@@ -30,7 +30,7 @@
 
       <!-- Brand Header -->
       <header class="header">
-        <img src="/assets/brand/logo.svg" alt="" class="brand-logo">
+        <img src="/assets/brand/logo" alt="" class="brand-logo">
         <div class="header-right">
           <!-- who is signed in + Sign out + Change password (launcher.js; textContent only) -->
           <div class="identity-line" id="identity-line" data-keycloak="${KEYCLOAK_PUBLIC_URL}" data-logout-all="${NIDAN_APP_LOGOUT_ENDS_ALL}" hidden></div>

@@ -1,5 +1,5 @@
 /* Nidan login theme (KC-17): the launcher's look. Colours and logo come from the gateway's branding folder
-   (brand/brand.css, brand/logo.svg; proxy/assets/brand/README.md). The native locale picker is hidden; the gateway's
+   (brand/brand.css, brand/logo; proxy/assets/brand/README.md). The native locale picker is hidden; the gateway's
    nidan_locale picker drives kc_locale instead (spec 8.3). */
 :root {
   --nidan-primary: var(--brand-primary, #008080);
@@ -35,7 +35,7 @@ body#keycloak-bg,
   max-width: 90vw;
   margin: 0 auto 1.5rem;                 /* room between the logo and the card */
   padding-top: 92px;
-  background: url(../brand/logo.svg) no-repeat top center / min(280px, 80vw) auto;
+  background: url(../brand/logo) no-repeat top center / min(280px, 80vw) auto;
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: 0.02em;
