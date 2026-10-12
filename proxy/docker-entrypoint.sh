@@ -132,9 +132,17 @@ case "${KEYCLOAK_PUBLIC_URL:-}" in
   *) echo "KEYCLOAK_PUBLIC_URL must start with http(s)://: ignored" >&2; KEYCLOAK_PUBLIC_URL="" ;;
 esac
 export KEYCLOAK_PUBLIC_URL="${KEYCLOAK_PUBLIC_URL:-}"
-envsubst '${DASHBOARD_ODOO_URL} ${GATEWAY_ANALYTICS_ID} ${KEYCLOAK_PUBLIC_URL}' < "${INDEX_TEMPLATE}" > /usr/share/nginx/html/index.html
+# Hospital name for page titles: plain text only (it lands in HTML), else the default
+case "${NIDAN_BRAND_NAME:-}" in
+  ''|*[\<\>\&\"\']*) NIDAN_BRAND_NAME='NidanEHR' ;;
+esac
+export NIDAN_BRAND_NAME
+# Shared PCs: every app logout signs out of everything (default false: only when it was the person's only app)
+[ "${NIDAN_APP_LOGOUT_ENDS_ALL:-}" = true ] || NIDAN_APP_LOGOUT_ENDS_ALL=false
+export NIDAN_APP_LOGOUT_ENDS_ALL
+envsubst '${DASHBOARD_ODOO_URL} ${GATEWAY_ANALYTICS_ID} ${KEYCLOAK_PUBLIC_URL} ${NIDAN_BRAND_NAME} ${NIDAN_APP_LOGOUT_ENDS_ALL}' < "${INDEX_TEMPLATE}" > /usr/share/nginx/html/index.html
 # Outage page carries the site's IT support number (KC-16-03).
-envsubst '${SUPPORT_PHONE}' < /etc/nginx/templates/outage.html.template > /usr/share/nginx/html/outage.html
+envsubst '${SUPPORT_PHONE} ${NIDAN_BRAND_NAME}' < /etc/nginx/templates/outage.html.template > /usr/share/nginx/html/outage.html
 # Third-party analytics only when explicitly configured (public demo); hospitals get none.
 if [ -z "${GATEWAY_ANALYTICS_ID:-}" ]; then
   sed -i '/<!-- ANALYTICS:BEGIN/,/<!-- ANALYTICS:END -->/d' /usr/share/nginx/html/index.html

@@ -27,7 +27,7 @@ routes:
   - {server: http, match: prefix, path: /, gate: exempt, kind: redirect, reason: 301 to https on the same host}
 
   # ---------------- main :443 ----------------
-  - {server: main, match: exact, path: /, gate: exempt, kind: page, reason: launcher shell; app list comes from /oauth2/userinfo}
+  - {server: main, match: exact, path: /, gate: session, kind: page, note: "launcher; any signed-in person (no role), so nobody sees it before logging in; app list from /oauth2/userinfo"}
   - {server: main, match: prefix, path: /, gate: deny, kind: api, reason: catch-all, unknown paths 404 never reach an upstream (KC-10-03)}
   - {server: main, match: exact, path: /not-allowed.html, gate: exempt, kind: page, reason: shown after a 403 (ds3)}
   - {server: main, match: exact, path: /outage.html, gate: exempt, kind: page, reason: shown when Keycloak is down (ds5)}
@@ -71,9 +71,9 @@ routes:
   # Reports
   - {server: main, match: exact, path: /superset, gate: app-superset, kind: redirect}
   - {server: main, match: prefix, path: /superset/, gate: app-superset, kind: page, note: "public dashboards: explicit allow-list entries below, none yet (KC-03)"}
-  - {server: main, match: exact, path: /api/OpenELIS-Global/Logout, gate: app-openelis, kind: page, reason: logout chain to /oauth2/sign_out}
-  - {server: main, match: exact, path: /dhis2/auth/logout, gate: app-dhis2, kind: page, reason: logout chain to /oauth2/sign_out}
-  - {server: main, match: exact, path: /superset/logout/, gate: app-superset, kind: page, reason: logout chain to /oauth2/sign_out}
+  - {server: main, match: exact, path: /api/OpenELIS-Global/Logout, gate: app-openelis, kind: page, reason: logout chain to the launcher}
+  - {server: main, match: exact, path: /dhis2/auth/logout, gate: app-dhis2, kind: page, reason: logout chain to the launcher}
+  - {server: main, match: exact, path: /superset/logout/, gate: app-superset, kind: page, reason: logout chain to the launcher}
   - {server: main, match: exact, path: /dhis2, gate: app-dhis2, kind: redirect}
   - {server: main, match: prefix, path: /dhis2/, gate: app-dhis2, kind: page}
 
@@ -97,6 +97,7 @@ routes:
   # ---------------- Odoo :8069 (gateway-owned, KC-10) ----------------
   - {server: odoo, match: prefix, path: /, gate: app-odoo, kind: page}
   - {server: odoo, match: prefix-priority, path: /auth/, gate: deny, kind: api, reason: "Keycloak is on :9443 only (D1, KC-07-02)"}
+  - {server: odoo, match: exact, path: /web/session/logout, gate: app-odoo, kind: page, reason: logout chain to the launcher}
   - {server: odoo, match: exact, path: /websocket, gate: app-odoo, kind: ws, note: "POS/bus; gated at the upgrade (KC-10-08)"}
   - {server: odoo, match: exact, path: /oauth2/start, gate: exempt, kind: page, reason: login start}
   - {server: odoo, match: exact, path: /oauth2/callback, gate: exempt, kind: page, reason: login callback; expires app cookies}
@@ -111,6 +112,7 @@ routes:
   # ---------------- Staff page :9443 (own origin, D49) ----------------
   - {server: staff, match: exact, path: /staff, gate: hospital-admin, kind: page}
   - {server: staff, match: prefix, path: /staff/, gate: hospital-admin, kind: page}
+  - {server: staff, match: prefix, path: /staff/brand/, gate: hospital-admin, kind: static, note: "branding folder (proxy/assets/brand)"}
   - {server: staff, match: prefix, path: /staff-api/, gate: hospital-admin, kind: api, note: "allow-list + Origin/X-Nidan-Staff on every method (KC-20)"}
   - {server: staff, match: exact, path: /oauth2/start, gate: exempt, kind: page, reason: login start}
   - {server: staff, match: exact, path: /oauth2/callback, gate: exempt, kind: page, reason: login callback; expires app cookies}
@@ -130,6 +132,7 @@ routes:
   - {server: staff, match: regex, path: "^/auth/realms/nidan/protocol/openid-connect/(certs|userinfo|login-status-iframe\\.html|logout|logout/logout-confirm)$", gate: exempt, kind: api, reason: OIDC endpoints and logout confirmation}
   - {server: staff, match: prefix, path: /auth/realms/nidan/login-actions/, gate: exempt, kind: page, reason: "login, OTP and required-action forms; 10/min per IP"}
   - {server: staff, match: exact, path: /auth/realms/nidan/.well-known/openid-configuration, gate: exempt, kind: api, reason: discovery}
+  - {server: staff, match: regex, path: "^/auth/resources/[^/]+/login/nidan/brand/([A-Za-z0-9_-]+\\.(css|svg|png))$", gate: exempt, kind: static, reason: "login theme branding from the gateway's branding folder"}
   - {server: staff, match: prefix, path: /auth/resources/, gate: exempt, kind: static, reason: theme assets}
   - {server: staff, match: prefix, path: /auth/js/, gate: exempt, kind: static, reason: keycloak js}
   - {server: staff, match: prefix, path: /auth/, gate: deny, kind: api, reason: "master realm, admin, account console, client registration -> 404 (KC-07-03)"}

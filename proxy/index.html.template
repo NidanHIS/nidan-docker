@@ -4,9 +4,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NidanEHR Services Portal</title>
+  <title>${NIDAN_BRAND_NAME}</title>
   <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="/assets/launcher.css">
+  <link rel="stylesheet" href="/assets/brand/brand.css">
   <!-- ANALYTICS:BEGIN  opt-in: rendered only when GATEWAY_ANALYTICS_ID is set (public demo).
        Hospital installs leave it unset: no third-party script on the gateway origin (KC-04-04). -->
   <!-- Google tag (gtag.js) -->
@@ -29,10 +30,14 @@
 
       <!-- Brand Header -->
       <header class="header">
-        <img src="/assets/images/nidan-logo.svg" alt="NidanEHR" class="brand-logo">
-        <label class="locale-picker"><span data-i18n="locale.label">Language</span>
-          <select id="locale-picker" aria-label="Language"><option value="en">English</option><option value="ne">नेपाली</option></select>
-        </label>
+        <img src="/assets/brand/logo.svg" alt="" class="brand-logo">
+        <div class="header-right">
+          <!-- who is signed in + Sign out + Change password (launcher.js; textContent only) -->
+          <div class="identity-line" id="identity-line" data-keycloak="${KEYCLOAK_PUBLIC_URL}" data-logout-all="${NIDAN_APP_LOGOUT_ENDS_ALL}" hidden></div>
+          <label class="locale-picker"><span data-i18n="locale.label">Language</span>
+            <select id="locale-picker" aria-label="Language"><option value="en">English</option><option value="ne">नेपाली</option></select>
+          </label>
+        </div>
       </header>
 
       <!-- Hero Section -->
@@ -40,7 +45,7 @@
         <h1 class="hero-title" data-i18n="launcher.title">Welcome to NidanEHR Services Portal</h1>
       </div>
 
-      <p class="identity-line" id="identity-line" data-keycloak="${KEYCLOAK_PUBLIC_URL}" hidden></p>
+      <div id="launcher-messages"></div>
 
       <!-- Grid of Services -->
       <div class="cards-grid">

@@ -11,7 +11,7 @@
 
 realm: nidan
 enabled: true
-displayName: Nidan EHR
+displayName: $(env:NIDAN_BRAND_NAME)          # hospital name (login tab title); compose default "Nidan EHR"
 sslRequired: external
 
 # --- login and account (KC-55) ---
@@ -253,8 +253,9 @@ clients:
       pkce.code.challenge.method: S256
       standard.token.exchange.enabled: "false"
       # Logout / session end in Keycloak ends the user's Odoo sessions (KC-37-08), via the gateway relay
-      # on its fixed auth-net address (Keycloak cannot reach Odoo directly).
-      backchannel.logout.url: http://172.31.250.10:8099/backchannel-logout/odoo
+      # on its fixed auth-net address (Keycloak cannot reach Odoo directly). GATEWAY_AUTH_IP: 172.31.250.10 in
+      # production; each harness sets its own (found live: a harness on the production address waited 75 s per sign-out).
+      backchannel.logout.url: http://$(env:GATEWAY_AUTH_IP):8099/backchannel-logout/odoo
       backchannel.logout.session.required: "false"
       backchannel.logout.revoke.offline.tokens: "false"
     protocolMappers:

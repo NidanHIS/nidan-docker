@@ -202,7 +202,24 @@ if _SSO:
         },
     }]
 
+    from flask import session
+    from flask_appbuilder.security.views import AuthOAuthView
+
+    class NidanAuthOAuthView(AuthOAuthView):
+        @expose("/login/")
+        @expose("/login/<provider>")
+        def login(self, provider=None):
+            # One provider: straight to Keycloak instead of a page with one button. A refused or failed sign-in
+            # comes back here with a flashed message; the page shows then, so this cannot loop.
+            providers = self.appbuilder.sm.oauth_providers
+            if provider is None and len(providers) == 1 and not session.get("_flashes"):
+                provider = providers[0]["name"]
+            return super().login(provider)
+
     class NidanSecurityManager(SupersetSecurityManager):
+        authoauthview = NidanAuthOAuthView
+        register_superset_auth_view = False         # Superset 5's React /login/ would shadow NidanAuthOAuthView
+
         def get_oauth_user_info(self, provider, resp):
             # ID token claims already verified by authlib (signature via JWKS, iss, aud, nonce).
             claims = (resp or {}).get("userinfo") or {}

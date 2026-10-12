@@ -38,5 +38,7 @@
   "footer.tech": "Open Source Powerhouse",
   "footer.poweredBy": "Powered by",
   "footer.rights": "© 2026 NidanEHR. All rights reserved.",
-  "identity.changePassword": "Change password"
+  "identity.changePassword": "Change password",
+  "launcher.signedOutOf": "You signed out of {app}. Your other apps are still open.",
+  "launcher.signOutAll": "Sign out of everything"
 }

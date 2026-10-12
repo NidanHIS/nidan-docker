@@ -1,7 +1,15 @@
-/* Nidan login theme (KC-17). The native locale picker is hidden; the gateway's nidan_locale picker
-   drives kc_locale instead (spec 8.3). */
+/* Nidan login theme (KC-17): the launcher's look. Colours and logo come from the gateway's branding folder
+   (brand/brand.css, brand/logo.svg; proxy/assets/brand/README.md). The native locale picker is hidden; the gateway's
+   nidan_locale picker drives kc_locale instead (spec 8.3). */
 :root {
-  --nidan-primary: #0b5d7a;
+  --nidan-primary: var(--brand-primary, #008080);
+  --nidan-bg: var(--brand-bg, #dbe3ea);
+  --nidan-text: var(--brand-text, #1e293b);
+  /* PatternFly's accent (card top line, input focus, links) follows the brand colour */
+  --pf-v5-global--primary-color--100: var(--nidan-primary);
+  --pf-v5-global--primary-color--200: var(--nidan-primary);
+  --pf-v5-global--link--Color: var(--nidan-primary);
+  --pf-v5-global--link--Color--hover: var(--nidan-primary);
 }
 #kc-locale,
 .kc-locale-select,
@@ -9,7 +17,39 @@
 .pf-v5-c-login__main-header-utilities {
   display: none !important;
 }
+body#keycloak-bg,
+.pf-v5-c-login {
+  background: var(--nidan-bg) none !important;   /* no dark polygon image */
+  color: var(--nidan-text);
+}
+/* the logo instead of the realm name */
+#kc-header-wrapper {
+  display: block;
+  width: 280px;
+  max-width: 80vw;
+  height: 96px;
+  margin: 0 auto;
+  background: url(../brand/logo.svg) no-repeat center / contain;
+  font-size: 0;
+  color: transparent;
+}
+.pf-v5-c-login__main {
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+}
+.pf-v5-c-login__main-header .pf-v5-c-title {
+  color: var(--nidan-text);
+}
 .pf-v5-c-button.pf-m-primary,
 #kc-login {
   background-color: var(--nidan-primary);
+  border-radius: 8px;
+}
+.pf-v5-c-button.pf-m-primary:hover,
+#kc-login:hover {
+  filter: brightness(0.92);
+}
+a,
+.pf-v5-c-button.pf-m-link {
+  color: var(--nidan-primary);
 }

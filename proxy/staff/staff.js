@@ -296,7 +296,20 @@
   }
 
   // ---------------------------------------------------------------- wiring
+  /** Header: who is signed in; "All apps" goes to the launcher on 443 of this host (this page is on :9443). */
+  async function showWho() {
+    try {
+      const res = await fetch('/oauth2/userinfo', { cache: 'no-cache', credentials: 'same-origin' });
+      if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return;
+      const info = await res.json();
+      $('who-name').textContent = info.preferredUsername || info.user || '';
+      $('to-apps').href = 'https://' + location.hostname + '/';
+      $('who').hidden = false;
+    } catch (e) { /* header stays without the name */ }
+  }
+
   async function start() {
+    showWho();
     try {
       const res = await fetch('/staff/staff-config.json', { cache: 'no-cache' });
       if (!res.ok) throw new Error('HTTP ' + res.status);

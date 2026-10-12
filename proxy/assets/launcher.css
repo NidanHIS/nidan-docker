@@ -4,14 +4,14 @@
    1. Global Styles & CSS Variables
    ========================================================================== */
 :root {
-  --bg-color: #dbe3ea;
+  --bg-color: var(--brand-bg, #dbe3ea);              /* assets/brand/brand.css */
   --card-bg: #ffffff;
   --card-hover-bg: #e9f4f4;
-  --text-main: #1e293b;
+  --text-main: var(--brand-text, #1e293b);
   --text-muted: #64748b;
-  --primary-teal: #008080;
+  --primary-teal: var(--brand-primary, #008080);
 
-  --footer-bg: #008080;
+  --footer-bg: var(--brand-primary, #008080);
   --footer-text: #ffffff;
   --footer-muted: rgba(255, 255, 255, 0.85);
 
@@ -433,12 +433,24 @@ footer {
 }
 
 /* Identity line and empty state (KC-15), shown only when central login is on. */
-.identity-line {
-  text-align: center;
-  margin: 0 0 1.5rem;
-  color: var(--text-secondary, #555);
+/* top right: who is signed in, Sign out, Change password, then the language picker */
+.header { position: relative; }
+.header-right {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem;
+  font-size: 0.875rem; color: var(--text-muted);
 }
-.identity-line a { margin-left: 0.25rem; }
+.identity-line { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; justify-content: flex-end; }
+.identity-line strong { color: var(--text-main); }
+.identity-line a { color: var(--primary-teal); }
+.identity-line .sign-out {
+  padding: 0.3rem 0.8rem; border-radius: 6px; background: var(--primary-teal); color: #fff; text-decoration: none;
+}
+@media (max-width: 768px) {
+  .header { flex-direction: column; gap: 0.75rem; }
+  .header-right { position: static; transform: none; align-items: center; }
+  .identity-line { justify-content: center; }
+}
 .no-apps {
   text-align: center;
   margin: 0 0 1.5rem;
@@ -464,5 +476,5 @@ footer {
 
 /* Language picker (KC-18) */
 .header { position: relative; }
-.locale-picker { position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 0.875rem; color: var(--text-muted); }
+.locale-picker { font-size: 0.875rem; color: var(--text-muted); }
 .locale-picker select { margin-left: 0.4rem; }

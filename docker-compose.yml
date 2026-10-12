@@ -85,6 +85,8 @@ services:
       - GATEWAY_SHOW_DEMO_CREDENTIALS=${GATEWAY_SHOW_DEMO_CREDENTIALS:-false}
       # IT support number shown on the outage page (KC-16).
       - SUPPORT_PHONE=${SUPPORT_PHONE:-}
+      - NIDAN_BRAND_NAME=${NIDAN_BRAND_NAME:-Nidan EHR}       # page titles (launcher, outage); plain text
+      - NIDAN_APP_LOGOUT_ENDS_ALL=${NIDAN_APP_LOGOUT_ENDS_ALL:-false}   # true: any app logout signs out of everything
       # Launcher "Change password" link to Keycloak (KC-55-05); empty = no link.
       - KEYCLOAK_PUBLIC_URL=${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}
       # With central login on, the gateway authenticates to Orthanc behind its gates (KC-30-06); unused when off.
@@ -110,6 +112,8 @@ services:
       - ./proxy/nidan-logo.png:/usr/share/nginx/html/nidan-logo.png:ro
       - ./proxy/trigonal-logo.png:/usr/share/nginx/html/trigonal-logo.png:ro
       - ./proxy/502.html:/usr/share/nginx/html/502.html:ro
+      # logo, colours, texts for the launcher AND the Keycloak login page (proxy/assets/brand/README.md)
+      - ${NIDAN_BRANDING_DIR:-./proxy/assets/brand}:/usr/share/nginx/html/assets/brand:ro
     healthcheck:
       test: [ "CMD", "curl", "-fsS", "http://localhost:8099/gateway-health" ]   # internal listener (KC-47-03)
       interval: 30s
@@ -531,6 +535,7 @@ services:
           -Dorg.itech.login.oauth.issuerUri=${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}/realms/nidan
           -Dorg.itech.login.oauth.redirectUri=https://${GATEWAY_DOMAIN:-localhost}/api/OpenELIS-Global/login/oauth2/code/nidan-keycloak
           -Dorg.itech.login.oauth.successUrl=https://${GATEWAY_DOMAIN:-localhost}/openelis/
+          -Dorg.itech.login.oauth.loginpage=false
       # Secrets as env vars, not -D flags: Tomcat logs every JVM argument at start (KC-45-01). Spring maps
       # ORG_X_Y to org.x.y (pinned by OpenELIS NidanSecretEnvBindingTest).
       - ORG_OPENELISGLOBAL_MIDDLEWARE_TEST_SYNC_SECRET=${OPENELIS_MIDDLEWARE_SYNC_SECRET:?set OPENELIS_MIDDLEWARE_SYNC_SECRET (generate-secrets.sh writes .env.local)}
@@ -1197,6 +1202,8 @@ services:
       IMPORT_MANAGED_GROUP: full                     # groups not in the files are removed (no drift)
       # $(env:...) values for keycloak/realm/base/nidan.yaml; preflight rejects empty secrets in production
       GATEWAY_DOMAIN: ${GATEWAY_DOMAIN:-localhost}
+      GATEWAY_AUTH_IP: 172.31.250.10                    # the gateway's fixed auth-net address (Odoo back-channel logout)
+      NIDAN_BRAND_NAME: ${NIDAN_BRAND_NAME:-Nidan EHR}  # realm display name: login page tab title
       NIDAN_SYNC_USERNAME: ${NIDAN_SYNC_USERNAME:-nidan-sync}
       KC_USERNAME_PATTERN: ${KC_USERNAME_PATTERN:-}
       DEFAULT_LOCALE: ${DEFAULT_LOCALE:-en}             # login/Staff page language when the browser asks for none

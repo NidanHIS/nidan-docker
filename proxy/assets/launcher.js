@@ -16,7 +16,7 @@
     { id: 'odoo', url: '/odoo-health/', role: 'app-odoo' },
     { id: 'orthanc', url: '/auth-ping/orthanc', role: 'orthanc-admin' },
     { id: 'cis', url: '/cis/actuator/health', role: 'cis-admin' },
-    { id: 'superset', url: '/superset/', role: 'app-superset' },
+    { id: 'superset', url: '/superset/health', role: 'app-superset' },   // not /superset/: it redirects to Keycloak
     { id: 'dhis2', url: '/dhis2/auth/login', role: 'app-dhis2' },
   ];
   const ROLE_PREFIX = 'role:nidan-gateway:';
@@ -62,7 +62,7 @@
         b.className = 'state-banner';
         b.setAttribute('role', 'alert');
         b.textContent = t('launcher.allDown');
-        (document.getElementById('identity-line') || document.body).after(b);
+        messages().append(b);
       }
     } else if (banner) {
       banner.remove();
@@ -91,8 +91,9 @@
     }
   }
 
+  const messages = () => document.getElementById('launcher-messages') || document.body;
+
   function showMessage(cls, text, withRetry) {
-    const line = document.getElementById('identity-line');
     const box = document.createElement('div');
     box.className = cls;
     box.setAttribute('role', 'alert');
@@ -104,7 +105,7 @@
       btn.addEventListener('click', () => location.reload());
       box.append(' ', btn);
     }
-    (line || document.body).after(box);
+    messages().append(box);
   }
 
   function applyIdentity(me) {
@@ -116,13 +117,11 @@
     if (!line) return;
     line.textContent = '';
     const [before, after] = I ? I.parts('identity.signedInAs', 'name') : ['Signed in as ', ''];
-    const who = document.createElement('strong');
-    who.textContent = me.name;
-    line.append(before, who, after, ' · ');
-    const out = document.createElement('a');
-    out.href = '/oauth2/sign_out';
-    out.textContent = t('identity.signOut');
-    line.append(out);
+    const who = document.createElement('span');
+    const name = document.createElement('strong');
+    name.textContent = me.name;
+    who.append(before, name, after);
+    line.append(who);
     const kc = line.dataset.keycloak;
     if (kc) {                       // KC-55-05: Keycloak's own update-password step, then back to the launcher
       const pw = document.createElement('a');
@@ -130,15 +129,34 @@
       pw.id = 'change-password';
       pw.textContent = t('identity.changePassword');
       pw.addEventListener('click', (e) => { e.preventDefault(); changePassword(kc); });
-      line.append(' · ', pw);
+      line.append(pw);
     }
+    const out = document.createElement('a');
+    out.href = '/oauth2/sign_out';
+    out.className = 'sign-out';
+    out.textContent = t('identity.signOut');
+    line.append(out);
     line.hidden = false;
     if (![...services].some((s) => me.roles.has(s.role))) {
       const none = document.createElement('p');
       none.className = 'no-apps';
       none.textContent = t('launcher.noApps');
-      line.after(none);
+      messages().append(none);
     }
+  }
+
+  function showSignedOut(s) {
+    const box = document.createElement('div');
+    box.className = 'state-banner signed-out';
+    box.id = 'signed-out';
+    box.setAttribute('role', 'status');
+    const title = document.querySelector('#card-' + s.id + ' .card-title');
+    box.textContent = t('launcher.signedOutOf', { app: title ? title.textContent : s.id }) + ' ';
+    const all = document.createElement('a');
+    all.href = '/oauth2/sign_out';
+    all.textContent = t('launcher.signOutAll');
+    box.append(all);
+    messages().append(box);
   }
 
   async function changePassword(kc) {
@@ -181,6 +199,23 @@
       return;
     }
     if (me) applyIdentity(me);
+    // Back from an app's own logout (gateway logout chain, ?signed_out=<app>): that was the person's only app ->
+    // sign out of everything (a one-app launcher would open it again); else stay here with the other apps.
+    const params = new URLSearchParams(location.search);
+    const gone = services.find((s) => s.id === params.get('signed_out'));   // only known ids, never free text
+    if (me && params.has('signed_out')) {
+      history.replaceState(null, '', location.pathname);
+      const line = document.getElementById('identity-line');
+      const endsAll = line && line.dataset.logoutAll === 'true';      // NIDAN_APP_LOGOUT_ENDS_ALL (shared PCs)
+      if (endsAll || services.filter((s) => me.roles.has(s.role)).length <= 1) {
+        location.replace('/oauth2/sign_out');
+        return;
+      }
+      if (gone) showSignedOut(gone);
+      checkHealth();
+      setInterval(checkHealth, 15000);
+      return;
+    }
     // Exactly one permitted app that is up: go straight in (KC-15-03). /?launcher keeps the launcher.
     if (me && !new URLSearchParams(location.search).has('launcher')) {
       const mine = services.filter((s) => me.roles.has(s.role));

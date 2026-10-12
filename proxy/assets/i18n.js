@@ -10,8 +10,10 @@
   let msgs = {};
   let en = {};
 
-  const load = (loc) => fetch('/assets/i18n/messages_' + loc + '.json', { cache: 'no-cache' })
-    .then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+  const get = (url) => fetch(url, { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+  // the hospital's branding folder may override any text (assets/brand/README.md)
+  const load = (loc) => Promise.all([get('/assets/i18n/messages_' + loc + '.json'), get('/assets/brand/messages_' + loc + '.json')])
+    .then(([base, brand]) => Object.assign({}, base, brand));
 
   function t(key, vars) {
     let s = (msgs && msgs[key]) || en[key] || '';

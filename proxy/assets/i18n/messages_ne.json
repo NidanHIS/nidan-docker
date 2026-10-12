@@ -39,5 +39,7 @@
   "footer.tech": "खुला स्रोत प्रविधि",
   "footer.poweredBy": "प्रविधि सहयोग:",
   "footer.rights": "© २०२६ NidanEHR. सर्वाधिकार सुरक्षित।",
-  "identity.changePassword": "पासवर्ड बदल्नुहोस्"
+  "identity.changePassword": "पासवर्ड बदल्नुहोस्",
+  "launcher.signedOutOf": "तपाईं {app} बाट लगआउट हुनुभयो। तपाईंका अन्य एपहरू अझै खुला छन्।",
+  "launcher.signOutAll": "सबैबाट लगआउट गर्नुहोस्"
 }

@@ -11,8 +11,9 @@ accessTokenUri=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/tok
 userInfoUri=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/userinfo
 keysUrl=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/certs
 keysTtlSeconds=300
-# Logout ends the OpenMRS session, then the gateway session and the Keycloak session (spec 4 rule 7).
-logoutUri=https://@GATEWAY_DOMAIN@/oauth2/sign_out?rd=/
+# Logout ends the OpenMRS session, then the launcher decides (spec 4 rule 7, changed 2026-10-12): OpenMRS was the
+# person's only app -> signed out of everything; else the launcher with their other apps.
+logoutUri=https://@GATEWAY_DOMAIN@/?signed_out=openmrs
 #
 # User / person mappings from the userinfo response (realm client "openmrs").
 openmrs.mapping.user.username=preferred_username

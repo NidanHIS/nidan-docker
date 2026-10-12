@@ -26,10 +26,21 @@ class BaseSM:
         return "registered-or-logged-in"
 
 
-stub("flask", redirect=lambda *a, **k: None)
+SESSION = {}
+
+
+class BaseOAuthView:
+    appbuilder = types.SimpleNamespace(sm=types.SimpleNamespace(oauth_providers=[{"name": "nidan-keycloak"}]))
+
+    def login(self, provider=None):
+        return provider or "login page"
+
+
+stub("flask", redirect=lambda *a, **k: None, session=SESSION)
 stub("flask_appbuilder", expose=lambda *a, **k: (lambda f: f), IndexView=type("IndexView", (), {}))
 stub("flask_appbuilder.security")
 stub("flask_appbuilder.security.manager", AUTH_OAUTH=4)
+stub("flask_appbuilder.security.views", AuthOAuthView=BaseOAuthView)
 stub("superset")
 stub("superset.security", SupersetSecurityManager=BaseSM)
 stub("werkzeug")
@@ -89,6 +100,14 @@ def main():
                                                                  "roles": ["Gamma", "Admin"], "groups": ["/staff/Doctor"]}})
     assert info["username"] == "asha" and info["role_keys"] == ["Gamma"], info
     assert sm.get_oauth_user_info("nidan-keycloak", {"access_token": "x"}) == {}
+    # one provider: /login/ goes straight to Keycloak; after a refused sign-in (flashed message) the page shows
+    assert cfg["CUSTOM_SECURITY_MANAGER"].register_superset_auth_view is False, "Superset's /login/ would shadow ours"
+    view = cfg["CUSTOM_SECURITY_MANAGER"].authoauthview()
+    assert view.login() == "nidan-keycloak", "login page must go straight to the one provider"
+    assert view.login("nidan-keycloak") == "nidan-keycloak"
+    SESSION["_flashes"] = [("warning", "denied")]
+    assert view.login() == "login page", "a failed sign-in must show the page, not loop"
+    SESSION.clear()
     print("superset central-login wiring: OK")
 
 

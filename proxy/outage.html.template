@@ -3,15 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login unavailable · NidanEHR</title>
+  <title>Login unavailable · ${NIDAN_BRAND_NAME}</title>
   <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="/assets/launcher.css">
+  <link rel="stylesheet" href="/assets/brand/brand.css">
 </head>
 <body>
   <!-- Shown when the login service (Keycloak / oauth2-proxy) is down (backlog KC-16, ds5). -->
   <main>
     <div class="container status-page" id="outage" data-support-phone="${SUPPORT_PHONE}">
-      <header class="header"><img src="/assets/images/nidan-logo.svg" alt="NidanEHR" class="brand-logo"></header>
+      <header class="header"><img src="/assets/brand/logo.svg" alt="" class="brand-logo"></header>
       <h1 class="hero-title" data-i18n="outage.title">The hospital login system is not responding</h1>
       <p><strong data-i18n="outage.whole">This affects the whole hospital, not only you.</strong> <span data-i18n="outage.paper">Use the paper downtime procedure until it is back.</span></p>
       <p id="outage-phone" hidden></p>
