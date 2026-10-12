@@ -95,6 +95,43 @@ jobs:
           retention-days: 14
 
 
+  # The compose split (2026-10-12): docker-compose.yml alone is plain Nidan, keycloak.docker-compose.yml adds central
+  # login. Blocking, unlike prod-like: it starts only the gateway and the realm import, so it is quick and stable.
+  compose-split:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      COMPOSE_ENV_FILES: .env,.env.ci.local
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Plain Nidan (docker-compose.yml alone) - launcher with no login, no Keycloak port
+        env:
+          COMPOSE_FILE: docker-compose.yml
+        run: |
+          echo GATEWAY_IMAGE=nidan-gateway:ci > .env.ci.local
+          docker build -q -t nidan-gateway:ci proxy
+          docker compose up -d --wait --no-deps gateway
+          docker compose logs gateway | grep -q "central login: false"
+          test "$(curl -sk -o /dev/null -w '%{http_code}' 'https://localhost/?launcher')" = 200
+          test "$(curl -sk -o /dev/null -w '%{http_code}' --max-time 5 https://localhost:9443/ || true)" = 000
+          test -z "$(docker compose config --services | grep -E 'keycloak|oauth2-proxy')"
+          docker compose down
+
+      - name: With keycloak.docker-compose.yml, the realm imports on a site without an email server
+        env:
+          COMPOSE_FILE: docker-compose.yml:keycloak.docker-compose.yml
+        run: |
+          scripts/generate-secrets.sh --fresh-install .env.ci.local      # NIDAN_SMTP_* stay empty, as on such a site
+          (cd keycloak/providers/nidan-code-otp && mvn -q -B package && cp target/nidan-code-otp.jar ../dist/)
+          export KC_USERNAME_PATTERN="$(python3 -I scripts/reserved-usernames.py | sed -n 's/^KC_USERNAME_PATTERN=//p')"
+          docker compose up -d --wait keycloak-db keycloak
+          docker compose up --no-deps --exit-code-from keycloak-config-cli keycloak-config-cli
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml -f keycloak.docker-compose.yml logs --tail 200 gateway keycloak keycloak-config-cli
+
   prod-like:
     # KC-42-05: the REAL docker-compose.yml + keycloak.docker-compose.yml (not a harness) with generated secrets, NIDAN_DEPLOYMENT=production,
     # central login on and the gateway image built from this checkout. Every probe runs from lan-probe, a container
