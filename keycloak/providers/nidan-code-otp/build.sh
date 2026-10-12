@@ -17,8 +17,8 @@ CP=$(ls "$LIB"/*.jar | tr '\n' ':')
 javac --release 21 -Xlint:all,-processing,-serial -Werror -cp "$CP" -d target/classes $(find src/main/java -name '*.java')
 cp -R src/main/resources/. target/classes/
 # self-check (no JUnit needed): plain main() asserts on the code logic
-javac --release 21 -cp "$CP:target/classes" -d target/test-classes $(find src/test/java -name '*.java')
-java -ea -cp "$CP:target/classes:target/test-classes" org.nidan.keycloak.code.CodeLogicCheck
+javac --release 21 -cp "target/classes:$CP" -d target/test-classes $(find src/test/java -name '*.java')
+java -ea -cp "target/classes:target/test-classes:$CP" org.nidan.keycloak.code.CodeLogicCheck
 jar --create --file target/nidan-code-otp.jar -C target/classes .
 mkdir -p ../dist && cp target/nidan-code-otp.jar ../dist/
 echo "built target/nidan-code-otp.jar"

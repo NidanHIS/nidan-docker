@@ -310,6 +310,29 @@ test.describe('realm against a live Keycloak', () => {
     for (const [what, method, path, data, want] of cases) expect(await as(method, path, data), what).toBe(want);
   });
 
+  // The email / SMS code settings live in the realm (SMTP password, nidanSmsToken): a hospital admin, who reaches the
+  // admin API through the Staff page, must not be able to read them.
+  test('a hospital admin cannot read the SMTP password or the SMS token from the realm @KC-09-01 @security', async ({ playwright }) => {
+    test.skip(!process.env.KC_ADMIN_PERMISSIONS, 'set KC_ADMIN_PERMISSIONS=1 after keycloak-admin-permissions.py --apply');
+    const request = await playwright.request.newContext();
+    const secret = `sms-token-${randomBytes(8).toString('hex')}`, smtpPw = `smtp-pw-${randomBytes(8).toString('hex')}`;
+    const realm = await (await admin(request, '')).json();
+    await admin(request, '', { method: 'PUT', data: { attributes: { ...realm.attributes, nidanSmsToken: secret },
+      smtpServer: { ...realm.smtpServer, password: smtpPw, auth: 'true', user: 'harness' } } });
+    try {
+      const hadmin = await makeUser(request, ['hospital-admin']);
+      const t = await userToken(request, 'nidan-gateway', `https://${DOMAIN}/oauth2/callback`, hadmin);
+      for (const path of ['', '/users/profile', '/attack-detection/brute-force/users']) {
+        const r = await request.get(`${KC}/admin/realms/nidan${path}`, { headers: { Authorization: `Bearer ${t.__raw}` } });
+        const body = await r.text();
+        expect(body, `GET ${path || '/'} (${r.status()}) leaks the SMS token`).not.toContain(secret);
+        expect(body, `GET ${path || '/'} (${r.status()}) leaks the SMTP password`).not.toContain(smtpPw);
+      }
+    } finally {
+      await admin(request, '', { method: 'PUT', data: { attributes: realm.attributes, smtpServer: realm.smtpServer } });
+    }
+  });
+
   // Second step OPTIONAL FOR EVERYONE (user decision 2026-10-12, replaces "admin groups always need OTP"): nobody is
   // made to enrol; a person who has set one up must give it on every sign-in; the account API still cannot remove it.
   test('the second step is optional for everyone, and required once a person sets one up @KC-09-09 @KC-09-10 @KC-57-03 @security', async ({ playwright }) => {

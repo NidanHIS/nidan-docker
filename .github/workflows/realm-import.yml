@@ -28,8 +28,9 @@ jobs:
           mvn -q -B package
           CP=$(mvn -q -B dependency:build-classpath -Dmdep.outputFile=/dev/stdout)
           mkdir -p target/test-classes
-          javac --release 21 -cp "$CP:target/classes" -d target/test-classes $(find src/test/java -name '*.java')
-          java -ea -cp "$CP:target/classes:target/test-classes" org.nidan.keycloak.code.CodeLogicCheck
+          # own classes first: with them last, a dependency jar (opentelemetry-jdbc) hid them from javac
+          javac --release 21 -cp "target/classes:$CP" -d target/test-classes $(find src/test/java -name '*.java')
+          java -ea -cp "target/classes:target/test-classes:$CP" org.nidan.keycloak.code.CodeLogicCheck
           cp target/nidan-code-otp.jar ../dist/
 
       - name: Keycloak (dev mode, in-memory)
