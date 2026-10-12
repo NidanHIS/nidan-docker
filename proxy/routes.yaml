@@ -123,6 +123,8 @@ routes:
   - {server: staff, match: exact, path: /oauth2/sign_out, gate: exempt, kind: page, reason: logout; expires app cookies}
   - {server: staff, match: exact, path: /oauth2/userinfo, gate: exempt, kind: api, reason: identity; 401 without session}
   - {server: staff, match: exact, path: /oauth2/auth, gate: deny, kind: api, reason: internal only via /_auth_<app>; external 404}
+  - {server: staff, match: exact, path: /, gate: exempt, kind: redirect, reason: "lands on the sign-in port: to the launcher on the main address"}
+  - {server: staff, match: regex, path: "^/(openmrs|openelis|superset|dhis2)(/|$)", gate: exempt, kind: redirect, reason: "an app address on the sign-in port: the same path on the main address"}
   - {server: staff, match: prefix, path: /, gate: deny, kind: api, reason: catch-all 404}
 
   # ---------------- internal :8099 back-channel for apps (KC-43); never published ----------------

@@ -51,6 +51,18 @@ test.describe('Keycloak public origin (:9443)', () => {
 
   // KC-07-03: never served on any port. The gateway's path-trick guard (KC-56-08) answers 400 before routing for
   // ";" (on :9443), "//" and encoded slashes; everything else is the 404 catch-all.
+  // Reported 2026-10-13 (404 after login): someone on the sign-in port is sent to the main address, same host, not a 404
+  test('on the sign-in port, / and app addresses go to the main address; anything else stays 404 @KC-07-02 @security @sso-on-only', async ({ request }) => {
+    const go = async (p: string) => {
+      const r = await request.get(KC_ORIGIN + p, { maxRedirects: 0 });
+      return `${r.status()} ${r.headers()['location'] ?? ''}`;
+    };
+    expect(await go('/')).toBe(`302 ${ORIGINS.main}/`);
+    expect(await go('/openmrs/spa/home')).toBe(`302 ${ORIGINS.main}/openmrs/spa/home`);
+    expect(await go('/openelis/')).toBe(`302 ${ORIGINS.main}/openelis/`);
+    for (const p of ['/random', '/openmrsX', '/api/OpenELIS-Global/rest/x', '//evil.example/openmrs/']) expect(await go(p), p).toMatch(/^(404|400) $/);
+  });
+
   test('master realm, admin console, path tricks and client registration are refused on every port @KC-07-03 @security @sso-on-only', async ({ request }) => {
     const paths = ['/auth/realms/master/', '/auth/realms/master/protocol/openid-connect/auth?client_id=security-admin-console',
       '/auth/admin/', '/auth/admin/master/console/', '/auth/admin/realms/nidan/users', '/auth/admin;a=b/realms',
