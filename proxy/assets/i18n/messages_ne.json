@@ -41,5 +41,11 @@
   "footer.rights": "© २०२६ NidanEHR. सर्वाधिकार सुरक्षित।",
   "identity.changePassword": "पासवर्ड बदल्नुहोस्",
   "launcher.signedOutOf": "तपाईं {app} बाट लगआउट हुनुभयो। तपाईंका अन्य एपहरू अझै खुला छन्।",
-  "launcher.signOutAll": "सबैबाट लगआउट गर्नुहोस्"
+  "launcher.signOutAll": "सबैबाट लगआउट गर्नुहोस्",
+  "identity.twoStep": "दुई-चरण साइन इन",
+  "twoStep.app": "अथेन्टिकेटर एप",
+  "twoStep.passkey": "पासकी वा सुरक्षा कुञ्जी",
+  "twoStep.codes": "रिकभरी कोडहरू",
+  "twoStep.email": "इमेलबाट कोड",
+  "twoStep.sms": "एसएमएसबाट कोड"
 }

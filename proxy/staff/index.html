@@ -56,6 +56,7 @@
       </label>
       <label>Job <select name="job" required id="add-job"></select></label>
       <label>Email (optional) <input name="email" type="email" maxlength="120"></label>
+      <label>Phone (optional, for SMS sign-in codes) <input name="phone" type="tel" maxlength="16" pattern="\+?[0-9 ]{7,16}" title="digits, optional + and spaces"></label>
       <p class="error" id="add-error" role="alert" hidden></p>
       <div class="row"><button type="submit" value="ok">Add</button><button type="button" id="add-cancel">Cancel</button></div>
     </form>
@@ -63,8 +64,12 @@
 
   <dialog id="places-dialog">
     <form id="places-form" method="dialog">
-      <h2>Places for <span id="places-user"></span></h2>
-      <p class="muted">Separate several with commas. Takes effect at the person's next login.</p>
+      <h2>Details for <span id="places-user"></span></h2>
+      <p class="muted">Email and phone receive sign-in codes when the person turns them on; changing one turns its codes
+        off until the person confirms the new one.</p>
+      <label>Email <input name="email" type="email" maxlength="120"></label>
+      <label>Phone <input name="phone" type="tel" maxlength="16" pattern="\+?[0-9 ]{7,16}" title="digits, optional + and spaces"></label>
+      <p class="muted">Places: separate several with commas. Takes effect at the person's next login.</p>
       <label>Locations (OpenMRS) <input name="nidan_locations" maxlength="1000" autocomplete="off"></label>
       <label>Lab units (OpenELIS) <input name="nidan_lab_units" maxlength="1000" autocomplete="off"></label>
       <label>POS shops (Odoo) <input name="nidan_shops" maxlength="1000" autocomplete="off"></label>

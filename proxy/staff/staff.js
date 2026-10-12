@@ -92,7 +92,7 @@
       tr.append(cell(((user.firstName || '') + ' ' + (user.lastName || '')).trim()), cell(user.username), cell(job.name),
         cell(user.enabled === false ? 'Disabled' : 'Active'));
       const actions = document.createElement('td');
-      actions.append(button('Places', () => openPlaces(user)), button('Reset password', () => resetPassword(user)),
+      actions.append(button('Details', () => openPlaces(user)), button('Reset password', () => resetPassword(user)),
         button(user.enabled === false ? 'Enable' : 'Disable', () => toggle(user)),
         jobSelect(user, job));
       tr.append(actions);
@@ -186,6 +186,8 @@
     const form = $('places-form');
     const attrs = placesFor.attributes || {};
     for (const name of PLACES) form.elements[name].value = (attrs[name] || []).join(', ');
+    form.elements.email.value = placesFor.email || '';
+    form.elements.phone.value = (attrs.phone || [])[0] || '';
     $('places-user').textContent = placesFor.username;
     $('places-error').hidden = true;
     $('places-dialog').showModal();
@@ -207,12 +209,23 @@
       err.hidden = false;
       return;
     }
+    const email = form.elements.email.value.trim();
+    const phone = form.elements.phone.value.trim();
+    if (phone && !/^\+?[0-9 ]{7,16}$/.test(phone)) {
+      err.textContent = 'Phone: digits, optional + and spaces (7-16).';
+      err.hidden = false;
+      return;
+    }
+    // a new address or number must be confirmed by the person before codes go there: turn that channel off
+    if (email !== (placesFor.email || '')) delete attributes.nidan_2fa_email;
+    if (phone !== (((placesFor.attributes || {}).phone || [])[0] || '')) delete attributes.nidan_2fa_sms;
+    if (phone) attributes.phone = [phone]; else delete attributes.phone;
     const body = { username: placesFor.username, firstName: placesFor.firstName, lastName: placesFor.lastName, attributes };
-    if (placesFor.email) body.email = placesFor.email;
+    if (email || placesFor.email) body.email = email;   // only when there is one, or the admin cleared it
     try {
       await api('PUT', '/users/' + placesFor.id, body);
       $('places-dialog').close();
-      notice('Places saved for ' + placesFor.username + '. They apply at the next login.');
+      notice('Details saved for ' + placesFor.username + '. Places apply at the next login.');
     } catch (e) {
       err.textContent = 'Could not save: ' + (e.detail || e.message);
       err.hidden = false;
@@ -250,6 +263,14 @@
       attributes: { gender: [f.gender] }, groups: ['/staff/' + job.name], requiredActions: ['UPDATE_PASSWORD'],
     };
     if (f.email) body.email = f.email.trim();
+    if (f.phone) {
+      if (!/^\+?[0-9 ]{7,16}$/.test(f.phone.trim())) {
+        err.textContent = 'Phone: digits, optional + and spaces (7-16).';
+        err.hidden = false;
+        return false;
+      }
+      body.attributes.phone = [f.phone.trim()];
+    }
     try {
       await api('POST', '/users', body);
       // find the new user's id through the job group (GET /users is not allowed)

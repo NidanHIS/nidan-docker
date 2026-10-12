@@ -212,7 +212,7 @@ test('places (locations, lab units, POS shops) are saved as attributes, nothing 
   const kc = await fakeKeycloak(page);
   await page.goto(`${STAFF}/staff/`);
   const row = page.locator('#people tbody tr', { hasText: 'nurse1' });
-  await row.getByRole('button', { name: 'Places' }).click();
+  await row.getByRole('button', { name: 'Details' }).click();
   const form = page.locator('#places-form');
   await expect(form.locator('[name=nidan_locations]')).toHaveValue('Ward A');
   await expect(form.locator('[name=nidan_shops]')).toHaveValue('Old Shop');
@@ -233,6 +233,32 @@ test('places (locations, lab units, POS shops) are saved as attributes, nothing 
   expect(Object.keys(put.body).sort()).toEqual(['attributes', 'firstName', 'lastName', 'username']);
   expect(put.body.attributes).toEqual({ gender: ['F'], nidan_shops: ['Main Pharmacy', 'Emergency POS'], nidan_lab_units: ['Haematology'] });
   expect(kc.users[0].attributes!.gender).toEqual(['F']);
+});
+
+// Email / SMS sign-in codes go to what the hospital admin enters here. Changing the email or phone turns that
+// channel's codes off until the person confirms the new one (launcher "Two-step sign-in").
+test('Details: phone and email are saved; a changed one turns its sign-in codes off until confirmed @KC-21-05 @KC-09-09 @security', async ({ page }) => {
+  const kc = await fakeKeycloak(page);
+  kc.users[0].attributes = { gender: ['F'], phone: ['+977 9800000001'], nidan_2fa_sms: ['true'], nidan_2fa_email: ['true'] };
+  await page.goto(`${STAFF}/staff/`);
+  const row = page.locator('#people tbody tr', { hasText: 'nurse1' });
+  await row.getByRole('button', { name: 'Details' }).click();
+  const form = page.locator('#places-form');
+  await expect(form.locator('[name=phone]')).toHaveValue('+977 9800000001');
+  await form.locator('[name=phone]').fill('98 not a phone');
+  await form.getByRole('button', { name: 'Save' }).click();
+  // the field's pattern stops the save in the browser itself (its own message); nothing is sent
+  expect(await form.locator('[name=phone]').evaluate((i: HTMLInputElement) => i.validity.patternMismatch)).toBe(true);
+  expect(kc.calls.filter((c) => c.method === 'PUT')).toHaveLength(0);
+
+  await form.locator('[name=phone]').fill('+977 9811111111');
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('#notice')).toContainText('Details saved');
+  const put = kc.calls.find((c) => c.method === 'PUT' && c.path === `/users/${uid(1)}`)!;
+  expect(put.body.attributes.phone).toEqual(['+977 9811111111']);
+  expect(put.body.attributes.nidan_2fa_sms, 'new phone: SMS codes off until confirmed').toBeUndefined();
+  expect(put.body.attributes.nidan_2fa_email, 'email unchanged: its codes stay on').toEqual(['true']);
+  expect('email' in put.body, 'no email sent when there is none').toBe(false);
 });
 
 test('Activity shows login errors and user changes with who did them @KC-23-01 @KC-23-02 @security', async ({ page }) => {

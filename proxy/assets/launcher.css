@@ -443,6 +443,16 @@ footer {
 .identity-line { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; justify-content: flex-end; }
 .identity-line strong { color: var(--text-main); }
 .identity-line a { color: var(--primary-teal); }
+.two-step { position: relative; }
+.two-step summary { cursor: pointer; color: var(--primary-teal); text-decoration: underline; list-style: none; }
+.two-step summary::-webkit-details-marker { display: none; }
+.two-step-menu {
+  position: absolute; right: 0; top: 1.6rem; z-index: 10; min-width: 13rem;
+  display: flex; flex-direction: column; background: var(--card-bg); border: 1px solid var(--border-color);
+  border-radius: 8px; box-shadow: var(--shadow-md); padding: 0.4rem 0;
+}
+.two-step-menu a { padding: 0.45rem 0.9rem; text-decoration: none; color: var(--text-main); }
+.two-step-menu a:hover { background: var(--card-hover-bg); }
 .identity-line .sign-out {
   padding: 0.3rem 0.8rem; border-radius: 6px; background: var(--primary-teal); color: #fff; text-decoration: none;
 }

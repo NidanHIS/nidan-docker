@@ -1149,6 +1149,8 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD (generate-secrets.sh writes .env.local)}
     volumes:
       - ./keycloak/themes/nidan:/opt/keycloak/themes/nidan:ro   # login theme (KC-17)
+      # email / SMS sign-in codes: build first (keycloak/providers/README.md); the realm's login flow needs it
+      - ./keycloak/providers/dist:/opt/keycloak/providers:ro
       - ./keycloak/password-blocklist.txt:/opt/keycloak/data/password-blacklists/nidan.txt:ro   # passwordBlacklist(nidan.txt)
     networks:
       - auth-net
@@ -1204,6 +1206,18 @@ services:
       GATEWAY_DOMAIN: ${GATEWAY_DOMAIN:-localhost}
       GATEWAY_AUTH_IP: 172.31.250.10                    # the gateway's fixed auth-net address (Odoo back-channel logout)
       NIDAN_BRAND_NAME: ${NIDAN_BRAND_NAME:-Nidan EHR}  # realm display name: login page tab title
+      # email / SMS sign-in codes (optional; each channel stays off until set): env.template
+      NIDAN_SMTP_HOST: ${NIDAN_SMTP_HOST:-}
+      NIDAN_SMTP_PORT: ${NIDAN_SMTP_PORT:-587}
+      NIDAN_SMTP_FROM: ${NIDAN_SMTP_FROM:-}
+      NIDAN_SMTP_STARTTLS: ${NIDAN_SMTP_STARTTLS:-true}
+      NIDAN_SMTP_AUTH: ${NIDAN_SMTP_AUTH:-true}
+      NIDAN_SMTP_USER: ${NIDAN_SMTP_USER:-}
+      NIDAN_SMTP_PASSWORD: ${NIDAN_SMTP_PASSWORD:-}
+      NIDAN_SMS_PROVIDER: ${NIDAN_SMS_PROVIDER:-none}
+      NIDAN_SMS_URL: ${NIDAN_SMS_URL:-}
+      NIDAN_SMS_TOKEN: ${NIDAN_SMS_TOKEN:-}
+      NIDAN_SMS_FROM: ${NIDAN_SMS_FROM:-}
       NIDAN_SYNC_USERNAME: ${NIDAN_SYNC_USERNAME:-nidan-sync}
       KC_USERNAME_PATTERN: ${KC_USERNAME_PATTERN:-}
       DEFAULT_LOCALE: ${DEFAULT_LOCALE:-en}             # login/Staff page language when the browser asks for none

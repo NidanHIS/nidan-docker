@@ -1,5 +1,4 @@
 import { test, expect, APIRequestContext, Browser, BrowserContext, Page } from '@playwright/test';
-import { createHmac } from 'crypto';
 
 /**
  * People with access to SEVERAL apps (and not others), on the REAL apps: tests/e2e-auth/harness/sso-openmrs.yml with the
@@ -195,7 +194,7 @@ test.describe('people with several apps', () => {
   // The launcher card is how people open an app (bug 2026-10-11: OpenELIS and Superset showed their own login page with
   // an SSO button). Clicking a card must land in the app already signed in, never on the app's login page.
   for (const mix of MIXES) {
-    test(`${mix.name}: every launcher card opens its app already signed in, with no app login page or button to press @KC-10-05 @KC-15-01 @sso-on-only`,
+    test(`${mix.name}: every launcher card opens its app already signed in, with no app login page or button to press @KC-10-05 @KC-15-01 @security @sso-on-only`,
       async ({ browser, request }) => {
         const { username } = await person(request, `${mix.name}card`, mix.roles, mix.attrs);
         const { ctx, page } = await newPage(browser);
@@ -349,7 +348,7 @@ test.describe('people with several apps', () => {
     });
 
   // The launcher's header: who is signed in, Change password and Sign out at the top right, beside the language.
-  test('the launcher shows the signed-in person and Sign out at the top right @KC-15-01 @sso-on-only', async ({ browser, request }) => {
+  test('the launcher shows the signed-in person and Sign out at the top right @KC-15-01 @security @sso-on-only', async ({ browser, request }) => {
     const p = await person(request, 'head', MIXES[0].roles);
     const { ctx, page } = await newPage(browser);
     await gatewayLogin(page, p.username);
@@ -381,7 +380,7 @@ test.describe('people with several apps', () => {
   });
 
   // The Staff page (:9443) has the same header: the hospital's logo, who is signed in, All apps, Sign out.
-  test('the Staff page shows the branding, the signed-in admin, All apps and Sign out @KC-20-01 @sso-on-only', async ({ browser, request }) => {
+  test('the Staff page shows the branding, the signed-in admin, All apps and Sign out @KC-20-01 @security @sso-on-only', async ({ browser, request }) => {
     const username = `stf${Date.now()}`;
     const r = await admin(request, '/users', 'POST', { username, firstName: 'Hari', lastName: 'Admin', enabled: true,
       email: `${username}@example.org`, emailVerified: true, attributes: { gender: ['M'] }, groups: ['/hospital-admin'] });
@@ -392,13 +391,7 @@ test.describe('people with several apps', () => {
     await page.fill('#username', username);
     await page.fill('#password', PASSWORD);
     await page.click('#kc-login');
-    // admins must set up an authenticator (KC-08): read the key from the form, answer with its current code
-    const secret = await page.locator('input[name="totpSecret"]').inputValue();
-    const msg = Buffer.alloc(8); msg.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000)));
-    const d = createHmac('sha1', Buffer.from(secret)).update(msg).digest(); const o = d[d.length - 1] & 15;
-    await page.fill('#totp', String((d.readUInt32BE(o) & 0x7fffffff) % 1000000).padStart(6, '0'));
-    if (await page.locator('#userLabel').count()) await page.fill('#userLabel', 'test phone');
-    await page.locator('#kc-totp-settings-form [type="submit"], input[type="submit"]').first().click();
+    // no second step until the admin sets one up (optional for everyone, decision 2026-10-12)
     await page.waitForURL('https://localhost:18445/staff/**', { timeout: 60_000 });
     await expect(page.locator('#who-name')).toHaveText(username);
     await expect(page.locator('#who a.sign-out[href="/oauth2/sign_out"]')).toBeVisible();

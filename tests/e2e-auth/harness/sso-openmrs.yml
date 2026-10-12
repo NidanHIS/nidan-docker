@@ -52,6 +52,18 @@ services:
     networks:
       sso:
         ipv4_address: 172.31.252.10
+  # Email / SMS sign-in code tests (specs/two-step.spec.ts): catch what Keycloak sends. Harness only.
+  mailpit:       # SMTP on mailpit:1025 for Keycloak; read the mail at http://127.0.0.1:18025/api/v1/messages
+    image: axllent/mailpit:v1.27
+    ports: ["127.0.0.1:18025:8025"]
+    networks: [sso]
+  sms-sink:      # the "webhook" SMS provider posts to http://sms-sink:8080/send; GET 127.0.0.1:18026/messages
+    image: python:3.12-slim
+    command: ["python", "-u", "/sink/sms-sink.py"]
+    volumes: ["./sms-sink.py:/sink/sms-sink.py:ro"]
+    ports: ["127.0.0.1:18026:8080"]
+    networks: [sso]
+
   upstreams:     # defined in full: `extends` would merge sso.yml's aliases and keep "openmrs-backend" on the stub
     image: python:3.12-alpine@sha256:1b668429b3511ab407d8e00648891631b0b1a4d7e15e3ca70f38ab5b91ad4ab4
     command: ["python3", "-I", "/stub/stub.py"]

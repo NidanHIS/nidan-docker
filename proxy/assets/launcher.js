@@ -128,8 +128,30 @@
       pw.href = '#';
       pw.id = 'change-password';
       pw.textContent = t('identity.changePassword');
-      pw.addEventListener('click', (e) => { e.preventDefault(); changePassword(kc); });
+      pw.addEventListener('click', (e) => { e.preventDefault(); keycloakAction(kc, 'UPDATE_PASSWORD'); });
       line.append(pw);
+      // Optional second step (decision 2026-10-12): each entry runs Keycloak's own set-up page, then back here
+      const two = document.createElement('details');
+      two.className = 'two-step';
+      two.id = 'two-step';
+      const sum = document.createElement('summary');
+      sum.textContent = t('identity.twoStep');
+      two.append(sum);
+      const menu = document.createElement('div');
+      menu.className = 'two-step-menu';
+      for (const [id, action, key] of [['two-step-app', 'CONFIGURE_TOTP', 'twoStep.app'],
+        ['two-step-passkey', 'webauthn-register', 'twoStep.passkey'], ['two-step-codes', 'CONFIGURE_RECOVERY_AUTHN_CODES', 'twoStep.codes'],
+        // to the email / phone the hospital admin entered (keycloak/providers/nidan-code-otp)
+        ['two-step-email', 'nidan-email-code-setup', 'twoStep.email'], ['two-step-sms', 'nidan-sms-code-setup', 'twoStep.sms']]) {
+        const a = document.createElement('a');
+        a.href = '#';
+        a.id = id;
+        a.textContent = t(key);
+        a.addEventListener('click', (e) => { e.preventDefault(); keycloakAction(kc, action); });
+        menu.append(a);
+      }
+      two.append(menu);
+      line.append(two);
     }
     const out = document.createElement('a');
     out.href = '/oauth2/sign_out';
@@ -159,15 +181,16 @@
     messages().append(box);
   }
 
-  async function changePassword(kc) {
-    // The nidan-password client only runs UPDATE_PASSWORD: no roles, and its code is never redeemed (nobody holds
-    // its secret). PKCE is required by the realm, so a challenge is sent; the verifier is not needed.
+  /** Runs one of Keycloak's own account steps (kc_action) and comes back to the launcher. */
+  async function keycloakAction(kc, action) {
+    // The nidan-password client has no roles and its code is never redeemed (nobody holds its secret): it only
+    // carries kc_action. PKCE is required by the realm, so a challenge is sent; the verifier is not needed.
     const v = new Uint8Array(32);
     crypto.getRandomValues(v);
     const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(btoa(String.fromCharCode(...v)))));
     const challenge = btoa(String.fromCharCode(...digest)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     const q = new URLSearchParams({ client_id: 'nidan-password', redirect_uri: location.origin + '/', response_type: 'code',
-      scope: 'openid', state: 'nidan-password', kc_action: 'UPDATE_PASSWORD', code_challenge: challenge, code_challenge_method: 'S256' });
+      scope: 'openid', state: 'nidan-password', kc_action: action, code_challenge: challenge, code_challenge_method: 'S256' });
     if (I && I.locale) q.set('ui_locales', I.locale);
     location.href = kc.replace(/\/$/, '') + '/realms/nidan/protocol/openid-connect/auth?' + q;
   }

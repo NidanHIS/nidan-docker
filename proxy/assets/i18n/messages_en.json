@@ -40,5 +40,11 @@
   "footer.rights": "© 2026 NidanEHR. All rights reserved.",
   "identity.changePassword": "Change password",
   "launcher.signedOutOf": "You signed out of {app}. Your other apps are still open.",
-  "launcher.signOutAll": "Sign out of everything"
+  "launcher.signOutAll": "Sign out of everything",
+  "identity.twoStep": "Two-step sign-in",
+  "twoStep.app": "Authenticator app",
+  "twoStep.passkey": "Passkey or security key",
+  "twoStep.codes": "Recovery codes",
+  "twoStep.email": "Code by email",
+  "twoStep.sms": "Code by SMS"
 }

@@ -310,34 +310,36 @@ test.describe('realm against a live Keycloak', () => {
     for (const [what, method, path, data, want] of cases) expect(await as(method, path, data), what).toBe(want);
   });
 
-  test('admin groups and app-superusers need OTP on every login; nobody removes their own @KC-09-09 @KC-09-10 @KC-57-03 @security', async ({ playwright }) => {
+  // Second step OPTIONAL FOR EVERYONE (user decision 2026-10-12, replaces "admin groups always need OTP"): nobody is
+  // made to enrol; a person who has set one up must give it on every sign-in; the account API still cannot remove it.
+  test('the second step is optional for everyone, and required once a person sets one up @KC-09-09 @KC-09-10 @KC-57-03 @security', async ({ playwright }) => {
     test.setTimeout(180_000);   // fresh OTP codes may wait for the next 30-second step
     const request = await playwright.request.newContext();
     const GW = `https://${DOMAIN}/oauth2/callback`;
     const CH = createHash('sha256').update('harness-verifier-0123456789-0123456789-xyz').digest('base64url');
 
-    const nurse = await makeUser(request, ['staff/Nurse']);
-    expect(gotCode(await new KcSession(request).password('nidan-gateway', GW, nurse, CH)), 'staff: password alone').toBe(true);
-
-    for (const group of ['hospital-admin', 'cis-admin', 'orthanc-admin', 'app-superusers']) {
+    for (const group of ['staff/Nurse', 'hospital-admin', 'cis-admin', 'orthanc-admin', 'app-superusers']) {
       const r = await new KcSession(request).password('nidan-gateway', GW, await makeUser(request, [group]), CH);
-      expect(gotCode(r), `${group}: no code after the password alone`).toBe(false);
-      expect(totpSecretOf(r.body), `${group}: must enrol an OTP first`).toBeTruthy();
+      expect(gotCode(r), `${group}: password alone signs in (nothing set up)`).toBe(true);
     }
 
+    // a hospital admin who sets up an authenticator app (here started by the operator; the launcher's
+    // "Two-step sign-in" starts the same Keycloak step)
     const adm = await makeUser(request, ['hospital-admin']);
+    const id = (await (await admin(request, `/users?username=${adm}&exact=true`)).json())[0].id;
+    const user = await (await admin(request, `/users/${id}`)).json();
+    await admin(request, `/users/${id}`, { method: 'PUT', data: { ...user, requiredActions: ['CONFIGURE_TOTP'] } });
     let kc = new KcSession(request);
-    expect(gotCode(await kc.otp(adm, await kc.password('nidan-gateway', GW, adm, CH))), 'enrolment completes the login').toBe(true);
+    expect(gotCode(await kc.otp(adm, await kc.password('nidan-gateway', GW, adm, CH))), 'set-up completes the login').toBe(true);
     kc = new KcSession(request);
     const next = await kc.password('nidan-gateway', GW, adm, CH);
-    expect(gotCode(next), 'enrolled admin: no code after the password alone').toBe(false);
+    expect(gotCode(next), 'set up: no code after the password alone').toBe(false);
     expect(next.body).toMatch(/name="otp"/);
     const wrong = await kc.go('POST', formAction(next.body), { otp: '000000' });
     expect(gotCode(wrong)).toBe(false);
-    expect(gotCode(await kc.otp(adm, wrong)), 'the right OTP completes it').toBe(true);
+    expect(gotCode(await kc.otp(adm, wrong)), 'the right code completes it').toBe(true);
 
-    // KC-09-10: her own account-API session cannot remove the OTP (the default role has no manage-account)
-    const id = (await (await admin(request, `/users?username=${adm}&exact=true`)).json())[0].id;
+    // KC-09-10: her own account-API session cannot remove it (the default role has no manage-account)
     const otpId = ((await (await admin(request, `/users/${id}/credentials`)).json()) as Array<{ id: string; type: string }>)
       .find((c) => c.type === 'otp')!.id;
     const acct = await userToken(request, 'account-console', `${KC_PUBLIC}/realms/nidan/account/`, adm);
@@ -347,11 +349,9 @@ test.describe('realm against a live Keycloak', () => {
     const still = (await (await admin(request, `/users/${id}/credentials`)).json()) as Array<{ type: string }>;
     expect(still.some((c) => c.type === 'otp'), 'her OTP is still there').toBe(true);
 
-    // operator deletes it (lost phone): back to enrolment, never a password-only login
+    // the operator removes it (lost phone): back to password only, as for anyone who never set one up
     expect((await admin(request, `/users/${id}/credentials/${otpId}`, { method: 'DELETE' })).status()).toBe(204);
-    const after = await new KcSession(request).password('nidan-gateway', GW, adm, CH);
-    expect(gotCode(after)).toBe(false);
-    expect(totpSecretOf(after.body)).toBeTruthy();
+    expect(gotCode(await new KcSession(request).password('nidan-gateway', GW, adm, CH)), 'removed: password alone again').toBe(true);
   });
 
   // KC-17: the login page as a person sees it.

@@ -39,6 +39,8 @@ viewer links through orthanc-auth-service, phase 2) / `MISSING` (nothing covers 
 ```bash
 cd nidan-docker/tests/e2e-auth/harness
 images/build.sh            # images from the working tree + OCA auth_oidc and Python libs into harness/.build
+../../../keycloak/providers/nidan-code-otp/build.sh   # Keycloak extension (email/SMS codes) into keycloak/providers/dist
+                           # (needs a running Keycloak 26.8.0 to compile against; with network: mvn -q package)
 # OpenMRS custom OMODs (incl. oauth2login and nidancore from the working tree) in nidan-docker/openmrs/custom_modules,
 # as for the real stack (repo CLAUDE.md "OpenMRS backend"), or point OPENMRS_CUSTOM_MODULES at another folder.
 ./compose.sh up -d --wait keycloak
@@ -78,6 +80,7 @@ fails on tags that point at no criterion and on security criteria whose tests la
 | `keycloak-origin` | issuer on :9443, Keycloak paths 404 elsewhere, master/admin/registration refused on every port, login rate limit, real client IP in events, internal back-channel, cross-origin isolation |
 | `realm` | realm settings: no self-registration, no password grant, reserved names, token contracts, staff cannot edit themselves, hospital-admin permissions, OTP for admins, login messages (English/Nepali), password policy, lockout, lifetimes, events |
 | `multi-app` | people with two or three apps (clinician, front desk, lab cashier): one login opens each permitted app with its own roles, the rest refuse, launcher cards exact; user switch on one browser; removing one app keeps the others; disable signs out of every app |
+| `two-step` | optional second step: nobody is asked until they set one up; the launcher's "Two-step sign-in" sets up an authenticator app, a passkey / security key (virtual authenticator), recovery codes, or a code by email (mailpit) / SMS (sms-sink) sent to what the hospital admin entered; each is then asked at sign-in, wrong codes refused; no phone = cannot turn SMS on |
 | `cis-sync` | CIS writes patients and visits as nidan-sync with a Keycloak token; retries through a Keycloak outage |
 | `imaging-sso` | a doctor opens a study in OHIF through the gateway |
 | `dhis2-local` | the DHIS2 app's local login with central login off |

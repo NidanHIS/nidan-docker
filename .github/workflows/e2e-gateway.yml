@@ -123,6 +123,7 @@ jobs:
       - name: Gateway and central login from the real compose
         run: |
           docker build -t nidan-gateway:ci proxy
+          (cd keycloak/providers/nidan-code-otp && mvn -q -B package && cp target/nidan-code-otp.jar ../dist/)   # the login flow needs it
           export KC_USERNAME_PATTERN="$(python3 -I scripts/reserved-usernames.py | sed -n 's/^KC_USERNAME_PATTERN=//p')"
           docker compose --profile sso up -d --wait keycloak-db keycloak
           docker compose --profile sso up --no-deps --exit-code-from keycloak-config-cli keycloak-config-cli
@@ -167,6 +168,7 @@ jobs:
 
       - name: Keycloak + realm, then gateway and oauth2-proxy
         run: |
+          (cd keycloak/providers/nidan-code-otp && mvn -q -B package && cp target/nidan-code-otp.jar ../dist/)   # the login flow needs it
           export KC_USERNAME_PATTERN="$(python3 -I scripts/reserved-usernames.py | sed -n 's/^KC_USERNAME_PATTERN=//p')"
           docker compose -f "$F" up -d --build --wait keycloak
           docker compose -f "$F" --profile import run --rm config-cli

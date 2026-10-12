@@ -22,6 +22,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Build the Keycloak extension (nidan-code-otp) and run its self-check
+        run: |
+          cd keycloak/providers/nidan-code-otp
+          mvn -q -B package
+          CP=$(mvn -q -B dependency:build-classpath -Dmdep.outputFile=/dev/stdout)
+          mkdir -p target/test-classes
+          javac --release 21 -cp "$CP:target/classes" -d target/test-classes $(find src/test/java -name '*.java')
+          java -ea -cp "$CP:target/classes:target/test-classes" org.nidan.keycloak.code.CodeLogicCheck
+          cp target/nidan-code-otp.jar ../dist/
+
       - name: Keycloak (dev mode, in-memory)
         run: docker compose -f "$F" up -d --wait keycloak
 

@@ -42,7 +42,8 @@ SHARED_SECRETS = {"NIDAN_OIS_SECRET", "NIDAN_ODOO_SECRET", "OIS_WEBHOOK_SECRET",
                   "NIDANCORE_ODOO_PAYMENT_SECRET", "ORG_OPENELISGLOBAL_NIDAN_PAYWALL_ODOO_SECRET"}
 # Optional secrets: empty means "feature off", which the consuming service handles fail-closed.
 OPTIONAL_EMPTY = {"SUPERSET_GUEST_TOKEN_SECRET", "PROVINCIAL_DHIS2_PASSWORD", "DEBEZIUM_DB_PASSWORD",
-                  "NIDAN_SYNC_PASSWORD", "OPENELIS_CATALOG_WEBHOOK_SECRET", "ORTHANC_WEBHOOK_SECRET"}
+                  "NIDAN_SYNC_PASSWORD", "OPENELIS_CATALOG_WEBHOOK_SECRET", "ORTHANC_WEBHOOK_SECRET",
+                  "NIDAN_SMTP_PASSWORD", "NIDAN_SMS_TOKEN"}   # email / SMS sign-in codes: off when unset
 
 
 def tracked_values():
@@ -170,6 +171,13 @@ def username_pattern_problems(services):
     return out
 
 
+def code_otp_problems(services, dist=ROOT / "keycloak" / "providers" / "dist"):
+    """The realm's login flow uses the nidan-code-otp extension: without its jar the realm import fails."""
+    if "keycloak" not in services or any(dist.glob("nidan-code-otp*.jar")):
+        return []
+    return ["keycloak: keycloak/providers/dist/nidan-code-otp.jar is missing; build it (keycloak/providers/README.md)"]
+
+
 def main():
     out = subprocess.run(["docker", "compose", "--profile", "*", "config", "--format", "json"],
                          cwd=ROOT, capture_output=True, text=True)
@@ -206,6 +214,7 @@ def main():
     if cli and cli.get("DEFAULT_LOCALE") not in ("en", "ne"):  # supportedLocales in keycloak/realm/base/nidan.yaml
         problems.append(f"keycloak-config-cli: DEFAULT_LOCALE {cli.get('DEFAULT_LOCALE')!r} is not en or ne")
     problems += reporting_problems(services)
+    problems += code_otp_problems(services)
     su_problems, su_notes = db_superuser_findings(services)
     problems += su_problems
     mode = "production" if production else "demo"

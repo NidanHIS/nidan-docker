@@ -539,7 +539,7 @@
    "id": "KC-09-09",
    "harness": "API",
    "security": true,
-   "summary": "(on) Admin-group members are asked for OTP on every login; with their OTP deleted by the operator, login is blocked until re-enrolment, neve…"
+   "summary": "(on) The second step is optional for everyone (decision 2026-10-12): password alone signs in until a person sets one up (authenticator app, passkey / security key, recovery codes, from the launcher); then every sign-in asks for it."
   },
   {
    "id": "KC-09-10",

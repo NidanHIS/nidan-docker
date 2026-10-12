@@ -7,6 +7,9 @@ Keycloak restart (the harness realm is dev-mem). Harness only: throwaway passwor
 
 Harness callbacks: the realm registers the gateway's https://<domain>:8443 and :9443 callbacks, as production
 publishes them; the harness publishes those ports as 18444 and 18445, so their callbacks are added to nidan-gateway.
+Email / SMS sign-in codes: the harness realm sends mail to mailpit (read it at http://127.0.0.1:18025) and SMS to
+sms-sink (http://127.0.0.1:18026/messages). Every user gets an email and a phone; re-running turns their email/SMS
+codes off again (the attributes are rewritten).
 """
 import json
 import sys
@@ -62,7 +65,18 @@ def call(token, method, path, data=None):
 HARNESS_CALLBACKS = {"nidan-gateway": ["https://localhost:18444/oauth2/callback", "https://localhost:18445/oauth2/callback"]}
 
 
+# the harness catchers (harness/sso-openmrs.yml mailpit, sms-sink)
+HARNESS_CHANNELS = {
+    "smtpServer": {"host": "mailpit", "port": "1025", "from": "noreply@nidan.test", "fromDisplayName": "Nidan EHR",
+                   "auth": "false", "starttls": "false", "ssl": "false"},
+    "attributes": {"nidanSmsProvider": "webhook", "nidanSmsUrl": "http://sms-sink:8080/send",
+                   "nidanSmsToken": "harness-sms-token", "nidanSmsFrom": ""},
+}
+
+
 def fixups(token):
+    call(token, "PUT", "", HARNESS_CHANNELS)
+    print("realm: email codes -> mailpit, SMS codes -> sms-sink")
     for client_id, uris in HARNESS_CALLBACKS.items():
         c = call(token, "GET", f"/clients?clientId={client_id}")[1][0]
         missing = [u for u in uris if u not in c.get("redirectUris", [])]
@@ -80,11 +94,11 @@ def main():
     if "--fixups-only" in sys.argv:
         return 0
     clients = {}
-    for username, first, last, gender, groups, roles, attrs in USERS:
+    for n, (username, first, last, gender, groups, roles, attrs) in enumerate(USERS, 1):
         found = call(token, "GET", f"/users?username={urllib.parse.quote(username)}&exact=true")[1]
         rep = {"username": username, "firstName": first, "lastName": last, "enabled": True,
                "email": f"{username}@example.org", "emailVerified": True,
-               "attributes": {"gender": [gender], **attrs}}
+               "attributes": {"gender": [gender], "phone": [f"+977 98000000{n:02d}"], **attrs}}
         if found:
             uid = found[0]["id"]
             call(token, "PUT", f"/users/{uid}", rep)

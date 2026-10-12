@@ -1,0 +1,2 @@
+org.nidan.keycloak.code.CodeAuthenticatorFactory$EmailCode
+org.nidan.keycloak.code.CodeAuthenticatorFactory$SmsCode

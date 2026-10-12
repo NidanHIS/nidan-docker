@@ -70,7 +70,7 @@ roles:
     - name: default-roles-nidan          # the realm's default role (see defaultRole above): exactly view-profile
       composite: true
       composites: {client: {account: [view-profile]}}
-    - {name: requires-otp, description: "Login needs OTP on every sign-in (nidan-browser flow, KC-09-09). Admin groups only; never in a token (fullScopeAllowed=false)."}
+    - {name: requires-otp, description: "NOT ENFORCED since 2026-10-12 (second step optional for everyone). Kept on the admin groups so the old rule can come back without re-granting; never in a token."}
   client:
     nidan-gateway:
       - {name: app-openmrs, description: Clinical Records}
@@ -134,16 +134,17 @@ groups:
   - name: app-superusers             # operator-managed; superuser app roles live only here (KC-57)
     realmRoles: [requires-otp]
 
-# --- login flow (KC-09-09, KC-57-03): admin groups and app-superusers give an OTP on every sign-in ---
-# Cookie (same session) or username+password, then OTP when the user has realm role requires-otp (granted only by
-# the admin groups above). An admin without OTP is made to enrol one before the login completes: never password-only.
+# --- login flow: the second step is OPTIONAL FOR EVERYONE (user decision 2026-10-12, replaces KC-09-09's "admins
+# always"). Cookie (same session) or username+password; then, only for a person who has set one up, one of: an
+# authenticator-app code, a passkey / security key, or a recovery code. People set them up from the launcher
+# ("Two-step sign-in", Keycloak's own CONFIGURE_TOTP / webauthn-register / CONFIGURE_RECOVERY_AUTHN_CODES).
 browserFlow: nidan-browser
-authenticatorConfig:
-  - alias: nidan-requires-otp
-    config: {condUserRole: requires-otp, negate: "false"}
+webAuthnPolicyRpEntityName: $(env:NIDAN_BRAND_NAME)     # name the phone or key shows; the RP id is the login host
+webAuthnPolicyUserVerificationRequirement: preferred
+webAuthnPolicyAttestationConveyancePreference: none
 authenticationFlows:
   - alias: nidan-browser
-    description: Cookie, or password + OTP for admin groups
+    description: Cookie, or password + the second step for people who set one up
     providerId: basic-flow
     topLevel: true
     builtIn: false
@@ -151,21 +152,63 @@ authenticationFlows:
       - {authenticator: auth-cookie, requirement: ALTERNATIVE, priority: 10, authenticatorFlow: false, userSetupAllowed: false}
       - {flowAlias: nidan-browser-forms, requirement: ALTERNATIVE, priority: 20, authenticatorFlow: true, userSetupAllowed: false}
   - alias: nidan-browser-forms
-    description: Username + password, then the admin OTP step
+    description: Username + password, then the optional second step
     providerId: basic-flow
     topLevel: false
     builtIn: false
     authenticationExecutions:
       - {authenticator: auth-username-password-form, requirement: REQUIRED, priority: 10, authenticatorFlow: false, userSetupAllowed: false}
-      - {flowAlias: nidan-admin-otp, requirement: CONDITIONAL, priority: 20, authenticatorFlow: true, userSetupAllowed: false}
-  - alias: nidan-admin-otp
-    description: OTP when the user holds requires-otp
+      - {flowAlias: nidan-second-step, requirement: CONDITIONAL, priority: 20, authenticatorFlow: true, userSetupAllowed: false}
+  - alias: nidan-second-step
+    description: Any one second step the person has set up (none set up = password only)
     providerId: basic-flow
     topLevel: false
     builtIn: false
     authenticationExecutions:
-      - {authenticator: conditional-user-role, authenticatorConfig: nidan-requires-otp, requirement: REQUIRED, priority: 10, authenticatorFlow: false, userSetupAllowed: false}
-      - {authenticator: auth-otp-form, requirement: REQUIRED, priority: 20, authenticatorFlow: false, userSetupAllowed: false}
+      - {authenticator: conditional-user-configured, requirement: REQUIRED, priority: 10, authenticatorFlow: false, userSetupAllowed: false}
+      - {authenticator: auth-otp-form, requirement: ALTERNATIVE, priority: 20, authenticatorFlow: false, userSetupAllowed: false}
+      - {authenticator: webauthn-authenticator, requirement: ALTERNATIVE, priority: 30, authenticatorFlow: false, userSetupAllowed: false}
+      - {authenticator: auth-recovery-authn-code-form, requirement: ALTERNATIVE, priority: 40, authenticatorFlow: false, userSetupAllowed: false}
+      - {authenticator: nidan-email-code, requirement: ALTERNATIVE, priority: 50, authenticatorFlow: false, userSetupAllowed: false}
+      - {authenticator: nidan-sms-code, requirement: ALTERNATIVE, priority: 60, authenticatorFlow: false, userSetupAllowed: false}
+
+# Email / SMS codes (keycloak/providers/nidan-code-otp): the code goes to the email / phone a hospital admin entered;
+# the person turns a channel on from the launcher (nidan-*-code-setup). Each channel is off until its settings are
+# set (env.template): SMTP for email, NIDAN_SMS_* for SMS. Values land in the realm (visible to realm admins only,
+# like Keycloak's own SMTP password).
+smtpServer:
+  host: "$(env:NIDAN_SMTP_HOST:-)"
+  port: "$(env:NIDAN_SMTP_PORT:-587)"
+  from: "$(env:NIDAN_SMTP_FROM:-noreply@nidan.invalid)"    # Keycloak refuses an empty sender; no host = email off
+  fromDisplayName: "$(env:NIDAN_BRAND_NAME)"
+  starttls: "$(env:NIDAN_SMTP_STARTTLS:-true)"
+  ssl: "false"
+  auth: "$(env:NIDAN_SMTP_AUTH:-true)"
+  user: "$(env:NIDAN_SMTP_USER:-)"
+  password: "$(env:NIDAN_SMTP_PASSWORD:-)"
+attributes:
+  nidanSmsProvider: "$(env:NIDAN_SMS_PROVIDER:-none)"     # sparrow | aakash | webhook | none
+  nidanSmsUrl: "$(env:NIDAN_SMS_URL:-)"                    # webhook URL, or to override the provider's API URL
+  nidanSmsToken: "$(env:NIDAN_SMS_TOKEN:-)"
+  nidanSmsFrom: "$(env:NIDAN_SMS_FROM:-)"                  # Sparrow sender identity
+# The full list (keycloak-config-cli removes required actions this file does not name); the two nidan-* are ours.
+requiredActions:
+  - {alias: TERMS_AND_CONDITIONS, name: "Terms and Conditions", providerId: TERMS_AND_CONDITIONS, enabled: false, defaultAction: false, priority: 20}
+  - {alias: UPDATE_PROFILE, name: "Update Profile", providerId: UPDATE_PROFILE, enabled: true, defaultAction: false, priority: 40}
+  - {alias: VERIFY_EMAIL, name: "Verify Email", providerId: VERIFY_EMAIL, enabled: true, defaultAction: false, priority: 50}
+  - {alias: CONFIGURE_TOTP, name: "Configure OTP", providerId: CONFIGURE_TOTP, enabled: true, defaultAction: false, priority: 54}
+  - {alias: UPDATE_PASSWORD, name: "Update Password", providerId: UPDATE_PASSWORD, enabled: true, defaultAction: false, priority: 57}
+  - {alias: delete_account, name: "Delete Account", providerId: delete_account, enabled: false, defaultAction: false, priority: 60}
+  - {alias: UPDATE_EMAIL, name: "Update Email", providerId: UPDATE_EMAIL, enabled: false, defaultAction: false, priority: 70}
+  - {alias: webauthn-register, name: "Webauthn Register", providerId: webauthn-register, enabled: true, defaultAction: false, priority: 80}
+  - {alias: webauthn-register-passwordless, name: "Webauthn Register Passwordless", providerId: webauthn-register-passwordless, enabled: true, defaultAction: false, priority: 90}
+  - {alias: VERIFY_PROFILE, name: "Verify Profile", providerId: VERIFY_PROFILE, enabled: true, defaultAction: false, priority: 100}
+  - {alias: delete_credential, name: "Delete Credential", providerId: delete_credential, enabled: true, defaultAction: false, priority: 110}
+  - {alias: idp_link, name: "Linking Identity Provider", providerId: idp_link, enabled: true, defaultAction: false, priority: 120}
+  - {alias: CONFIGURE_RECOVERY_AUTHN_CODES, name: "Recovery Authentication Codes", providerId: CONFIGURE_RECOVERY_AUTHN_CODES, enabled: true, defaultAction: false, priority: 130}
+  - {alias: nidan-email-code-setup, name: "Set up email sign-in codes", providerId: nidan-email-code-setup, enabled: true, defaultAction: false, priority: 140}
+  - {alias: nidan-sms-code-setup, name: "Set up SMS sign-in codes", providerId: nidan-sms-code-setup, enabled: true, defaultAction: false, priority: 150}
+  - {alias: update_user_locale, name: "Update User Locale", providerId: update_user_locale, enabled: true, defaultAction: false, priority: 1000}
 
 # --- user profile (KC-55-01/03): admin-only edits, no unmanaged attributes, reserved usernames ---
 # Keycloak 26 stores the declarative profile as this component (the form a realm export uses).
@@ -178,7 +221,7 @@ components:
       subComponents: {}
       config:
         kc.user.profile.config:
-          - '{"attributes":[{"name":"username","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${username}","validations":{"length":{"min":3,"max":40},"username-prohibited-characters":{},"up-username-not-idn-homograph":{},"pattern":{"pattern":"$(env:KC_USERNAME_PATTERN)","error-message":"nidanUsernameReserved"}}},{"name":"email","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${email}","validations":{"email":{},"length":{"max":255}}},{"name":"firstName","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${firstName}","required":{"roles":["admin","user"]},"validations":{"length":{"max":255},"person-name-prohibited-characters":{}}},{"name":"lastName","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${lastName}","required":{"roles":["admin","user"]},"validations":{"length":{"max":255},"person-name-prohibited-characters":{}}},{"name":"gender","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"Gender","required":{"roles":["admin","user"]},"validations":{"options":{"options":["M","F","O","U"]}}},{"name":"nidan_shops","displayName":"POS shops","multivalued":true,"permissions":{"view":["admin"],"edit":["admin"]}},{"name":"nidan_locations","displayName":"Locations","multivalued":true,"permissions":{"view":["admin"],"edit":["admin"]}},{"name":"nidan_lab_units","displayName":"Lab units","multivalued":true,"permissions":{"view":["admin"],"edit":["admin"]}}]}'
+          - '{"attributes":[{"name":"username","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${username}","validations":{"length":{"min":3,"max":40},"username-prohibited-characters":{},"up-username-not-idn-homograph":{},"pattern":{"pattern":"$(env:KC_USERNAME_PATTERN)","error-message":"nidanUsernameReserved"}}},{"name":"email","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${email}","validations":{"email":{},"length":{"max":255}}},{"name":"firstName","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${firstName}","required":{"roles":["admin","user"]},"validations":{"length":{"max":255},"person-name-prohibited-characters":{}}},{"name":"lastName","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${lastName}","required":{"roles":["admin","user"]},"validations":{"length":{"max":255},"person-name-prohibited-characters":{}}},{"name":"gender","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"Gender","required":{"roles":["admin","user"]},"validations":{"options":{"options":["M","F","O","U"]}}},{"name":"nidan_shops","displayName":"POS shops","multivalued":true,"permissions":{"view":["admin"],"edit":["admin"]}},{"name":"nidan_locations","displayName":"Locations","multivalued":true,"permissions":{"view":["admin"],"edit":["admin"]}},{"name":"nidan_lab_units","displayName":"Lab units","multivalued":true,"permissions":{"view":["admin"],"edit":["admin"]}},{"name":"phone","displayName":"Phone (for SMS codes)","permissions":{"view":["admin","user"],"edit":["admin"]},"validations":{"pattern":{"pattern":"^\\+?[0-9 ]{7,16}$","error-message":"nidanPhoneInvalid"}}},{"name":"nidan_2fa_email","displayName":"Email codes on","permissions":{"view":["admin"],"edit":["admin"]},"validations":{"options":{"options":["true","false"]}}},{"name":"nidan_2fa_sms","displayName":"SMS codes on","permissions":{"view":["admin"],"edit":["admin"]},"validations":{"options":{"options":["true","false"]}}}]}'
 
 clients:
   # Gateway (oauth2-proxy). One client for every gateway origin.
