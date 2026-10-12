@@ -11,6 +11,7 @@
   "card.dhis2": "संघीय र प्रदेश HMIS प्रतिवेदन",
   "status.online": "चालु",
   "status.offline": "बन्द",
+  "status.checking": "जाँच हुँदैछ…",
   "identity.signedInAs": "{name} को रूपमा लगइन गरिएको",
   "identity.signOut": "लगआउट",
   "launcher.noApps": "तपाईंलाई अहिलेसम्म कुनै पनि एप्लिकेसन चलाउने अनुमति छैन। आफ्नो अस्पताल प्रशासकलाई सोध्नुहोस्।",

@@ -11,6 +11,7 @@
   "card.dhis2": "Rapports HMIS fédéraux et provinciaux",
   "status.online": "En ligne",
   "status.offline": "Hors ligne",
+  "status.checking": "Vérification…",
   "identity.signedInAs": "Connecté en tant que {name}",
   "identity.signOut": "Se déconnecter",
   "launcher.noApps": "Vous n'avez encore accès à aucune application. Demandez à l'administration de votre hôpital.",

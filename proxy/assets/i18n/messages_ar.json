@@ -11,6 +11,7 @@
   "card.dhis2": "تقارير HMIS الاتحادية والإقليمية",
   "status.online": "متصل",
   "status.offline": "غير متصل",
+  "status.checking": "جارٍ التحقق…",
   "identity.signedInAs": "تم تسجيل الدخول باسم {name}",
   "identity.signOut": "تسجيل الخروج",
   "launcher.noApps": "ليس لديك صلاحية على أي تطبيق بعد. راجع إدارة المستشفى.",

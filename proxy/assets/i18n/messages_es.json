@@ -11,6 +11,7 @@
   "card.dhis2": "Informes HMIS federales y provinciales",
   "status.online": "En línea",
   "status.offline": "Sin conexión",
+  "status.checking": "Comprobando…",
   "identity.signedInAs": "Sesión iniciada como {name}",
   "identity.signOut": "Cerrar sesión",
   "launcher.noApps": "Todavía no tiene acceso a ninguna aplicación. Consulte con la administración de su hospital.",

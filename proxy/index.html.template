@@ -52,7 +52,7 @@
 
         <!-- OpenMRS -->
         <a href="/openmrs/spa" target="nidan-openmrs" rel="noopener" class="card" id="card-openmrs">
-          <div class="status-badge status-checking" id="status-openmrs">Checking...</div>
+          <div class="status-badge status-checking" id="status-openmrs" data-i18n="status.checking">Checking…</div>
           <div class="icon-wrapper">
             <img src="/assets/images/emr.png" alt="Electronic Medical Record Icon" />
           </div>
@@ -61,7 +61,7 @@
 
         <!-- OpenELIS -->
         <a href="/openelis" target="nidan-openelis" rel="noopener" class="card" id="card-openelis">
-          <div class="status-badge status-checking" id="status-openelis">Checking...</div>
+          <div class="status-badge status-checking" id="status-openelis" data-i18n="status.checking">Checking…</div>
           <div class="icon-wrapper">
             <img src="/assets/images/lab.png" alt="Laboratory Information System Icon" />
           </div>
@@ -70,7 +70,7 @@
 
         <!-- Odoo -->
         <a href="${DASHBOARD_ODOO_URL}" target="nidan-odoo" rel="noopener" class="card" id="card-odoo">
-          <div class="status-badge status-checking" id="status-odoo">Checking...</div>
+          <div class="status-badge status-checking" id="status-odoo" data-i18n="status.checking">Checking…</div>
           <div class="icon-wrapper">
             <img src="/assets/images/billing.png" alt="ERP & Inventory Icon" />
           </div>
@@ -79,7 +79,7 @@
 
         <!-- Orthanc -->
         <a href="/orthanc-container/ui/app/index.html#/" target="nidan-orthanc" rel="noopener" class="card" id="card-orthanc">
-          <div class="status-badge status-checking" id="status-orthanc">Checking...</div>
+          <div class="status-badge status-checking" id="status-orthanc" data-i18n="status.checking">Checking…</div>
           <div class="icon-wrapper">
             <img src="/assets/images/pacs.png" alt="PACS &amp; Imaging Icon" />
           </div>
@@ -88,7 +88,7 @@
 
         <!-- Middleware UI -->
         <a href="/cis/dead-letters/index.html" target="nidan-cis" rel="noopener" class="card" id="card-cis">
-          <div class="status-badge status-checking" id="status-cis">Checking...</div>
+          <div class="status-badge status-checking" id="status-cis" data-i18n="status.checking">Checking…</div>
           <div class="icon-wrapper">
             <img src="/assets/images/crisis.png" alt="Integration &amp; Error Management Icon" />
           </div>
@@ -97,7 +97,7 @@
 
         <!-- Superset -->
         <a href="/superset/" target="nidan-superset" rel="noopener" class="card" id="card-superset">
-          <div class="status-badge status-checking" id="status-superset">Checking...</div>
+          <div class="status-badge status-checking" id="status-superset" data-i18n="status.checking">Checking…</div>
           <div class="icon-wrapper">
             <img src="/assets/images/analytics.png" alt="Analytics &amp; Business Intelligence Icon" />
           </div>
@@ -106,7 +106,7 @@
 
         <!-- DHIS2 -->
         <a href="/dhis2/" target="nidan-dhis2" rel="noopener" class="card" id="card-dhis2">
-          <div class="status-badge status-checking" id="status-dhis2">Checking...</div>
+          <div class="status-badge status-checking" id="status-dhis2" data-i18n="status.checking">Checking…</div>
           <div class="icon-wrapper">
             <img src="/assets/images/dhis2-report.png" alt="HMIS Reporting Icon" />
           </div>

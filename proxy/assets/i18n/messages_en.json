@@ -10,6 +10,7 @@
   "card.dhis2": "Federal & Provincial HMIS Reporting",
   "status.online": "Online",
   "status.offline": "Offline",
+  "status.checking": "Checking…",
   "identity.signedInAs": "Signed in as {name}",
   "identity.signOut": "Sign out",
   "launcher.noApps": "You do not have access to any application yet. Ask your hospital administrator.",

@@ -29,6 +29,7 @@
     if (!card || !badge) return;
     card.classList.toggle('offline', !online);
     badge.className = 'status-badge ' + (online ? 'status-online' : 'status-offline');
+    badge.removeAttribute('data-i18n');                // no longer the "checking" text
     badge.textContent = online ? t('status.online') : t('status.offline');
   }
 
