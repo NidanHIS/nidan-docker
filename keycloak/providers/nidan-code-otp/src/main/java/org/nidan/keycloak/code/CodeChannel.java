@@ -19,8 +19,13 @@ import org.keycloak.models.UserModel;
  * hospital admin (user profile: admin edit), so a stolen password cannot redirect codes. The person turns a channel
  * on for themselves (flag attribute, set by CodeSetupAction after a code reached them).
  *
- * Settings live in the realm (realm import, from env): SMTP for email; realm attributes for SMS
- * (nidanSmsProvider = sparrow | aakash | webhook | none, nidanSmsUrl, nidanSmsToken, nidanSmsFrom).
+ * Settings: SMTP from the realm for email. SMS: realm attributes nidanSmsProvider (sparrow | aakash | webhook |
+ * none), nidanSmsUrl, nidanSmsFrom; the token from Keycloak's own environment (NIDAN_SMS_TOKEN), so it is not in the
+ * realm (realm attributes are shown unmasked to realm admins and in exports). A realm attribute nidanSmsToken is
+ * read only when the env is empty (the test harness sets it per test).
+ *
+ * The flag a person sets by confirming a code holds a hash of the destination it was confirmed for: a later change
+ * of the email / phone by any route (Staff page, admin console, script) leaves the channel off until confirmed again.
  */
 enum CodeChannel {
     EMAIL("email", "nidan_2fa_email"),
@@ -42,19 +47,36 @@ enum CodeChannel {
         return d == null || d.isBlank() ? null : d.trim();
     }
 
-    /** The realm has what this channel needs (SMTP host / an SMS provider). */
+    /** The realm has what this channel needs (SMTP host / an SMS provider, its token, and a URL for webhook). */
     boolean available(RealmModel realm) {
         if (this == EMAIL) {
             Map<String, String> smtp = realm.getSmtpConfig();
             return smtp != null && notBlank(smtp.get("host")) && notBlank(smtp.get("from"));
         }
         String p = realm.getAttribute("nidanSmsProvider");
-        return notBlank(p) && !"none".equals(p) && notBlank(realm.getAttribute("nidanSmsToken"));
+        return notBlank(p) && !"none".equals(p) && notBlank(smsToken(realm))
+                && (!"webhook".equals(p) || notBlank(realm.getAttribute("nidanSmsUrl")));
     }
 
-    /** The person turned this channel on, it has a destination and the realm can send: then the login asks. */
-    boolean configuredFor(RealmModel realm, UserModel user) {
-        return available(realm) && destination(user) != null && "true".equals(user.getFirstAttribute(flagAttribute));
+    /** The value the flag holds once the person confirmed a code sent to this destination. */
+    static String confirmedValue(String destination) {
+        return Codes.hash(destination.trim().toLowerCase(java.util.Locale.ROOT), "");
+    }
+
+    /**
+     * The person turned this channel on for the destination it has now: then the login asks for a code. Deliberately
+     * NOT tied to the realm settings: if SMTP / SMS is switched off later, the step stays required and fails closed
+     * (the page says codes are unavailable) instead of silently dropping to password only. An admin turns the flag off
+     * to let such a person in.
+     */
+    boolean configuredFor(UserModel user) {
+        String d = destination(user);
+        return d != null && confirmedValue(d).equals(user.getFirstAttribute(flagAttribute));
+    }
+
+    static String smsToken(RealmModel realm) {
+        String env = System.getenv("NIDAN_SMS_TOKEN");
+        return notBlank(env) ? env : realm.getAttribute("nidanSmsToken");
     }
 
     /** Sends the code; throws on any failure (the caller shows "could not send"). Never logs the code or token. */
@@ -72,7 +94,7 @@ enum CodeChannel {
 
     private static void sendSms(RealmModel realm, String phone, String text) throws Exception {
         String provider = realm.getAttribute("nidanSmsProvider");
-        String token = realm.getAttribute("nidanSmsToken");
+        String token = smsToken(realm);
         String url = realm.getAttribute("nidanSmsUrl");
         String local = phone.replaceAll("\\D", "").replaceFirst("^977", "");   // Nepali gateways take 98XXXXXXXX
         HttpRequest.Builder req;

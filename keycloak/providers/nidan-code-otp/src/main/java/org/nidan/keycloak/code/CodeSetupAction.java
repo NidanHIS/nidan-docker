@@ -37,7 +37,7 @@ public class CodeSetupAction implements RequiredActionProvider {
         } else if (ch.destination(user) == null) {
             err = "nidanCodeNoContact";
         } else {
-            err = CodeFlow.sendNew(ctx.getSession(), ctx.getRealm(), user, ctx.getAuthenticationSession(), ch);
+            err = CodeFlow.sendNew(ctx.getSession(), ctx.getRealm(), user, ctx.getAuthenticationSession(), ch, true);
             if (CodeFlow.WAIT.equals(err)) {
                 err = null;
             }
@@ -55,12 +55,12 @@ public class CodeSetupAction implements RequiredActionProvider {
         }
         if (f.containsKey("resend")) {
             ctx.challenge(CodeFlow.page(ctx.form(), ch, user, true,
-                    CodeFlow.sendNew(ctx.getSession(), ctx.getRealm(), user, ctx.getAuthenticationSession(), ch)));
+                    CodeFlow.sendNew(ctx.getSession(), ctx.getRealm(), user, ctx.getAuthenticationSession(), ch, true)));
             return;
         }
-        switch (CodeFlow.check(ctx.getAuthenticationSession(), ch, f.getFirst("code"))) {
+        switch (CodeFlow.check(ctx.getAuthenticationSession(), ch, true, f.getFirst("code"))) {
             case OK -> {
-                user.setSingleAttribute(ch.flagAttribute, "true");
+                user.setSingleAttribute(ch.flagAttribute, CodeChannel.confirmedValue(ch.destination(user)));
                 ctx.success();
             }
             case WRONG -> ctx.challenge(CodeFlow.page(ctx.form(), ch, user, true, "nidanCodeWrong"));

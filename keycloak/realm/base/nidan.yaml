@@ -174,8 +174,8 @@ authenticationFlows:
 
 # Email / SMS codes (keycloak/providers/nidan-code-otp): the code goes to the email / phone a hospital admin entered;
 # the person turns a channel on from the launcher (nidan-*-code-setup). Each channel is off until its settings are
-# set (env.template): SMTP for email, NIDAN_SMS_* for SMS. Values land in the realm (visible to realm admins only,
-# like Keycloak's own SMTP password).
+# set (env.template): SMTP for email, NIDAN_SMS_* for SMS. The SMTP password is masked by Keycloak; the SMS token is NOT
+# kept in the realm (attributes show unmasked to realm admins and in exports): the keycloak service reads it from env.
 smtpServer:
   host: "$(env:NIDAN_SMTP_HOST:-)"
   port: "$(env:NIDAN_SMTP_PORT:-587)"
@@ -189,7 +189,6 @@ smtpServer:
 attributes:
   nidanSmsProvider: "$(env:NIDAN_SMS_PROVIDER:-none)"     # sparrow | aakash | webhook | none
   nidanSmsUrl: "$(env:NIDAN_SMS_URL:-)"                    # webhook URL, or to override the provider's API URL
-  nidanSmsToken: "$(env:NIDAN_SMS_TOKEN:-)"
   nidanSmsFrom: "$(env:NIDAN_SMS_FROM:-)"                  # Sparrow sender identity
 # The full list (keycloak-config-cli removes required actions this file does not name); the two nidan-* are ours.
 requiredActions:
@@ -221,7 +220,7 @@ components:
       subComponents: {}
       config:
         kc.user.profile.config:
-          - '{"attributes":[{"name":"username","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${username}","validations":{"length":{"min":3,"max":40},"username-prohibited-characters":{},"up-username-not-idn-homograph":{},"pattern":{"pattern":"$(env:KC_USERNAME_PATTERN)","error-message":"nidanUsernameReserved"}}},{"name":"email","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${email}","validations":{"email":{},"length":{"max":255}}},{"name":"firstName","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${firstName}","required":{"roles":["admin","user"]},"validations":{"length":{"max":255},"person-name-prohibited-characters":{}}},{"name":"lastName","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${lastName}","required":{"roles":["admin","user"]},"validations":{"length":{"max":255},"person-name-prohibited-characters":{}}},{"name":"gender","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"Gender","required":{"roles":["admin","user"]},"validations":{"options":{"options":["M","F","O","U"]}}},{"name":"nidan_shops","displayName":"POS shops","multivalued":true,"permissions":{"view":["admin"],"edit":["admin"]}},{"name":"nidan_locations","displayName":"Locations","multivalued":true,"permissions":{"view":["admin"],"edit":["admin"]}},{"name":"nidan_lab_units","displayName":"Lab units","multivalued":true,"permissions":{"view":["admin"],"edit":["admin"]}},{"name":"phone","displayName":"Phone (for SMS codes)","permissions":{"view":["admin","user"],"edit":["admin"]},"validations":{"pattern":{"pattern":"^\\+?[0-9 ]{7,16}$","error-message":"nidanPhoneInvalid"}}},{"name":"nidan_2fa_email","displayName":"Email codes on","permissions":{"view":["admin"],"edit":["admin"]},"validations":{"options":{"options":["true","false"]}}},{"name":"nidan_2fa_sms","displayName":"SMS codes on","permissions":{"view":["admin"],"edit":["admin"]},"validations":{"options":{"options":["true","false"]}}}]}'
+          - '{"attributes":[{"name":"username","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${username}","validations":{"length":{"min":3,"max":40},"username-prohibited-characters":{},"up-username-not-idn-homograph":{},"pattern":{"pattern":"$(env:KC_USERNAME_PATTERN)","error-message":"nidanUsernameReserved"}}},{"name":"email","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${email}","validations":{"email":{},"length":{"max":255}}},{"name":"firstName","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${firstName}","required":{"roles":["admin","user"]},"validations":{"length":{"max":255},"person-name-prohibited-characters":{}}},{"name":"lastName","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"${lastName}","required":{"roles":["admin","user"]},"validations":{"length":{"max":255},"person-name-prohibited-characters":{}}},{"name":"gender","permissions":{"view":["admin","user"],"edit":["admin"]},"displayName":"Gender","required":{"roles":["admin","user"]},"validations":{"options":{"options":["M","F","O","U"]}}},{"name":"nidan_shops","displayName":"POS shops","multivalued":true,"permissions":{"view":["admin"],"edit":["admin"]}},{"name":"nidan_locations","displayName":"Locations","multivalued":true,"permissions":{"view":["admin"],"edit":["admin"]}},{"name":"nidan_lab_units","displayName":"Lab units","multivalued":true,"permissions":{"view":["admin"],"edit":["admin"]}},{"name":"phone","displayName":"Phone (for SMS codes)","permissions":{"view":["admin","user"],"edit":["admin"]},"validations":{"pattern":{"pattern":"^\\+?[0-9 ]{7,16}$","error-message":"nidanPhoneInvalid"}}},{"name":"nidan_2fa_email","displayName":"Email codes on","permissions":{"view":["admin"],"edit":["admin"]},"validations":{"pattern":{"pattern":"^[0-9a-f]{64}$","error-message":"nidanCodeFlagInvalid"}}},{"name":"nidan_2fa_sms","displayName":"SMS codes on","permissions":{"view":["admin"],"edit":["admin"]},"validations":{"pattern":{"pattern":"^[0-9a-f]{64}$","error-message":"nidanCodeFlagInvalid"}}}]}'
 
 clients:
   # Gateway (oauth2-proxy). One client for every gateway origin.

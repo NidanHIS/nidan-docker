@@ -26,13 +26,15 @@ final class CodeFlow {
         };
     }
 
-    static String prefix(CodeChannel ch) {
-        return "nidan.code." + ch.id + ".";
+    /** Sign-in and set-up keep their own codes (both can run in one login session). */
+    static String prefix(CodeChannel ch, boolean setup) {
+        return "nidan.code." + (setup ? "setup." : "") + ch.id + ".";
     }
 
     /** Sends a new code; returns a message key on failure (WAIT = one was sent less than a minute ago). */
-    static String sendNew(KeycloakSession session, RealmModel realm, UserModel user, AuthenticationSessionModel as, CodeChannel ch) {
-        String code = Codes.issue(notes(as), prefix(ch), System.currentTimeMillis(), RANDOM);
+    static String sendNew(KeycloakSession session, RealmModel realm, UserModel user, AuthenticationSessionModel as, CodeChannel ch,
+                          boolean setup) {
+        String code = Codes.issue(notes(as), prefix(ch, setup), System.currentTimeMillis(), RANDOM);
         if (code == null) {
             return WAIT;
         }
@@ -46,18 +48,22 @@ final class CodeFlow {
         }
     }
 
-    static Codes.Result check(AuthenticationSessionModel as, CodeChannel ch, String entered) {
-        return Codes.check(notes(as), prefix(ch), System.currentTimeMillis(), entered);
+    static Codes.Result check(AuthenticationSessionModel as, CodeChannel ch, boolean setup, String entered) {
+        return Codes.check(notes(as), prefix(ch, setup), System.currentTimeMillis(), entered);
     }
 
     static Response page(LoginFormsProvider form, CodeChannel ch, UserModel user, boolean setup, String error) {
+        return page(form, ch, user, setup, error, ch.destination(user) != null);
+    }
+
+    static Response page(LoginFormsProvider form, CodeChannel ch, UserModel user, boolean setup, String error, boolean canEnter) {
         if (error != null) {
             form.setError(error);
         }
         return form.setAttribute("nidanChannel", ch.id)
                 .setAttribute("nidanDestination", Codes.mask(ch.destination(user)))
                 .setAttribute("nidanSetup", setup)
-                .setAttribute("nidanCanEnter", ch.destination(user) != null)
+                .setAttribute("nidanCanEnter", canEnter)
                 .createForm("nidan-code.ftl");
     }
 }

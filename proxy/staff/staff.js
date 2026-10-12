@@ -196,8 +196,17 @@
   async function savePlaces(form) {
     const err = $('places-error');
     err.hidden = true;
-    // Keycloak replaces the whole attribute map on update, so send every attribute it gave us (gender included)
-    // with only the three place fields changed. Never roles, groups or credentials.
+    // Keycloak replaces the whole attribute map on update, so send every attribute it has (gender included) with only
+    // the fields of this dialog changed. Read the person again first: a sign-in code turned on while the dialog was
+    // open must not be overwritten by the copy loaded when it opened. Never roles, groups or credentials.
+    try {
+      placesFor = Object.assign(await api('GET', '/users/' + placesFor.id), { opened: placesFor.opened || placesFor });
+    } catch (e) {
+      err.textContent = 'Could not save: ' + (e.detail || e.message);
+      err.hidden = false;
+      return;
+    }
+    const opened = placesFor.opened;
     const attributes = Object.assign({}, placesFor.attributes || {});
     try {
       for (const name of PLACES) {
@@ -217,8 +226,8 @@
       return;
     }
     // a new address or number must be confirmed by the person before codes go there: turn that channel off
-    if (email !== (placesFor.email || '')) delete attributes.nidan_2fa_email;
-    if (phone !== (((placesFor.attributes || {}).phone || [])[0] || '')) delete attributes.nidan_2fa_sms;
+    if (email !== (opened.email || '')) delete attributes.nidan_2fa_email;
+    if (phone !== (((opened.attributes || {}).phone || [])[0] || '')) delete attributes.nidan_2fa_sms;
     if (phone) attributes.phone = [phone]; else delete attributes.phone;
     const body = { username: placesFor.username, firstName: placesFor.firstName, lastName: placesFor.lastName, attributes };
     if (email || placesFor.email) body.email = email;   // only when there is one, or the admin cleared it

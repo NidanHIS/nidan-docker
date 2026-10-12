@@ -1,5 +1,5 @@
 import { test, expect, APIRequestContext, Page } from '@playwright/test';
-import { createHmac } from 'crypto';
+import { createHash, createHmac } from 'crypto';
 
 /**
  * Optional second step (user decision 2026-10-12): nobody has to set one up; anyone can, from the launcher's
@@ -191,7 +191,9 @@ test.describe('optional second step', () => {
         await page.click('#kc-login');
         await onLauncher(page);
         const user = await (await admin(request, `/users/${p.id}`)).json();
-        expect(user.attributes[flag], 'turned on only after the code came back').toEqual(['true']);
+        // the flag names the destination it was confirmed for (a later change of email / phone turns it off)
+        expect(user.attributes[flag], 'turned on only after the code came back, for this destination')
+          .toEqual([createHash('sha256').update(to.trim().toLowerCase()).digest('hex')]);
 
         await signOut(page);
         await passwordStep(page, p.username);
@@ -218,6 +220,40 @@ test.describe('optional second step', () => {
     await onLauncher(page);
     const user = await (await admin(request, `/users/${p.id}`)).json();
     expect(user.attributes?.nidan_2fa_sms, 'still off').toBeUndefined();
+  });
+
+  // Fail closed (review 2026-10-12): codes turned on, then the hospital's email settings disappear (a redeploy without
+  // NIDAN_SMTP_HOST). The sign-in must not fall back to password only.
+  test('codes turned on but the email settings removed: the sign-in stops, never password only @KC-09-09 @security @sso-on-only', async ({ page, request }) => {
+    await harnessChannels(request);
+    const to = `closed${Date.now()}@nidan.test`;
+    const p = await person(request, { email: to });
+    const user = await (await admin(request, `/users/${p.id}`)).json();
+    await admin(request, `/users/${p.id}`, 'PUT', { ...user, attributes: { ...user.attributes,
+      nidan_2fa_email: [createHash('sha256').update(to).digest('hex')] } });
+    const realm = await (await admin(request, '')).json();
+    await admin(request, '', 'PUT', { smtpServer: { ...realm.smtpServer, host: '' } });
+    try {
+      await passwordStep(page, p.username);
+      await expect(page.getByText('Codes this way are not set up for this hospital yet')).toBeVisible();
+      await expect(page.locator('#code'), 'nothing to type').toHaveCount(0);
+      await page.waitForTimeout(1_000);
+      expect(page.url(), 'not signed in').not.toMatch(/^https:\/\/localhost\/(\?|$)/);
+    } finally {
+      await harnessChannels(request);
+    }
+  });
+
+  // A changed address is not trusted until confirmed again, whoever changed it (here: the Keycloak admin API).
+  test('email changed outside the Staff page: codes stay off until the person confirms the new address @KC-09-09 @security @sso-on-only', async ({ page, request }) => {
+    await harnessChannels(request);
+    const old = `old${Date.now()}@nidan.test`;
+    const p = await person(request, { email: old });
+    const user = await (await admin(request, `/users/${p.id}`)).json();
+    await admin(request, `/users/${p.id}`, 'PUT', { ...user, email: `new${Date.now()}@nidan.test`, attributes: { ...user.attributes,
+      nidan_2fa_email: [createHash('sha256').update(old).digest('hex')] } });
+    await passwordStep(page, p.username);
+    await onLauncher(page);                                 // the confirmation was for the old address: no code step
   });
 });
 

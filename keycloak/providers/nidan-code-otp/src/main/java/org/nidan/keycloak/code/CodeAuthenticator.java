@@ -18,7 +18,12 @@ public class CodeAuthenticator implements Authenticator {
 
     @Override
     public void authenticate(AuthenticationFlowContext ctx) {
-        String err = CodeFlow.sendNew(ctx.getSession(), ctx.getRealm(), ctx.getUser(), ctx.getAuthenticationSession(), ch);
+        if (!ch.available(ctx.getRealm())) {
+            // turned on, but the hospital's email / SMS settings are gone: fail closed, never password-only
+            ctx.challenge(CodeFlow.page(ctx.form(), ch, ctx.getUser(), false, "nidanCodeUnavailable", false));
+            return;
+        }
+        String err = CodeFlow.sendNew(ctx.getSession(), ctx.getRealm(), ctx.getUser(), ctx.getAuthenticationSession(), ch, false);
         // a reload within the minute keeps the code already sent: not an error on first view
         ctx.challenge(CodeFlow.page(ctx.form(), ch, ctx.getUser(), false, CodeFlow.WAIT.equals(err) ? null : err));
     }
@@ -27,11 +32,11 @@ public class CodeAuthenticator implements Authenticator {
     public void action(AuthenticationFlowContext ctx) {
         MultivaluedMap<String, String> f = ctx.getHttpRequest().getDecodedFormParameters();
         if (f.containsKey("resend")) {
-            String err = CodeFlow.sendNew(ctx.getSession(), ctx.getRealm(), ctx.getUser(), ctx.getAuthenticationSession(), ch);
+            String err = CodeFlow.sendNew(ctx.getSession(), ctx.getRealm(), ctx.getUser(), ctx.getAuthenticationSession(), ch, false);
             ctx.challenge(CodeFlow.page(ctx.form(), ch, ctx.getUser(), false, err));
             return;
         }
-        switch (CodeFlow.check(ctx.getAuthenticationSession(), ch, f.getFirst("code"))) {
+        switch (CodeFlow.check(ctx.getAuthenticationSession(), ch, false, f.getFirst("code"))) {
             case OK -> ctx.success();
             // failureChallenge counts towards Keycloak's lockout, like a wrong password
             case WRONG -> ctx.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS,
@@ -49,7 +54,7 @@ public class CodeAuthenticator implements Authenticator {
 
     @Override
     public boolean configuredFor(KeycloakSession session, RealmModel realm, UserModel user) {
-        return ch.configuredFor(realm, user);
+        return ch.configuredFor(user);
     }
 
     @Override

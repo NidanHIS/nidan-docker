@@ -16,3 +16,16 @@ sign-in; only a salted hash is kept, in the login session. They go to the email 
 a person turns a channel on from the launcher after typing back a code sent there.
 SMS providers: `sparrow` and `aakash` follow their published APIs and are **not yet tested against a live
 account**; `webhook` is what the test harness uses.
+
+Behaviour worth knowing (security review 2026-10-12):
+- A channel once turned on stays required. If its settings disappear (SMTP host / SMS provider or token removed),
+  the sign-in stops with "not set up for this hospital" instead of letting the person in with the password alone;
+  a Keycloak admin turns the person's `nidan_2fa_*` attribute off to let them in.
+- The "on" flag holds a hash of the email / phone it was confirmed for: changing the address by any route turns the
+  channel off until the person confirms the new one.
+- The SMS token is read from the Keycloak container's `NIDAN_SMS_TOKEN`, not stored in the realm (realm attributes
+  are shown unmasked to realm admins and in exports).
+- Accepted limits: guesses during set-up are not counted by Keycloak's brute-force lockout (each set-up allows
+  3 sends x 5 tries; a wrong set-up only leaves the channel off), and parallel requests on one login session can try
+  a code more than 5 times (every wrong sign-in code still counts towards the lockout).
+

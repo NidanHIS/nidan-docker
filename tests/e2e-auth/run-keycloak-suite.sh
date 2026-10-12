@@ -18,7 +18,7 @@
 #               re-imports the realm after.
 #   orthanc     harness/orthanc.yml (Orthanc lockdown checks).
 #
-# Env: PAYWALL_PATIENT (an Odoo patient uuid with an unpaid cart; paywall tests skip without it), SLOW=1 to include
+# Env: PAYWALL_PATIENT (default: harness/paywall-fixture.py creates/reuses the harness paywall patient), SLOW=1 to include
 # @slow tests in the full stage (they always run in disruptive). Exit 1 if any stage failed or the matrix shows a
 # FAILED or MISSING criterion.
 set -uo pipefail
@@ -82,7 +82,10 @@ full_env() {
   export OPENMRS_SSO_FULL=1 OPENMRS_DB_EXEC=1 ODOO_SSO_FULL=1 SUPERSET_SSO_FULL=1 OPENELIS_SSO_FULL=1 CIS_SYNC_FULL=1 \
     IMAGING_SSO_FULL=1 DHIS2_LOCAL=1 KC_ADMIN_PERMISSIONS=1 KEYCLOAK_URL=$KC KEYCLOAK_PUBLIC_URL=$KC_PUBLIC \
     GATEWAY_DOMAIN=localhost GATEWAY_URL=https://localhost GATEWAY_HTTP=http://localhost GATEWAY_OE_URL=https://localhost:18444
-  [ -n "${PAYWALL_PATIENT:-}" ] || echo "note: PAYWALL_PATIENT unset - the paywall tests (KC-14-04/05/07) will skip"
+  # the harness paywall patient with its unpaid Rs 500 cart (harness/paywall-fixture.py, idempotent)
+  [ -n "${PAYWALL_PATIENT:-}" ] || PAYWALL_PATIENT=$(python3 -I "$H/paywall-fixture.py" 2>/dev/null | sed -n 's/^PAYWALL_PATIENT=//p')
+  export PAYWALL_PATIENT
+  [ -n "$PAYWALL_PATIENT" ] || echo "note: no paywall test data (harness/paywall-fixture.py) - the paywall tests (KC-14-04/05/07) will skip"
 }
 
 # the stub-harness stages must not see the full stage's settings (they would run the real-app specs against stubs)

@@ -7,8 +7,8 @@ One command runs them the same way every time and writes a matrix of all 311 cri
 ```bash
 cd nidan-docker/tests/e2e-auth
 npm ci && npx playwright install chromium          # once
-PAYWALL_PATIENT=<odoo patient uuid> ./run-keycloak-suite.sh          # full harness stage (default)
-PAYWALL_PATIENT=<uuid> ./run-keycloak-suite.sh --all                  # every stage
+./run-keycloak-suite.sh          # full harness stage (default)
+./run-keycloak-suite.sh --all    # every stage
 ```
 
 Results: `KEYCLOAK-TEST-MATRIX.md` (and `reports/run-<time>/`, one folder per run), the HTML report in
@@ -53,8 +53,8 @@ First start only:
   servlet registers. The distro's `authentication` module must be stopped (it overrides oauth2login, KC-34-01).
 - Odoo starts with base + auth_oidc; install the rest once:
   `docker exec nidan-sso-openmrs-harness-odoo-1 odoo -c /etc/odoo/odoo.conf -d nidan --stop-after-init --http-port=8075 -i nidan_keycloak_sso,nidan_connector,nidan_pos_enhance,nidan_billing_sync,nidan_payment_management,nidan_portal_desk,pos_esewa_qr,pos_khalti_qr,trigonal_ird`
-- `PAYWALL_PATIENT`: an OpenMRS patient uuid that Odoo knows (res.partner `patient_uuid`) with an unpaid POS cart of
-  Rs 500 (KC-14-04 checks that amount). Without it the paywall tests skip.
+- Paywall test data: the runner calls `harness/paywall-fixture.py` (idempotent), which gives the harness OpenMRS patient
+  "Harness Paywall" an Odoo partner with an unpaid Rs 500 POS cart and sets `PAYWALL_PATIENT` (KC-14-04/05/07).
 
 Addresses on the full harness: gateway https://localhost (443), :8443 as 18444, Keycloak login https://localhost:18445/auth
 (the gateway's :9443), Odoo https://localhost:8069 (through the gateway), Keycloak admin API http://localhost:18180/auth
