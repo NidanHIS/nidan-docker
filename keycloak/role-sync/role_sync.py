@@ -36,6 +36,9 @@ KC = os.environ.get("KEYCLOAK_URL", "http://keycloak:8080/auth").rstrip("/")
 REALM = os.environ.get("KEYCLOAK_REALM", "nidan")
 SOURCE = "nidan_source"
 SUPER = "nidan_superuser"
+MISSING = "nidan_missing_since"      # epoch seconds: first run that did not see the role in the app
+# a role gone from the app is deleted only after this long (a partial answer, e.g. during an upgrade, deletes nothing)
+DELETE_AFTER = int(os.environ.get("ROLE_SYNC_DELETE_AFTER", "86400"))
 
 # OpenMRS: superuser = an administrative privilege, directly or inherited (also used by scripts/bootstrap-export.py);
 # the machine accounts' roles never go to people
@@ -131,8 +134,12 @@ SOURCES = {
 
 class Keycloak:
     def __init__(self):
-        self.token = client_token("master", "nidan-role-sync", os.environ["KC_ROLE_SYNC_ADMIN_SECRET"])
         self.base = f"{KC}/admin/realms/{REALM}"
+        self.refresh()
+
+    def refresh(self):
+        """A fresh admin token (master tokens live about a minute): once per app."""
+        self.token = client_token("master", "nidan-role-sync", os.environ["KC_ROLE_SYNC_ADMIN_SECRET"])
 
     def get(self, path):
         return http("GET", self.base + path, self.token)
@@ -166,7 +173,8 @@ class Keycloak:
 
     def staff_groups(self):
         """[(path, id)] of every group below /staff (children read one level at a time: a search filters them)."""
-        out, todo = [], [g["id"] for g in self.get("/groups?max=1000") if g["path"] == "/staff"]
+        out = [(g["path"], g["id"]) for g in self.get("/groups?max=1000") if g["path"] == "/staff"]
+        todo = [i for _, i in out]           # /staff itself too: its roles reach every job below it
         while todo:
             for g in self.get(f"/groups/{todo.pop()}/children?max=1000"):
                 out.append((g["path"], g["id"]))
@@ -174,8 +182,15 @@ class Keycloak:
         return out
 
 
-def plan(app, live, kc_roles):
-    """(create, update, delete_candidates) for one app. Pure: tested offline."""
+def valid_name(name):
+    """Keycloak keeps role names up to 255 characters; a "/" does not survive its admin URL paths."""
+    return 0 < len(name) <= 255 and "/" not in name and not any(ord(c) < 32 for c in name)
+
+
+def plan(app, live, kc_roles, now=None):
+    """(create, update, delete_candidates) for one app. Pure: tested offline. A role this job made that the app no
+    longer has is first marked missing (an update); it becomes a delete candidate DELETE_AFTER seconds later."""
+    now = int(time.time()) if now is None else now
     mark = f"{app}-sync"
     create, update, gone = [], [], []
     for name, info in sorted(live.items()):
@@ -187,40 +202,67 @@ def plan(app, live, kc_roles):
                 (have.get("attributes") or {}) != want or (have.get("description") or "") != info["description"][:255]):
             update.append({**have, "description": info["description"][:255], "attributes": want})
     if live:                            # an empty answer never deletes everything
-        gone = sorted(n for n, r in kc_roles.items()
-                      if n not in live and (r.get("attributes") or {}).get(SOURCE) == [mark])
+        for n, r in sorted(kc_roles.items()):
+            attrs = r.get("attributes") or {}
+            if n in live or attrs.get(SOURCE) != [mark]:
+                continue
+            since = (attrs.get(MISSING) or [""])[0]
+            if not since.isdigit():
+                update.append({**r, "attributes": {**attrs, MISSING: [str(now)]}})
+            elif now - int(since) >= DELETE_AFTER:
+                gone.append(n)
     return create, update, gone
 
 
 def sync_app(kc, app, live):
     """One app: create / update / delete-when-unused, then the KC-57 check. Returns the number of problems."""
+    kc.refresh()
     cid = kc.client_id(app)
     if not cid:
         log(f"{app}: no Keycloak client {app!r}; skipped")
         return 0
-    create, update, gone = plan(app, live, kc.roles(cid))
-    for r in create:
-        http("POST", f"{kc.base}/clients/{cid}/roles", kc.token, r)
-    for r in update:
-        http("PUT", kc.base + kc.role_path(cid, r["name"]), kc.token, r)
-    deleted, kept = [], []
-    children = kc.composite_children(cid) if gone else set()
-    for name in gone:
-        if kc.in_use(cid, name, children):
-            kept.append(name)
-        else:
-            http("DELETE", kc.base + kc.role_path(cid, name), kc.token)
-            deleted.append(name)
-    log(f"{app}: {len(live)} roles in the app; created {len(create)}, updated {len(update)}, deleted {deleted or 0}"
-        + (f"; KEPT (gone from the app but still assigned, remove the assignments first): {kept}" if kept else ""))
-    # KC-57 at runtime: a staff job must never carry a superuser role (directly or through a composite)
     problems = 0
-    superusers = {n for n, i in live.items() if i["superuser"]}
-    for path, gid in kc.staff_groups():
-        held = {r["name"] for r in kc.get(f"/groups/{gid}/role-mappings/clients/{cid}/composite")}
-        for name in sorted(held & superusers):
-            log(f"ERROR {path} holds the {app} superuser role {name!r} (KC-57): move it to app-superusers")
-            problems += 1
+    bad = sorted(n for n in live if not valid_name(n))
+    if bad:
+        log(f"{app}: skipped {len(bad)} role name(s) Keycloak cannot hold (over 255 characters, '/' or control "
+            f"characters): {[n[:60] for n in bad]}")
+        live = {n: i for n, i in live.items() if n not in bad}
+    try:
+        create, update, gone = plan(app, live, kc.roles(cid))
+        failed = []
+        for method, rows in (("POST", create), ("PUT", update)):
+            for r in rows:                  # one refused role never stops the others
+                try:
+                    url = f"{kc.base}/clients/{cid}/roles" if method == "POST" else kc.base + kc.role_path(cid, r["name"])
+                    http(method, url, kc.token, r)
+                except (OSError, ValueError) as e:
+                    failed.append(f"{r['name'][:60]} ({getattr(e, 'code', '') or type(e).__name__})")
+        deleted, kept = [], []
+        children = kc.composite_children(cid) if gone else set()
+        for name in gone:
+            try:
+                if kc.in_use(cid, name, children):      # checked right before the delete
+                    kept.append(name)
+                else:
+                    http("DELETE", kc.base + kc.role_path(cid, name), kc.token)
+                    deleted.append(name)
+            except (OSError, ValueError) as e:
+                failed.append(f"{name[:60]} ({getattr(e, 'code', '') or type(e).__name__})")
+        marked = sum(1 for r in update if MISSING in (r.get("attributes") or {}))
+        log(f"{app}: {len(live)} roles in the app; created {len(create)}, updated {len(update) - marked}, "
+            f"marked missing {marked}, deleted {deleted or 0}"
+            + (f"; KEPT (gone from the app but still assigned, remove the assignments first): {kept}" if kept else "")
+            + (f"; FAILED: {failed}" if failed else ""))
+        problems += 1 if failed else 0
+    finally:
+        # KC-57 at runtime, whatever happened above: a staff job never carries a superuser role (directly, through a
+        # composite, or from /staff itself)
+        superusers = {n for n, i in live.items() if i["superuser"]}
+        for path, gid in kc.staff_groups():
+            held = {r["name"] for r in kc.get(f"/groups/{gid}/role-mappings/clients/{cid}/composite")}
+            for name in sorted(held & superusers):
+                log(f"ERROR {path} holds the {app} superuser role {name!r} (KC-57): move it to app-superusers")
+                problems += 1
     return problems
 
 
@@ -265,11 +307,17 @@ def self_test():
           "Old": {"name": "Old", "attributes": {SOURCE: ["openmrs-sync"]}},
           "FromFile": {"name": "FromFile", "attributes": {}},
           "OtherApp": {"name": "OtherApp", "attributes": {SOURCE: ["odoo-sync"]}}}
-    c, u, g = plan("openmrs", live, kc)
+    c, u, g = plan("openmrs", live, kc, now=1000)
     assert [r["name"] for r in c] == ["Admin"] and c[0]["attributes"][SUPER] == ["true"]
-    assert [r["name"] for r in u] == ["Nurse"] and u[0]["description"] == "ward"
-    assert g == ["Old"], g                      # never the realm file's role or another app's
-    assert plan("openmrs", {}, kc) == ([], [], [])   # an empty answer deletes nothing
+    assert [r["name"] for r in u] == ["Nurse", "Old"] and u[0]["description"] == "ward"
+    assert u[1]["attributes"][MISSING] == ["1000"] and g == [], (u, g)   # first marked, never deleted at once
+    kc["Old"]["attributes"][MISSING] = ["1000"]
+    assert plan("openmrs", live, kc, now=1000 + DELETE_AFTER - 1)[2] == []
+    assert plan("openmrs", live, kc, now=1000 + DELETE_AFTER)[2] == ["Old"]   # never the realm file's or another app's
+    back = plan("openmrs", {**live, "Old": {"description": "", "superuser": False}}, kc, now=5000)[1]
+    assert any(r["name"] == "Old" and MISSING not in r["attributes"] for r in back)   # back in the app: unmarked
+    assert valid_name("Nurse") and not valid_name("x/y") and not valid_name("a" * 256) and not valid_name("a\nb")
+    assert plan("openmrs", {}, kc, now=10 ** 10) == ([], [], [])   # an empty answer deletes nothing
     same = {"Nurse": {"name": "Nurse", "description": "ward", "attributes": {SOURCE: ["openmrs-sync"]}}}
     assert plan("openmrs", {"Nurse": live["Nurse"]}, same) == ([], [], [])
     print("role_sync self-test ok")

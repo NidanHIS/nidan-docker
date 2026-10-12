@@ -61,9 +61,10 @@ APPS = {
         "begin": "BEGIN READ ONLY; SET LOCAL search_path = clinlims;", "end": "COMMIT;",
         "queries": [
             "SELECT 'U', id, login_name, CASE WHEN is_active = 'Y' THEN 1 ELSE 0 END, '' FROM system_user",
-            "SELECT 'R', r.name, COUNT(ur.system_user_id) FROM system_role r "
-            "LEFT JOIN system_user_role ur ON ur.role_id = r.id GROUP BY r.name",
-            "SELECT 'M', ur.system_user_id, r.name FROM system_user_role ur JOIN system_role r ON r.id = ur.role_id",
+            # system_role.name is a padded CHAR column; tokens and Keycloak carry the trimmed name
+            "SELECT 'R', rtrim(r.name), COUNT(ur.system_user_id) FROM system_role r "
+            "LEFT JOIN system_user_role ur ON ur.role_id = r.id GROUP BY rtrim(r.name)",
+            "SELECT 'M', ur.system_user_id, rtrim(r.name) FROM system_user_role ur JOIN system_role r ON r.id = ur.role_id",
         ],
     },
     "dhis2": {

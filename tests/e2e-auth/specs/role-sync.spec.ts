@@ -54,15 +54,17 @@ test('the apps\' own roles reach Keycloak, superuser roles flagged; realm-file r
   expect((await role(request, 'odoo', 'base.group_system'))?.attributes?.nidan_superuser).toEqual(['true']);
   // OpenELIS: a role from the realm file keeps no sync mark (config-cli owns it)
   expect((await role(request, 'openelis', 'Results'))?.attributes?.[MARK]).toBeUndefined();
-  expect(sync().out, 'a second run changes nothing').toMatch(/openmrs: \d+ roles in the app; created 0, updated 0, deleted 0/);
+  expect(sync().out, 'a second run changes nothing').toMatch(/openmrs: \d+ roles in the app; created 0, updated 0, marked missing 0, deleted 0/);
 });
 
 test('a synced role the app no longer has is deleted when unused and kept while assigned; other roles never @KC-24-01 @security @sso-on-only', async ({ request }) => {
   test.setTimeout(360_000);
   const id = await cid(request, 'openmrs');
   const stamp = Date.now();
-  const gone = `Gone Role ${stamp}`, held = `Held Role ${stamp}`, manual = `Manual Role ${stamp}`;
-  for (const [name, attributes] of [[gone, { [MARK]: ['openmrs-sync'] }], [held, { [MARK]: ['openmrs-sync'] }], [manual, {}]] as const)
+  const gone = `Gone Role ${stamp}`, held = `Held Role ${stamp}`, manual = `Manual Role ${stamp}`, fresh = `Fresh Gone ${stamp}`;
+  // missing since long ago (epoch 0) = past the one-day grace; "fresh" was never seen missing before this run
+  const old = { [MARK]: ['openmrs-sync'], nidan_missing_since: ['0'] };
+  for (const [name, attributes] of [[gone, old], [held, old], [manual, {}], [fresh, { [MARK]: ['openmrs-sync'] }]] as const)
     expect((await admin(request, `/clients/${id}/roles`, 'POST', { name, attributes })).status()).toBe(201);
   const username = `rsync${stamp}`;
   const u = await admin(request, '/users', 'POST', { username, enabled: true, firstName: 'Role', lastName: 'Sync',
@@ -77,11 +79,15 @@ test('a synced role the app no longer has is deleted when unused and kept while 
   expect(await role(request, 'openmrs', held), 'still assigned: kept').not.toBeNull();
   expect(run.out).toContain(`KEPT (gone from the app but still assigned, remove the assignments first): ['${held}']`);
   expect(await role(request, 'openmrs', manual), 'no sync mark: never touched').not.toBeNull();
+  const f = await role(request, 'openmrs', fresh);
+  expect(f, 'gone for the first time: kept a day, only marked').not.toBeNull();
+  expect(f.attributes.nidan_missing_since?.[0]).toMatch(/^\d+$/);
 
   // tidy up what this test made (the user and both remaining roles)
   await admin(request, `/users/${uid}`, 'DELETE');
   await admin(request, `/clients/${id}/roles/${encodeURIComponent(held)}`, 'DELETE');
   await admin(request, `/clients/${id}/roles/${encodeURIComponent(manual)}`, 'DELETE');
+  await admin(request, `/clients/${id}/roles/${encodeURIComponent(fresh)}`, 'DELETE');
 });
 
 test('a staff job holding a superuser role is reported and the run fails (KC-57) @KC-57-01 @security @sso-on-only', async ({ request }) => {

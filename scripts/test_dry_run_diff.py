@@ -97,9 +97,15 @@ def test_no_job_loses_everything():
 def test_unknown_job_and_unlinked_rows():
     code, _, notes, _ = run(export(), [["ram", "chef", "", ""]])
     assert code == 1 and any("'chef'" in n for n in notes), notes
-    # rows not decided "link" are not cut over, so nothing to diff
-    code, losses, notes, _ = run(export(), [], link=[["ram", "openmrs", "7", ""], ["ram", "odoo", "9", "skip"]])
+    # rows decided otherwise (skip, retire) are not cut over, so nothing to diff
+    code, losses, notes, _ = run(export(), [], link=[["ram", "openmrs", "7", "retire"], ["ram", "odoo", "9", "skip"]])
     assert (code, losses, notes) == (0, [], [])
+
+
+def test_unreviewed_workbook_fails():
+    # review 2026-10-13: a fresh workbook (no decisions) must never read as "no loss"
+    code, losses, notes, _ = run(export(), [], link=[["ram", "openmrs", "7", ""], ["ram", "odoo", "9", ""]])
+    assert code == 1 and losses == [] and any("2 active account(s) with no decision" in n for n in notes), notes
 
 
 def test_orphan_roles_reported_not_fatal():

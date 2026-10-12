@@ -4,7 +4,8 @@
   scripts/dry-run-diff.py EXPORT.json WORKBOOK_DIR
 
 Inputs: the bootstrap export, and in WORKBOOK_DIR the reviewed link-table.csv (rows with
-decision=link) plus jobs.csv, confirmed by the hospital:
+decision=link are cut over; every other active account needs a decision too, e.g. retire, or the run
+fails: an unreviewed workbook must never read as "no loss") plus jobs.csv, confirmed by the hospital:
   username, job, superuser, accept_loss
   job          a /staff/<job> group in keycloak/realm/** (blank = no job yet: everything is lost)
   superuser    "yes" routes the person to the operator-managed app-superusers group: their superuser
@@ -52,15 +53,22 @@ def read_csv(path):
 
 def diff(export, link_rows, job_rows, grants):
     held = {}  # (username, app) -> {roles} today
+    unreviewed = []
     for r in link_rows:
-        if (r.get("decision") or "").strip().lower() != "link":
+        decision = (r.get("decision") or "").strip().lower()
+        if not decision and (r.get("active") or "yes").strip().lower() != "no":
+            # an active account nobody decided on: skipping it would report "no loss" for a workbook never reviewed
+            unreviewed.append(f"{r.get('username')} ({r.get('app')} #{r.get('app_user_id')})")
+        if decision != "link":
             continue
         app, uid = r["app"], str(r["app_user_id"])
         roles = {m["role"] for m in (export.get(app) or {}).get("memberships", []) if str(m["user_id"]) == uid}
         held.setdefault((r["username"].lower(), app), set()).update(roles)
     jobs = {r["username"].strip().lower(): r for r in job_rows}
+    notes_head = [f"{len(unreviewed)} active account(s) with no decision in link-table.csv (link, or say why not, "
+                  f"e.g. retire): {', '.join(unreviewed[:10])}{' ...' if len(unreviewed) > 10 else ''}"] if unreviewed else []
     supers = {app: be.superusers(app, d) for app, d in export.items() if "error" not in d}
-    losses, notes = [], []
+    losses, notes = [], list(notes_head)
     for job, apps in sorted(grants.items()):
         for app, roles in sorted(apps.items()):
             for role in sorted(roles & supers.get(app, set())):
