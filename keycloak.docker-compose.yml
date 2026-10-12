@@ -192,6 +192,8 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD (generate-secrets.sh writes .env.local)}
       NIDAN_SMS_TOKEN: ${NIDAN_SMS_TOKEN:-}     # read by nidan-code-otp; kept out of the realm (unmasked there)
+      # keys the "email/SMS codes on" flag, so an admin cannot switch a person's channel on without them (32+ chars)
+      NIDAN_CODE_FLAG_KEY: ${NIDAN_CODE_FLAG_KEY:-}
     volumes:
       - ./keycloak/themes/nidan:/opt/keycloak/themes/nidan:ro   # login theme (KC-17)
       # email / SMS sign-in codes: build first (keycloak/providers/README.md); the realm's login flow needs it

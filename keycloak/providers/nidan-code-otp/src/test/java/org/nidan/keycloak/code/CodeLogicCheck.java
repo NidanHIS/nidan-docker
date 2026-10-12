@@ -42,6 +42,15 @@ public final class CodeLogicCheck {
 
         check(Codes.mask("sita@example.org").equals("s***@example.org"), "mask email");
         check(Codes.mask("+977 9812345678").equals("*********5678"), "mask phone: " + Codes.mask("+977 9812345678"));
+        // the "channel on" flag: keyed, so an admin who knows the address cannot compute it (review 2026-10-13)
+        String plain = CodeChannel.confirmedValue("Sita@Example.org", "");
+        String keyed = CodeChannel.confirmedValue("Sita@Example.org", "site-secret-0123456789abcdef0123456789");
+        check(plain.equals(Codes.hash("sita@example.org", "")), "no key: the plain hash, as before");
+        check(keyed.matches("[0-9a-f]{64}") && !keyed.equals(plain), "keyed flag differs and fits the profile pattern");
+        check(keyed.equals(CodeChannel.confirmedValue(" sita@example.org ", "site-secret-0123456789abcdef0123456789")),
+                "same address, same flag");
+        check(!keyed.equals(CodeChannel.confirmedValue("sita@example.org", "another-secret-0123456789abcdef01234")),
+                "another key, another flag");
         System.out.println("nidan-code-otp logic: OK");
     }
 

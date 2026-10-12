@@ -9,6 +9,9 @@ resolves the groups by path and makes realm "nidan" hold exactly:
   policy      is-hospital-admin            member of /hospital-admin
   permission  hospital-admin-staff-groups  Groups = every /staff/<job> group: view, view-members, manage-members,
                                            manage-membership, manage-membership-of-members
+  policy      not-hospital-admin           NEGATIVE of the above: denies hospital admins
+  permission  admin-groups-out-of-reach    Groups = /hospital-admin, /app-superusers, /cis-admin, /orthanc-admin:
+                                           a member of these is never managed through a job they also hold
   policy      is-role-sync                 the client role-sync-admin (keycloak/role-sync's admin access)
   permission  role-sync-app-clients        Clients = openmrs, odoo, openelis: manage (create / delete their roles)
 Nothing is granted on any other user or group, so admins, app-superusers members and service accounts are out of
@@ -26,6 +29,10 @@ from pathlib import Path
 POLICY = "is-hospital-admin"
 PERMISSION = "hospital-admin-staff-groups"
 SCOPES = ["view", "view-members", "manage-members", "manage-membership", "manage-membership-of-members"]
+DENY_POLICY = "not-hospital-admin"
+DENY_PERMISSION = "admin-groups-out-of-reach"
+ADMIN_GROUPS = ["/hospital-admin", "/app-superusers", "/cis-admin", "/orthanc-admin"]
+DENY_SCOPES = ["view-members", "manage-members", "manage-membership", "manage-membership-of-members"]
 RS_POLICY = "is-role-sync"
 RS_PERMISSION = "role-sync-app-clients"
 RS_CLIENT = "role-sync-admin"
@@ -93,7 +100,41 @@ def plan(api):
                 or (pol and have_pols != [pol["id"]]) or detail.get("decisionStrategy") != "UNANIMOUS"):
             steps.append((f"update permission {PERMISSION} to {', '.join(g['name'] for g in jobs)}", "PUT",
                           f"{authz}/permission/scope/{perm['id']}", dict(perm_body, id=perm["id"])))
-    return steps + role_sync_plan(api, authz, policies)
+    return steps + deny_plan(api, authz, policies, groups) + role_sync_plan(api, authz, policies)
+
+
+def deny_plan(api, authz, policies, groups):
+    """Review 2026-10-13: someone in an admin group who also holds a job (KC-09-08 forbids it, an operator can still do
+    it) was managed through the job's permission: a hospital admin could reset their password. A NEGATIVE policy on
+    the admin groups takes them out of reach whatever job they hold."""
+    steps = []
+    want_groups = [{"id": groups["/hospital-admin"]["id"], "extendChildren": False}]
+    pol = policies.get(DENY_POLICY)
+    body = {"name": DENY_POLICY, "type": "group", "logic": "NEGATIVE", "decisionStrategy": "UNANIMOUS",
+            "description": "denies members of /hospital-admin (review 2026-10-13)", "groups": want_groups}
+    if not pol:
+        steps.append((f"create policy {DENY_POLICY}", "POST", f"{authz}/policy/group", body))
+        ref = DENY_POLICY
+    else:
+        detail = api("GET", f"{authz}/policy/group/{pol['id']}")
+        have = detail.get("groups") or json.loads((detail.get("config") or {}).get("groups") or "[]")
+        if sorted(g["id"] for g in have) != [g["id"] for g in want_groups] or detail.get("logic") != "NEGATIVE":
+            steps.append((f"update policy {DENY_POLICY}", "PUT", f"{authz}/policy/group/{pol['id']}", dict(body, id=pol["id"])))
+        ref = pol["id"]
+    targets = sorted(groups[p]["id"] for p in ADMIN_GROUPS if p in groups)
+    perm = policies.get(DENY_PERMISSION)
+    pbody = {"name": DENY_PERMISSION, "type": "scope", "resourceType": "Groups", "decisionStrategy": "UNANIMOUS",
+             "description": "admin groups' members: never through a job (review 2026-10-13)",
+             "resources": targets, "scopes": DENY_SCOPES, "policies": [ref]}
+    if not perm:
+        steps.append((f"create permission {DENY_PERMISSION}", "POST", f"{authz}/permission/scope", pbody))
+    else:
+        have_res = sorted(r["name"] for r in api("GET", f"{authz}/policy/{perm['id']}/resources") or [])
+        have_scopes = sorted(sc["name"] for sc in api("GET", f"{authz}/policy/{perm['id']}/scopes") or [])
+        if have_res != targets or have_scopes != sorted(DENY_SCOPES):
+            steps.append((f"update permission {DENY_PERMISSION}", "PUT", f"{authz}/permission/scope/{perm['id']}",
+                          dict(pbody, id=perm["id"])))
+    return steps
 
 
 def role_sync_plan(api, authz, policies):
@@ -151,7 +192,7 @@ def main(argv):
         for what, method, path, body in steps:
             print(("  " if "--apply" in argv else "  would ") + what)
             if "--apply" in argv:
-                if body.get("policies") in ([POLICY], [RS_POLICY]):  # created a step earlier: use its id now
+                if body.get("policies") in ([POLICY], [RS_POLICY], [DENY_POLICY]):  # created a step earlier: use its id now
                     authz, name = path.split("/permission/")[0], body["policies"][0]
                     body = dict(body, policies=[next(p["id"] for p in api("GET", f"{authz}/policy?max=500") if p["name"] == name)])
                 api(method, path, body)

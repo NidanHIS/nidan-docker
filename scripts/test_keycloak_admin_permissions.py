@@ -61,13 +61,18 @@ class Fake:
 
 f = Fake()
 steps = kap.plan(f)
-assert [s[1] for s in steps] == ["POST"] * 4, steps
+assert [s[1] for s in steps] == ["POST"] * 6, steps
 assert "Cashier, Nurse" in steps[1][0] and "odd" not in steps[1][0], steps
 # apply the plan the way main() does (policy id resolved after creation)
 for what, method, path, body in steps:
-    if body.get("policies") in ([kap.POLICY], [kap.RS_POLICY]):
+    if body.get("policies") in ([kap.POLICY], [kap.RS_POLICY], [kap.DENY_POLICY]):
         body = dict(body, policies=[next(p["id"] for p in f.policies.values() if p["name"] == body["policies"][0])])
     f(method, path, body)
+# admin groups' members are out of reach even when they also hold a job (review 2026-10-13)
+deny = next(p for p in f.policies.values() if p["name"] == kap.DENY_PERMISSION)
+assert deny["resourceType"] == "Groups" and sorted(deny["resources"]) == ["g-ha", "g-su"], deny
+assert "manage-members" in deny["scopes"]
+assert next(p for p in f.policies.values() if p["name"] == kap.DENY_POLICY)["logic"] == "NEGATIVE"
 # the role sync: manage on the three app clients only, for its own admin client
 rs = next(p for p in f.policies.values() if p["name"] == kap.RS_PERMISSION)
 assert rs["resourceType"] == "Clients" and rs["scopes"] == ["manage"]

@@ -435,6 +435,72 @@ test.describe('people with several apps', () => {
     await ctx.close();
   });
 
+  // Review 2026-10-13: the Activity tab was only tested against a faked Keycloak. On the real one, with the hospital
+  // admin's own token, it must list this hospital's events (KC-23-01/02), not fail.
+  test('the Staff page Activity tab shows events with the hospital admin\'s own access @KC-23-01 @KC-23-02 @sso-on-only', async ({ browser, request }) => {
+    const username = `act${Date.now()}`;
+    const r = await admin(request, '/users', 'POST', { username, firstName: 'Gita', lastName: 'Admin', enabled: true,
+      email: `${username}@example.org`, emailVerified: true, attributes: { gender: ['F'] }, groups: ['/hospital-admin'] });
+    const id = r.headers()['location'].split('/').pop()!;
+    await admin(request, `/users/${id}/reset-password`, 'PUT', { type: 'password', value: PASSWORD, temporary: false });
+    const { ctx, page } = await newPage(browser);
+    await page.goto('https://localhost:18445/staff/');
+    await page.fill('#username', username);
+    await page.fill('#password', PASSWORD);
+    await page.click('#kc-login');
+    await page.waitForURL('https://localhost:18445/staff/**', { timeout: 60_000 });
+    const events = page.waitForResponse((res) => res.url().includes('/staff-api/events'));
+    await page.click('.tab[data-tab=activity]');
+    expect((await events).status(), '/staff-api/events').toBe(200);
+    await expect(page.locator('#events tbody tr').first()).toBeVisible({ timeout: 15_000 });
+    await ctx.close();
+  });
+
+  // Review 2026-10-13: a person added on the Staff page gets their temporary password (the new id comes from Keycloak's
+  // Location header, not a search of the first 500 job members) and the slip forgets it however it closes.
+  test('the Staff page adds a person with a temporary-password slip that leaves the page on Esc @KC-21-01 @security @sso-on-only', async ({ browser, request }) => {
+    const username = `addr${Date.now()}`;
+    const r = await admin(request, '/users', 'POST', { username, firstName: 'Hari', lastName: 'Admin', enabled: true,
+      email: `${username}@example.org`, emailVerified: true, attributes: { gender: ['M'] }, groups: ['/hospital-admin'] });
+    const id = r.headers()['location'].split('/').pop()!;
+    await admin(request, `/users/${id}/reset-password`, 'PUT', { type: 'password', value: PASSWORD, temporary: false });
+    const { ctx, page } = await newPage(browser);
+    await page.goto('https://localhost:18445/staff/');
+    await page.fill('#username', username);
+    await page.fill('#password', PASSWORD);
+    await page.click('#kc-login');
+    await page.waitForURL('https://localhost:18445/staff/**', { timeout: 60_000 });
+    const newbie = `qa${Date.now()}`;
+    await page.click('#add-open');
+    await page.fill('input[name=firstName]', 'Qa');
+    await page.fill('input[name=lastName]', 'Nurse');
+    await page.fill('input[name=username]', newbie);
+    await page.selectOption('select[name=gender]', 'F');
+    await page.selectOption('#add-job', { label: 'Nurse' });
+    await page.click('#add-form button[type=submit]');
+    await expect(page.locator('#slip-user')).toHaveText(newbie, { timeout: 15_000 });
+    await expect(page.locator('#slip-password')).toHaveText(/\S{8,}/);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#slip-dialog')).not.toBeVisible();
+    await expect(page.locator('#slip-password'), 'the password left the page').toHaveText('');   // close event: a moment later
+    const made = (await (await admin(request, `/users?username=${newbie}&exact=true`)).json())[0];
+    expect(made.requiredActions, 'must choose their own password').toContain('UPDATE_PASSWORD');
+    // the other writes through the page, on the real Keycloak (all were refused before, "Invalid origin")
+    await page.selectOption('#job-filter', { label: 'Nurse' });
+    const row = page.locator('#people tbody tr', { hasText: newbie });
+    await row.locator('select').selectOption({ label: 'Cashier' });
+    await expect(page.locator('#notice')).toContainText('Cashier', { timeout: 15_000 });
+    const groupsOf = async () => (await (await admin(request, `/users/${made.id}/groups`)).json()).map((g: { path: string }) => g.path);
+    expect(await groupsOf(), 'moved, not in two jobs').toEqual(['/staff/Cashier']);
+    await page.selectOption('#job-filter', { label: 'Cashier' });
+    page.once('dialog', (d) => d.accept());
+    await page.locator('#people tbody tr', { hasText: newbie }).getByRole('button', { name: 'Disable' }).click();
+    await expect.poll(async () => (await (await admin(request, `/users/${made.id}`)).json()).enabled, { timeout: 15_000 }).toBe(false);
+    await page.locator('#people tbody tr', { hasText: newbie }).getByRole('button', { name: 'Reset password' }).click();
+    await expect(page.locator('#slip-user')).toHaveText(newbie, { timeout: 15_000 });
+    await ctx.close();
+  });
+
   // Reported 2026-10-12: in a browser set to dark mode the login card turned dark under the light brand text
   // (unreadable labels) and kept PatternFly's blue top line. The Nidan look stays light, in the brand colour.
   test('the login page stays light and readable when the browser is in dark mode @KC-17-01 @sso-on-only', async ({ browser }) => {

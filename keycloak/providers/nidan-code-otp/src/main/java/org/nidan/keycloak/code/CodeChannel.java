@@ -58,9 +58,28 @@ enum CodeChannel {
                 && (!"webhook".equals(p) || notBlank(realm.getAttribute("nidanSmsUrl")));
     }
 
-    /** The value the flag holds once the person confirmed a code sent to this destination. */
+    /**
+     * The value the flag holds once the person confirmed a code sent to this destination. Keyed with
+     * NIDAN_CODE_FLAG_KEY (Keycloak's environment, never in the realm): admins can edit the flag attribute (to turn a
+     * channel off for a locked-out person), so with a plain hash they could also compute it and turn a channel on
+     * without the person confirming (review 2026-10-13). Without the key: the plain hash, as before.
+     */
     static String confirmedValue(String destination) {
-        return Codes.hash(destination.trim().toLowerCase(java.util.Locale.ROOT), "");
+        return confirmedValue(destination, System.getenv("NIDAN_CODE_FLAG_KEY"));
+    }
+
+    static String confirmedValue(String destination, String key) {
+        String d = destination.trim().toLowerCase(java.util.Locale.ROOT);
+        if (key == null || key.isBlank()) {
+            return Codes.hash(d, "");
+        }
+        try {
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(new javax.crypto.spec.SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            return java.util.HexFormat.of().formatHex(mac.doFinal(d.getBytes(StandardCharsets.UTF_8)));
+        } catch (java.security.GeneralSecurityException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     /**

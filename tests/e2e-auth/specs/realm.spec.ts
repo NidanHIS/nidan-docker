@@ -286,6 +286,9 @@ test.describe('realm against a live Keycloak', () => {
     const hadmin2 = await idOf(await makeUser(request, ['hospital-admin']));
     const nurse = await idOf(await makeUser(request, ['staff/Nurse']));
     const sup = await idOf(await makeUser(request, ['app-superusers']));
+    // review 2026-10-13: someone an operator put in an admin group AND a job (KC-09-08 forbids it; caught nightly)
+    const adminInJob = await idOf(await makeUser(request, ['hospital-admin', 'staff/Nurse']));
+    const superInJob = await idOf(await makeUser(request, ['app-superusers', 'staff/Nurse']));
     const me = await idOf(hadmin1);
     const t = await userToken(request, 'nidan-gateway', `https://${DOMAIN}/oauth2/callback`, hadmin1);
     const as = (method: string, path: string, data?: unknown) => request.fetch(`${KC}/admin/realms/nidan${path}`,
@@ -297,6 +300,8 @@ test.describe('realm against a live Keycloak', () => {
       ['list every user', 'GET', '/users', undefined, 403],
       ['create into /staff/Nurse', 'POST', '/users', { username: `new${Date.now()}`, firstName: 'N', lastName: 'U', enabled: true,
         attributes: { gender: ['M'] }, groups: ['/staff/Nurse'] }, 201],
+      ['create as the Staff page does (must choose a password)', 'POST', '/users', { username: `pg${Date.now()}`, firstName: 'N',
+        lastName: 'U', enabled: true, attributes: { gender: ['F'] }, groups: ['/staff/Nurse'], requiredActions: ['UPDATE_PASSWORD'] }, 201],
       ['reset a nurse', 'PUT', `/users/${nurse}/reset-password`, tmp, 204],
       ['disable a nurse', 'PUT', `/users/${nurse}`, { enabled: false }, 204],
       ['enable a nurse', 'PUT', `/users/${nurse}`, { enabled: true }, 204],
@@ -309,6 +314,9 @@ test.describe('realm against a live Keycloak', () => {
       ['add another admin to Nurse', 'PUT', `/users/${hadmin2}/groups/${N}`, undefined, 403],
       ['add a superuser to Nurse', 'PUT', `/users/${sup}/groups/${N}`, undefined, 403],
       ['add herself to Nurse', 'PUT', `/users/${me}/groups/${N}`, undefined, 403],
+      ['reset an admin who also holds a job', 'PUT', `/users/${adminInJob}/reset-password`, tmp, 403],
+      ['disable an admin who also holds a job', 'PUT', `/users/${adminInJob}`, { enabled: false }, 403],
+      ['reset a superuser who also holds a job', 'PUT', `/users/${superInJob}/reset-password`, tmp, 403],
       ['map a realm role', 'POST', `/users/${nurse}/role-mappings/realm`, [{ name: 'offline_access' }], 403],
       ['impersonate a nurse', 'POST', `/users/${nurse}/impersonation`, undefined, 403],
     ];

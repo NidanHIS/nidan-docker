@@ -33,6 +33,7 @@
       try { err.detail = (await res.json()).errorMessage; } catch (e) { /* no body */ }
       throw err;
     }
+    if (res.status === 201) return { location: res.headers.get('location') || '' };   // POST /users: the new id
     return res.status === 204 || res.headers.get('content-length') === '0' ? null
       : (res.headers.get('content-type') || '').includes('json') ? res.json() : null;
   }
@@ -138,7 +139,12 @@
     if (!to || to.id === from.id) return;
     try {
       await api('PUT', '/users/' + user.id + '/groups/' + to.id);
-      await api('DELETE', '/users/' + user.id + '/groups/' + from.id);
+      try {
+        await api('DELETE', '/users/' + user.id + '/groups/' + from.id);
+      } catch (e) {                         // never leave the person in two jobs: undo the add, then report
+        await api('DELETE', '/users/' + user.id + '/groups/' + to.id).catch(() => {});
+        throw e;
+      }
       notice(t('staff.jobChanged', { name: user.username, job: to.name }));
       await loadPeople();
     } catch (e) {
@@ -293,10 +299,14 @@
       body.attributes.phone = [f.phone.trim()];
     }
     try {
-      await api('POST', '/users', body);
-      // find the new user's id through the job group (GET /users is not allowed)
-      const members = (await api('GET', '/groups/' + job.id + '/members?first=0&max=500')) || [];
-      const created = members.find((u) => u.username === username);
+      const made = await api('POST', '/users', body);
+      // the new id from Keycloak's Location header; else through the job group (GET /users is not allowed)
+      const id = ((made && made.location) || '').split('/').pop();
+      let created = /^[0-9a-f-]{36}$/.test(id) ? { id, username, firstName: body.firstName, lastName: body.lastName } : null;
+      if (!created) {
+        const members = (await api('GET', '/groups/' + job.id + '/members?first=0&max=500')) || [];
+        created = members.find((u) => u.username === username);
+      }
       if (!created) throw new Error('created, but not found in ' + job.name);
       const pw = tempPassword();
       await api('PUT', '/users/' + created.id + '/reset-password', { type: 'password', value: pw, temporary: true });
@@ -392,7 +402,9 @@
     $('places-form').addEventListener('submit', (e) => { e.preventDefault(); savePlaces(e.target); });
     $('places-cancel').addEventListener('click', () => $('places-dialog').close());
     $('slip-print').addEventListener('click', () => window.print());
-    $('slip-close').addEventListener('click', () => { $('slip-password').textContent = ''; $('slip-dialog').close(); });
+    $('slip-close').addEventListener('click', () => $('slip-dialog').close());
+    // however the slip closes (Done, Esc), the password leaves the page
+    $('slip-dialog').addEventListener('close', () => { $('slip-password').textContent = ''; });
     for (const t of document.querySelectorAll('.tab')) {
       t.addEventListener('click', () => {
         for (const o of document.querySelectorAll('.tab')) o.setAttribute('aria-pressed', String(o === t));
