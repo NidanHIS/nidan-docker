@@ -5,6 +5,7 @@ RUN apk add --no-cache openssl
 
 # Copy custom configuration
 COPY nginx.conf /etc/nginx/nginx.conf.template
+COPY staff-body.js /etc/nginx/staff-body.js
 COPY client-identity-headers.conf /etc/nginx/client-identity-headers.conf
 COPY odoo-public-proxy.conf /etc/nginx/odoo-public-proxy.conf
 COPY gateway-page-headers.conf /etc/nginx/gateway-page-headers.conf

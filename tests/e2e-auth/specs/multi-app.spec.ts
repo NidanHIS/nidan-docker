@@ -500,6 +500,17 @@ test.describe('people with several apps', () => {
     await expect.poll(async () => (await (await admin(request, `/users/${made.id}`)).json()).enabled, { timeout: 15_000 }).toBe(false);
     await page.locator('#people tbody tr', { hasText: newbie }).getByRole('button', { name: 'Reset password' }).click();
     await expect(page.locator('#slip-user')).toHaveText(newbie, { timeout: 15_000 });
+    // what only the browser's developer tools could send: refused at the gateway (proxy/staff-body.js)
+    const raw = (method: string, path: string, body: unknown) => page.evaluate(async ([m, p, b]) => (await fetch('/staff-api' + p,
+      { method: m as string, headers: { 'X-Nidan-Staff': '1', 'Content-Type': 'application/json' }, body: JSON.stringify(b) })).status,
+      [method, path, body] as const);
+    const sneaky = `sneak${Date.now()}`;
+    expect(await raw('POST', '/users', { username: sneaky, firstName: 'S', lastName: 'K', enabled: true, attributes: { gender: ['M'] },
+      groups: ['/staff/Nurse'], requiredActions: [], credentials: [{ type: 'password', value: 'Known-To-Admin-1', temporary: false }] }),
+      'a person with a password the admin knows').toBe(403);
+    expect(await raw('PUT', `/users/${made.id}/reset-password`, { type: 'password', value: 'Known-To-Admin-1', temporary: false }),
+      'a permanent reset').toBe(403);
+    expect((await (await admin(request, `/users?username=${sneaky}&exact=true`)).json()).length, 'nobody created').toBe(0);
     await ctx.close();
   });
 

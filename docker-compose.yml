@@ -79,6 +79,7 @@ services:
       - certbot-www:/var/www/certbot
       - gateway-logs:/var/log/nidan          # PHI-free access log, 0600, 365 days (KC-13-03)
       - ./proxy/nginx.conf:/etc/nginx/nginx.conf.template:ro
+      - ./proxy/staff-body.js:/etc/nginx/staff-body.js:ro       # njs, loaded by nginx.conf
       - ./proxy/auth:/etc/nginx/auth-templates:ro
       - ./proxy/index.html.template:/etc/nginx/templates/index.html.template:ro
       - ./proxy/nidan-logo.png:/usr/share/nginx/html/nidan-logo.png:ro

@@ -72,6 +72,7 @@ jobs:
           python3 -I scripts/test_reporting_db_users.py
           python3 -I scripts/test_reserved_usernames.py
           python3 -I keycloak/role-sync/role_sync.py --test    # role sync plan: never deletes realm-file roles
+          node scripts/test_staff_body.mjs                    # Staff page: bodies that may reach Keycloak
 
       - name: Gateway page translations have the same keys (KC-18-03)
         run: |
