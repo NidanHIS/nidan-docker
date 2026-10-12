@@ -437,7 +437,9 @@ test.describe('people with several apps', () => {
 
   // Review 2026-10-13: the Activity tab was only tested against a faked Keycloak. On the real one, with the hospital
   // admin's own token, it must list this hospital's events (KC-23-01/02), not fail.
-  test('the Staff page Activity tab shows events with the hospital admin\'s own access @KC-23-01 @KC-23-02 @sso-on-only', async ({ browser, request }) => {
+  // Pending a decision (2026-10-13): Keycloak gives events only with view-events, which shows the whole realm's
+  // events (admins' logins, full admin details), not just this hospital's staff. Fix in a filtering backend or drop it.
+  test.fixme('the Staff page Activity tab shows events with the hospital admin\'s own access @KC-23-01 @KC-23-02 @sso-on-only', async ({ browser, request }) => {
     const username = `act${Date.now()}`;
     const r = await admin(request, '/users', 'POST', { username, firstName: 'Gita', lastName: 'Admin', enabled: true,
       email: `${username}@example.org`, emailVerified: true, attributes: { gender: ['F'] }, groups: ['/hospital-admin'] });
