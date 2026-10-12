@@ -347,6 +347,20 @@ test.describe('people with several apps', () => {
       await ctx.close();
     });
 
+  // Found by review 2026-10-12: any ?signed_out= value used to sign a one-app person out of everything (a crafted link
+  // in a chat). Only a known app id, as the gateway's logout chain sends, counts now.
+  test('a link with an unknown ?signed_out= value signs nobody out @KC-19-01 @security @sso-on-only', async ({ browser, request }) => {
+    const p = await person(request, 'link', { 'nidan-gateway': ['app-odoo'], odoo: ['point_of_sale.group_pos_user'] },
+      { nidan_shops: ['Harness Shop A'] });
+    const { ctx, page } = await newPage(browser);
+    await gatewayLogin(page, p.username);
+    await page.goto(`${GW}/?signed_out=x&launcher`);
+    await expect(page).toHaveURL(`${GW}/`);                     // the parameter is dropped from the address bar
+    await expect(page.locator('#identity-line'), 'still signed in').toContainText(p.username);
+    expect((await (await admin(request, `/users/${p.id}/sessions`)).json()).length, 'Keycloak session kept').toBe(1);
+    await ctx.close();
+  });
+
   // The launcher's header: who is signed in, Change password and Sign out at the top right, beside the language.
   test('the launcher shows the signed-in person and Sign out at the top right @KC-15-01 @security @sso-on-only', async ({ browser, request }) => {
     const p = await person(request, 'head', MIXES[0].roles);
@@ -376,6 +390,8 @@ test.describe('people with several apps', () => {
     expect(primary, 'brand.css loaded on the login page').not.toBe('');
     const launcher = await ctx.request.get(`${GW}/assets/brand/logo.svg`);
     expect(launcher.status()).toBe(200);
+    // brand files on the Keycloak origin: an SVG opened directly runs no script there (review 2026-10-12)
+    expect((await page.request.get(url)).headers()['content-security-policy'] ?? '').toContain('sandbox');
     await ctx.close();
   });
 

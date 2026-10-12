@@ -121,7 +121,16 @@ test.describe('central login, end to end', () => {
       await page.goto(GW + reopen);
       await signIn(page, user);
       await expect(page).toHaveURL(GW + reopen);
-      await page.goto(GW + logout);                     // the app redirects; the gateway -> launcher -> sign_out (one app)
+      if (app === 'OpenELIS') {                         // its button POSTs a form; only that runs the chain
+        const get = await page.request.get(GW + logout, { maxRedirects: 0 });   // logs nobody out: no false "signed out"
+        expect(get.headers()['location'] ?? '', 'GET logout: no logout chain').not.toContain('signed_out');
+        await page.evaluate((url) => {
+          const f = document.createElement('form'); f.method = 'POST'; f.action = url; document.body.append(f); f.submit();
+        }, GW + logout);
+        await page.waitForURL((u) => !u.pathname.endsWith('/Logout'));
+      } else {
+        await page.goto(GW + logout);                   // the app redirects; the gateway -> launcher -> sign_out (one app)
+      }
       await page.waitForLoadState();
       const id = (await (await admin(request, `/users?username=${user}&exact=true`)).json())[0].id;
       await expect.poll(async () => (await (await admin(request, `/users/${id}/sessions`)).json()).length,

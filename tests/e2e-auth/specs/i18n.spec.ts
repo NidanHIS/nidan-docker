@@ -46,7 +46,9 @@ test.describe('with nidan_locale=ne no gateway page shows English @KC-18-02', ()
       }
       // and nothing untagged: no English word on screen beyond product names and acronyms
       const ALLOW = /^(Nidan|NidanEHR|EHR|OpenMRS|Odoo|OpenELIS|Global|Orthanc|OHIF|Superset|DHIS2|HMIS|ERP|PACS|Explorer|Trigonal|Technology|IT|CIS|POS|OTP|English)$/;
-      const text = (await page.locator('body').innerText()).replaceAll('nurse1', '');   // the user's own name is data
+      // the user's own name is data; the language picker lists each language in its own name (Español, Français)
+      let text = (await page.locator('body').innerText()).replaceAll('nurse1', '');
+      for (const name of await page.locator('#locale-picker option').allInnerTexts()) text = text.replaceAll(name, '');
       const english = [...new Set((text.match(/[A-Za-z][A-Za-z'’-]+/g) ?? []).filter((w) => !ALLOW.test(w)))];
       expect(english, `English left on ${path}`).toEqual([]);
       if (path.startsWith('/?launcher')) await expect(page.locator('#identity-line')).toContainText('को रूपमा लगइन गरिएको');

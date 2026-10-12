@@ -72,7 +72,7 @@ routes:
   # Reports
   - {server: main, match: exact, path: /superset, gate: app-superset, kind: redirect}
   - {server: main, match: prefix, path: /superset/, gate: app-superset, kind: page, note: "public dashboards: explicit allow-list entries below, none yet (KC-03)"}
-  - {server: main, match: exact, path: /api/OpenELIS-Global/Logout, gate: app-openelis, kind: page, reason: logout chain to the launcher}
+  - {server: main, match: exact, path: /api/OpenELIS-Global/Logout, gate: app-openelis, kind: page, reason: "logout chain to the launcher (POST; GET -> OpenELIS login page)"}
   - {server: main, match: exact, path: /dhis2/auth/logout, gate: app-dhis2, kind: page, reason: logout chain to the launcher}
   - {server: main, match: exact, path: /superset/logout/, gate: app-superset, kind: page, reason: logout chain to the launcher}
   - {server: main, match: exact, path: /dhis2, gate: app-dhis2, kind: redirect}
@@ -93,6 +93,7 @@ routes:
   - {server: oe-api, match: exact, path: /oauth2/userinfo, gate: exempt, kind: api, reason: identity; 401 without session}
   - {server: oe-api, match: exact, path: /oauth2/auth, gate: deny, kind: api, reason: internal only via /_auth_<app>; external 404}
   - {server: oe-api, match: regex, path: "^/OpenELIS-Global/rest/nidan/role-catalog", gate: deny, kind: api, reason: "role list for Keycloak role sync: internal network only"}
+  - {server: oe-api, match: exact, path: /OpenELIS-Global/Logout, gate: app-openelis, kind: page, reason: "logout chain to the launcher (POST; GET -> OpenELIS login page)"}
   - {server: oe-api, match: prefix, path: /OpenELIS-Global/, gate: app-openelis, kind: api}
   - {server: oe-api, match: prefix, path: /, gate: deny, kind: api, reason: catch-all 404}
 

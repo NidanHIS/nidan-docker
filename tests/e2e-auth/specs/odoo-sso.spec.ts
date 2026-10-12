@@ -135,6 +135,27 @@ test.describe('central login into Odoo', () => {
     await anon.dispose();
   });
 
+  // Found by review 2026-10-12: Odoo refuses passwords only for Keycloak-linked users, so a signed-in person could post
+  // a local account's password (admin, the OIS login) through the gateway and work as that account. The gateway now
+  // refuses every password POST on :8069 (auth/http.conf); a plain GET /web/login still goes to central login.
+  test('through the gateway nobody signs in to Odoo with a password, not even as the local admin @KC-37-07 @security @sso-on-only', async ({ browser, request }) => {
+    const { username } = await staff(request, ['base.group_user']);
+    let me = 0;
+    const uid = await odooLogin(browser, username, async (page) => {
+      for (const path of ['/web/login', '/ne/web/login', '/web/login/']) {
+        const r = await page.request.post(`${ODOO}${path}`, { form: { login: 'admin', password: ADMIN_PW, redirect: '/odoo' }, maxRedirects: 0 });
+        expect(r.status(), `POST ${path}`).toBe(403);
+      }
+      const sa = await page.request.post(`${ODOO}/web/session/authenticate`, { data: { jsonrpc: '2.0', method: 'call',
+        params: { db: 'nidan', login: 'admin', password: ADMIN_PW } } });
+      expect(sa.status(), 'session/authenticate').toBe(403);
+      const info = await (await page.request.post(`${ODOO}/web/session/get_session_info`, { data: { jsonrpc: '2.0', method: 'call', params: {} } })).json();
+      me = info.result.uid;
+    });
+    expect(me, 'still the person, never admin').toBe(uid);
+    expect(me).not.toBe(2);
+  });
+
   // KC-37-04: with central login off (the Nidan provider disabled, as the addon does at install/upgrade when
   // NIDAN_SSO_ENABLED is false) the login page says so, offers no central-login button, and local login works.
   test('central login off: the login page says so and local login works @KC-37-04 @sso-on-only', async ({ page, request }) => {

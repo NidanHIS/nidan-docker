@@ -226,21 +226,21 @@
     // sign out of everything (a one-app launcher would open it again); else stay here with the other apps.
     const params = new URLSearchParams(location.search);
     const gone = services.find((s) => s.id === params.get('signed_out'));   // only known ids, never free text
-    if (me && params.has('signed_out')) {
-      history.replaceState(null, '', location.pathname);
+    if (params.has('signed_out')) history.replaceState(null, '', location.pathname);
+    if (me && gone) {                     // an unknown value (a crafted link) signs nobody out
       const line = document.getElementById('identity-line');
       const endsAll = line && line.dataset.logoutAll === 'true';      // NIDAN_APP_LOGOUT_ENDS_ALL (shared PCs)
       if (endsAll || services.filter((s) => me.roles.has(s.role)).length <= 1) {
         location.replace('/oauth2/sign_out');
         return;
       }
-      if (gone) showSignedOut(gone);
+      showSignedOut(gone);
       checkHealth();
       setInterval(checkHealth, 15000);
       return;
     }
     // Exactly one permitted app that is up: go straight in (KC-15-03). /?launcher keeps the launcher.
-    if (me && !new URLSearchParams(location.search).has('launcher')) {
+    if (me && !params.has('launcher')) {     // read before ?signed_out= was cleared from the address bar
       const mine = services.filter((s) => me.roles.has(s.role));
       if (mine.length === 1 && await isUp(mine[0])) {
         location.replace(document.getElementById('card-' + mine[0].id).getAttribute('href'));
