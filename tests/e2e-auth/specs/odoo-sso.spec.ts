@@ -156,6 +156,37 @@ test.describe('central login into Odoo', () => {
     expect(me).not.toBe(2);
   });
 
+  // Open redirect check (review 2026-10-12): Odoo's login and the central-login round trip carry a return address
+  // (/web/login?redirect=, the OIDC state). Signed in or not, it must never take the browser off this site.
+  test('the login return address never leaves the site @KC-37-07 @security @sso-on-only', async ({ browser, request }) => {
+    const { username } = await staff(request, ['base.group_user']);
+    const evil = ['https://evil.example/x', '//evil.example/x', '/\\evil.example/x', 'https:evil.example', '%2F%2Fevil.example'];
+    // not signed in: through the gateway gate, Keycloak, Odoo's provider and back
+    for (const r of evil.slice(0, 3)) {
+      const ctx = await browser.newContext();
+      const page = await ctx.newPage();
+      const hosts: string[] = [];
+      page.on('request', (q) => hosts.push(new URL(q.url()).hostname));
+      await page.goto(`${ODOO}/web/login?redirect=${encodeURIComponent(r)}`);
+      await page.fill('#username', username);
+      await page.fill('#password', 'Harness-Pass-123');
+      await page.click('#kc-login');
+      await page.waitForURL(/localhost:8069\//, { timeout: 60_000 });
+      await page.waitForLoadState();
+      expect(hosts.filter((h) => h.includes('evil')), `no request to evil for ${r}`).toEqual([]);
+      expect(new URL(page.url()).hostname).toBe('localhost');
+      await ctx.close();
+    }
+    // signed in: Odoo answers /web/login?redirect= with a redirect of its own; it must stay on this site
+    await odooLogin(browser, username, async (page) => {
+      for (const r of evil) {
+        const res = await page.request.get(`${ODOO}/web/login?redirect=${encodeURIComponent(r)}`, { maxRedirects: 0 });
+        const loc = res.headers()['location'] ?? '';
+        expect(new URL(loc || '/', ODOO).hostname, `${r} -> ${res.status()} ${loc}`).toBe('localhost');   // a path here is fine
+      }
+    });
+  });
+
   // KC-37-04: with central login off (the Nidan provider disabled, as the addon does at install/upgrade when
   // NIDAN_SSO_ENABLED is false) the login page says so, offers no central-login button, and local login works.
   test('central login off: the login page says so and local login works @KC-37-04 @sso-on-only', async ({ page, request }) => {
