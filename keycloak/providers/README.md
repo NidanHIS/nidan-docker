@@ -1,6 +1,6 @@
 # Keycloak extensions
 
-`dist/` is mounted into Keycloak as `/opt/keycloak/providers` (docker-compose.yml and the test harness). The realm's
+`dist/` is mounted into Keycloak as `/opt/keycloak/providers` (keycloak.docker-compose.yml and the test harness). The realm's
 login flow uses `nidan-code-otp`, so build it before starting Keycloak:
 
 ```bash

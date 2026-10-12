@@ -5,7 +5,7 @@
   scripts/check-pins.py --all           list every violation (the pinning punch list)
   scripts/check-pins.py --write-baseline  record today's violations (review the diff before committing)
 
-Checks docker-compose.yml (production) and every Dockerfile* under this repo:
+Checks docker-compose.yml + keycloak.docker-compose.yml (production) and every Dockerfile* under this repo:
   * compose image (with ${VAR:-default} resolved to the default): needs name:tag@sha256:<64 hex>,
     and the tag must not be a moving ref (latest, next, stable, main, master, dev, develop, nidan,
     *-dev*, local, N.x, or no version digit at all such as alpine)
@@ -92,7 +92,7 @@ def dockerfile_violations(path):
 
 
 def violations():
-    out = compose_violations(ROOT / "docker-compose.yml")
+    out = compose_violations(ROOT / "docker-compose.yml") + compose_violations(ROOT / "keycloak.docker-compose.yml")
     for f in sorted(ROOT.rglob("Dockerfile*")):
         if "node_modules" not in f.parts and f.is_file():
             out += dockerfile_violations(f)

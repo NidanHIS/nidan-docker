@@ -27,6 +27,8 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+# every command acts on the central-login stack (unless the site already chose its files in COMPOSE_FILE)
+os.environ.setdefault("COMPOSE_FILE", "docker-compose.yml:keycloak.docker-compose.yml")
 ENV_FILE = ROOT / ".env.local"
 KCADM = "/opt/keycloak/bin/kcadm.sh"
 KCCFG = "--config /tmp/kcadm-incident.config"
@@ -89,7 +91,7 @@ def plan(command, args):
                          f'{KCADM} create realms/nidan/push-revocation {KCCFG}'), {}))
         steps.append(("log out every Keycloak session", kc(f"{KCADM} create realms/nidan/logout-all {KCCFG}"), {}))
         steps.append(("restart oauth2-proxy with the new cookie secret",
-                      ["docker", "compose", "--profile", "sso", "up", "-d", "--force-recreate", "oauth2-proxy"], {}))
+                      ["docker", "compose", "up", "-d", "--force-recreate", "oauth2-proxy"], {}))
     elif command == "rotate-realm-keys":
         if "--retire-old" in args:
             # Only signing keys: Keycloak's default "rsa-generated" and ours "rsa-<14 digits>". Never the

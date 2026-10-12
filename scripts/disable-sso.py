@@ -169,7 +169,9 @@ def set_sso_off(env_file):
             seen.add(m.group(1))
         else:
             out.append(line)
-    for key in ("NIDAN_SSO_ENABLED", "OPENMRS_AUTH_MODE"):   # must be explicit; the others default correctly when absent
+    # must be explicit: with keycloak.docker-compose.yml an absent one means on / jwt / oidc; the per-app overrides
+    # follow NIDAN_SSO_ENABLED when absent
+    for key in ("NIDAN_SSO_ENABLED", "OPENMRS_AUTH_MODE", "DHIS2_AUTH_PROVIDER"):
         if key not in seen:
             out.append(f"{key}={ROLLBACK[key]}")
     tmp = env_file.with_name(env_file.name + ".tmp")

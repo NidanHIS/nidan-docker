@@ -29,7 +29,7 @@ def props(path):
     return out
 
 
-def compose_keycloak_version(compose=ROOT / "docker-compose.yml"):
+def compose_keycloak_version(compose=ROOT / "keycloak.docker-compose.yml"):
     m = re.search(r"image:\s*quay\.io/keycloak/keycloak:(\d+\.\d+\.\d+)", compose.read_text(encoding="utf-8"))
     return m.group(1) if m else None
 

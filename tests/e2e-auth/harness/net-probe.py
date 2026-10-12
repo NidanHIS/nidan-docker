@@ -3,7 +3,7 @@
 
   python3 -I tests/e2e-auth/harness/net-probe.py [--keep]
 
-Reads the merged docker-compose.yml (every profile) and starts one small stand-in container per service in project
+Reads the merged docker-compose.yml + keycloak.docker-compose.yml (every profile) and starts one small stand-in container per service in project
 nidan-netprobe: same networks (internal flags kept, fixed subnets/addresses dropped), same hostnames (service name,
 container_name, aliases), listening on the ports the real service listens on. Then it opens TCP connections from inside
 the stand-ins and compares with the rules below. The apps themselves are not started: this tests the network design,
@@ -66,7 +66,8 @@ CONNECT = ("import socket, sys\n"
 
 
 def merged():
-    out = subprocess.run(["docker", "compose", "--profile", "*", "config", "--format", "json"], cwd=ROOT,
+    out = subprocess.run(["docker", "compose", "-f", "docker-compose.yml", "-f", "keycloak.docker-compose.yml",
+                          "--profile", "*", "config", "--format", "json"], cwd=ROOT,
                          capture_output=True, text=True, check=True).stdout
     return json.loads(out)
 

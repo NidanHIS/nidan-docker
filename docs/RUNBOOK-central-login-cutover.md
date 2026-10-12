@@ -63,12 +63,25 @@ user with any of those names, so nobody can claim an unlinked local account.
 
 ## 4. Start Keycloak and load the realm
 
+Central login is its own compose file on top of the plain stack. In `.env.local`, add it and keep every login gate
+off until step 7:
+
+```bash
+COMPOSE_FILE=docker-compose.yml:keycloak.docker-compose.yml
+NIDAN_SSO_ENABLED=false            # the Keycloak file's default is on
+OPENMRS_AUTH_MODE=basic            # its default is jwt
+DHIS2_AUTH_PROVIDER=env_file       # its default is oidc
+```
+
+From now on every `docker compose ...` includes Keycloak. Then:
+
 ```bash
 NIDAN_DEPLOYMENT=production scripts/preflight.py          # must pass
-docker compose --profile sso up -d keycloak-db keycloak oauth2-proxy keycloak-admin-proxy
+docker compose up -d keycloak-db keycloak oauth2-proxy keycloak-admin-proxy
 # admin console: ssh -L 8180:127.0.0.1:8180 <stack host>, then http://127.0.0.1:8180/auth/admin/ (keycloak-admin-proxy,
 # KC-07-04; Keycloak's own port is on the internal auth-net, where Docker serves no published port)
-docker compose --profile sso run --rm keycloak-config-cli
+docker compose run --rm keycloak-config-cli
+docker compose up -d gateway       # joins auth-net (fixed 172.31.250.10) and opens :9443; gates stay off
 ```
 
 The first import runs as the bootstrap admin and creates the automation clients
@@ -79,7 +92,7 @@ The first import runs as the bootstrap admin and creates the automation clients
    `--apply`. Re-run whenever a job group is added. Without it the Staff page can do nothing (Keycloak refuses).
 2. `.env.local`: `KEYCLOAK_CONFIG_CLI_CLIENT=nidan-config-cli`, `KEYCLOAK_CONFIG_CLI_GRANT=client_credentials`;
    run `keycloak-config-cli` again: it must succeed without the bootstrap admin.
-3. Start the role sync: `docker compose --profile sso up -d keycloak-role-sync`. It reads the roles this site's
+3. Start the role sync: `docker compose up -d keycloak-role-sync`. It reads the roles this site's
    OpenMRS, Odoo and OpenELIS really have (their own APIs) into Keycloak at start and every hour; a role it made that
    the app dropped is deleted once nobody holds it. Run it now, after an app change, and before mapping jobs:
    `docker compose exec keycloak-role-sync python3 -I /app/role_sync.py --once` (exit 1 = read its log: an app it
@@ -123,9 +136,9 @@ going on.
 ## 7. Switch central login on
 
 ```bash
-# .env.local: NIDAN_SSO_ENABLED=true and OPENMRS_AUTH_MODE=jwt (OpenMRS stops accepting Basic once
-# oauth2login is on; CIS and Odoo then call it with client-credentials tokens), and DHIS2_AUTH_PROVIDER=oidc
-# (the DHIS2 app does not follow NIDAN_SSO_ENABLED)
+# .env.local: remove the three lines set in step 4 (NIDAN_SSO_ENABLED=false, OPENMRS_AUTH_MODE=basic,
+# DHIS2_AUTH_PROVIDER=env_file): the Keycloak file's defaults are on, jwt (OpenMRS stops accepting Basic once
+# oauth2login is on; CIS and Odoo then call it with client-credentials tokens) and oidc
 scripts/nidan-auth-check.py                                   # must report 0 contradictions
 docker compose up -d gateway openmrs-backend openmrs-frontend openelis superset nidan-dhis2 odoo nidan-cis   # openmrs-frontend: loads config-sso.json (KC-35)
 docker compose exec odoo odoo -u nidan_keycloak_sso --stop-after-init   # syncs the login provider

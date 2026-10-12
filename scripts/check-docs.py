@@ -3,7 +3,7 @@
 
   scripts/check-docs.py
 
-Fails when a ${VAR} used in docker-compose.yml / dev.docker-compose.yml is not in env.template
+Fails when a ${VAR} used in docker-compose.yml / keycloak.docker-compose.yml / dev.docker-compose.yml is not in env.template
 (a commented "# VAR=default" line counts), or a scripts/*.py|*.sh (not test_*) is not named in
 README.md.
 """
@@ -21,7 +21,7 @@ SPEC_VARS = ("NIDAN_SSO_ENABLED", "KEYCLOAK_PUBLIC_URL", "GATEWAY_CERT_SANS", "O
 
 def problems(root=ROOT):
     used = set()
-    for f in ("docker-compose.yml", "dev.docker-compose.yml"):
+    for f in ("docker-compose.yml", "keycloak.docker-compose.yml", "dev.docker-compose.yml"):
         if (root / f).exists():
             used |= set(re.findall(r"(?<!\$)\$\{([A-Z][A-Z0-9_]*)", (root / f).read_text(encoding="utf-8")))  # $${X} = container-side
     template = (root / "env.template").read_text(encoding="utf-8")

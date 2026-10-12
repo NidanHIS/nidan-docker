@@ -67,5 +67,5 @@ with tempfile.TemporaryDirectory() as d:
     assert oct(f.stat().st_mode & 0o777) == "0o600" and not (Path(d) / ".env.local.tmp").exists()
     g = Path(d) / "new"
     ds.set_sso_off(g)
-    assert g.read_text() == "NIDAN_SSO_ENABLED=false\nOPENMRS_AUTH_MODE=basic\n", g.read_text()
+    assert g.read_text() == "NIDAN_SSO_ENABLED=false\nOPENMRS_AUTH_MODE=basic\nDHIS2_AUTH_PROVIDER=env_file\n", g.read_text()
 print("disable-sso self-test passed")

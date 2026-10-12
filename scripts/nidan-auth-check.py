@@ -3,7 +3,9 @@
 
   COMPOSE_ENV_FILES=.env,.env.local scripts/nidan-auth-check.py
 
-Reads the effective config (`docker compose --profile '*' config --format json`; no daemon needed).
+Reads the effective config (`docker compose --profile '*' config --format json`; no daemon needed): what this
+site runs (COMPOSE_FILE), the full central-login layout (docker-compose.yml + keycloak.docker-compose.yml), and
+docker-compose.yml alone, which must hold nothing of central login.
 Fails (exit 1) when:
   * a machine caller (CIS, Odoo) uses OPENMRS_AUTH_MODE=jwt while OpenMRS SSO is off, or the two
     callers disagree on the mode, or jwt is set without its token URL / client secret
@@ -140,8 +142,15 @@ def truthy(v):
     return str(v).strip().lower() in ("1", "true", "yes", "on")
 
 
-def check(config):
-    """Return (report_lines, problems) for a compose config dict."""
+def jvm_opts(svc):
+    """Tomcat passes both to the JVM (keycloak.docker-compose.yml puts OpenELIS's login flags in JAVA_OPTS)."""
+    e = env_of(svc)
+    return f'{e.get("CATALINA_OPTS", "")} {e.get("JAVA_OPTS", "")}'
+
+
+def check(config, secrets=True):
+    """Return (report_lines, problems) for a compose config dict. secrets=False: the layout only (the Keycloak file
+    checked under an env file that is not this site's, e.g. the plain demo .env: no client secrets in it)."""
     services = config.get("services", {})
     envs = {name: env_of(s) for name, s in services.items()}
     lines, problems = [], []
@@ -168,7 +177,7 @@ def check(config):
             if not openmrs_sso:
                 problems.append(f"{label}: OPENMRS_AUTH_MODE=jwt but OpenMRS SSO is off (OpenMRS would refuse the token)")
             for k in ("OPENMRS_AUTH_TOKEN_URL", "OPENMRS_AUTH_CLIENT_SECRET"):
-                if not e.get(k):
+                if secrets and not e.get(k):
                     problems.append(f"{label}: OPENMRS_AUTH_MODE=jwt needs {k}")
         elif openmrs_sso:
             problems.append(f"{label}: OpenMRS SSO is on but {label} still uses basic (Basic auth is off in OpenMRS)")
@@ -225,14 +234,13 @@ def check(config):
         else:
             problems.append(msg)
     for name, svc in services.items():
-        for flag in re.findall(r"-D([\w.]*(?:secret|password|passwd|token|key))=", env_of(svc).get("CATALINA_OPTS", ""),
-                               re.I):
+        for flag in re.findall(r"-D([\w.]*(?:secret|password|passwd|token|key))=", jvm_opts(svc), re.I):
             if flag == "datasource.password":
                 lines.append(f"{name}: -Ddatasource.password is logged by Tomcat at start (KC-45-01 residual)")
             else:
-                problems.append(f"{name}: secret -D{flag} in CATALINA_OPTS is logged by Tomcat; pass it as an env var")
+                problems.append(f"{name}: secret -D{flag} in CATALINA_OPTS/JAVA_OPTS is logged by Tomcat; pass it as an env var")
     for name, svc in services.items():
-        if re.search(r"-Dorg\.itech\.login\.form=(false|no|0)\b", env_of(svc).get("CATALINA_OPTS", ""), re.I):
+        if re.search(r"-Dorg\.itech\.login\.form=(false|no|0)\b", jvm_opts(svc), re.I):
             problems.append(f"{name}: -Dorg.itech.login.form=false removes OpenELIS's default authenticated filter "
                             "chain (REST paths would be unauthenticated); keep it true (KC-38)")
     backup = ROOT / "scripts" / "volume-backup.sh"
@@ -240,7 +248,7 @@ def check(config):
         vols, excluded = backup_lists(backup.read_text())
         for v in sorted(set(config.get("volumes") or {}) - vols - excluded):
             problems.append(f"volume {v} is not in scripts/volume-backup.sh VOLS (nor EXCLUDED with a reason) (KC-28-02)")
-        for v in sorted((vols | excluded) - set(config.get("volumes") or {})):
+        for v in sorted((vols | excluded) - set(config.get("volumes") or {}) if "keycloak" in services else ()):
             lines.append(f"volume-backup.sh lists {v}, which compose no longer defines")
     if "oauth2-proxy" in services:
         cfg = ROOT / "proxy" / "oauth2-proxy.cfg"
@@ -273,13 +281,41 @@ def check(config):
     return lines, problems
 
 
-def main():
-    out = subprocess.run(["docker", "compose", "--profile", "*", "config", "--format", "json"],
+BASE = ["-f", "docker-compose.yml"]
+WITH_KEYCLOAK = BASE + ["-f", "keycloak.docker-compose.yml"]
+
+
+def plain_nidan_problems(config):
+    """docker-compose.yml alone is Nidan without central login: no Keycloak service, network or setting."""
+    out = []
+    for name, s in (config.get("services") or {}).items():
+        if name.startswith("keycloak") or name == "oauth2-proxy":
+            out.append(f"docker-compose.yml: service {name} belongs in keycloak.docker-compose.yml")
+        if {"auth-net", "kc-admin-net"} & set(s.get("networks") or {}):
+            out.append(f"docker-compose.yml: {name} on a central-login network (keycloak.docker-compose.yml)")
+        for key in s.get("environment") or {}:   # compose config JSON: a mapping
+            if "SSO" in key or key.startswith(("KC_", "KEYCLOAK_", "NIDAN_KEYCLOAK_", "DHIS2_OIDC_")):
+                out.append(f"docker-compose.yml: {name} sets {key} (central login: keycloak.docker-compose.yml)")
+    return out
+
+
+def compose_config(files):
+    out = subprocess.run(["docker", "compose", *files, "--profile", "*", "config", "--format", "json"],
                          cwd=ROOT, capture_output=True, text=True)
     if out.returncode != 0:
         print(out.stderr.strip(), file=sys.stderr)
+        return None
+    return json.loads(out.stdout)
+
+
+def main():
+    # what this site runs (COMPOSE_FILE in .env picks the files), the full central-login layout, and plain Nidan
+    site, base, full = compose_config([]), compose_config(BASE), compose_config(WITH_KEYCLOAK)
+    if site is None or base is None or full is None:
         return 1
-    lines, problems = check(json.loads(out.stdout))
+    lines, problems = check(site)
+    problems += [p for p in check(full, secrets=False)[1] if p not in problems]
+    problems += plain_nidan_problems(base)
     for line in lines:
         print(line)
     print(f"\n{len(problems)} contradiction(s)")

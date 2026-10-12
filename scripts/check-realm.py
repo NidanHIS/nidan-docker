@@ -107,7 +107,7 @@ def check(doc, where):
     return errs
 
 
-def config_cli_env(compose=ROOT / "docker-compose.yml"):
+def config_cli_env(compose=ROOT / "keycloak.docker-compose.yml"):
     svc = (yaml.safe_load(compose.read_text()).get("services") or {}).get("keycloak-config-cli") or {}
     env = svc.get("environment") or {}
     return set(env) if isinstance(env, dict) else {e.split("=", 1)[0] for e in env}
@@ -122,7 +122,7 @@ def substitution_problems(text, where, env):
             errs.append(f"{where}:{n}: '$(' in a comment is substituted too; reword it")
         for var in re.findall(r"\$\(env:([A-Za-z0-9_]+)", code):
             if var not in env:
-                errs.append(f"{where}:{n}: $(env:{var}) is not passed to keycloak-config-cli in docker-compose.yml")
+                errs.append(f"{where}:{n}: $(env:{var}) is not passed to keycloak-config-cli in keycloak.docker-compose.yml")
     return errs
 
 

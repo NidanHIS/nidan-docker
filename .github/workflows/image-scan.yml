@@ -1,5 +1,5 @@
 # Central-login images (backlog KC-07-09): Keycloak >= 26.8.0, and no FIXABLE critical/high CVE in the
-# Keycloak or oauth2-proxy image pinned in docker-compose.yml. Unfixed ones (no patched package exists,
+# Keycloak or oauth2-proxy image pinned in keycloak.docker-compose.yml. Unfixed ones (no patched package exists,
 # e.g. base-OS pcre2 marked affected / will_not_fix) are listed, not failed: bump the pin when a fix ships.
 # Daily as well, because a new CVE appears without any change here.
 
@@ -23,11 +23,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Images from docker-compose.yml; Keycloak >= 26.8.0
+      - name: Images from keycloak.docker-compose.yml; Keycloak >= 26.8.0
         run: |
-          kc=$(grep -E '^ *image: *quay\.io/keycloak/keycloak:' docker-compose.yml | grep -oE 'quay[^ ]+' | head -n 1)
-          o2p=$(grep -E '^ *image: *quay\.io/oauth2-proxy/oauth2-proxy:' docker-compose.yml | grep -oE 'quay[^ ]+' | head -n 1)
-          [ -n "$kc" ] && [ -n "$o2p" ] || { echo "keycloak / oauth2-proxy image not found in docker-compose.yml" >&2; exit 1; }
+          kc=$(grep -E '^ *image: *quay\.io/keycloak/keycloak:' keycloak.docker-compose.yml | grep -oE 'quay[^ ]+' | head -n 1)
+          o2p=$(grep -E '^ *image: *quay\.io/oauth2-proxy/oauth2-proxy:' keycloak.docker-compose.yml | grep -oE 'quay[^ ]+' | head -n 1)
+          [ -n "$kc" ] && [ -n "$o2p" ] || { echo "keycloak / oauth2-proxy image not found in keycloak.docker-compose.yml" >&2; exit 1; }
           v=${kc#*:}; v=${v%%@*}
           [ "$(printf '26.8.0\n%s\n' "$v" | sort -V | head -n 1)" = "26.8.0" ] || { echo "Keycloak $v is older than 26.8.0" >&2; exit 1; }
           echo "IMAGES=$kc $o2p" >> "$GITHUB_ENV"

@@ -96,7 +96,7 @@ jobs:
 
 
   prod-like:
-    # KC-42-05: the REAL docker-compose.yml (not a harness) with generated secrets, NIDAN_DEPLOYMENT=production,
+    # KC-42-05: the REAL docker-compose.yml + keycloak.docker-compose.yml (not a harness) with generated secrets, NIDAN_DEPLOYMENT=production,
     # central login on and the gateway image built from this checkout. Every probe runs from lan-probe, a container
     # on its own network that reaches only the host's published ports, never nidan-network. Apps are not started:
     # this checks the perimeter (KC-02 scan, KC-10 gates, KC-12 TLS, KC-47 port 80, KC-53, KC-56).
@@ -106,6 +106,7 @@ jobs:
     continue-on-error: true
     env:
       COMPOSE_ENV_FILES: .env,.env.ci.local
+      COMPOSE_FILE: docker-compose.yml:keycloak.docker-compose.yml   # Nidan + central login
     steps:
       - uses: actions/checkout@v4
 
@@ -125,9 +126,9 @@ jobs:
           docker build -t nidan-gateway:ci proxy
           (cd keycloak/providers/nidan-code-otp && mvn -q -B package && cp target/nidan-code-otp.jar ../dist/)   # the login flow needs it
           export KC_USERNAME_PATTERN="$(python3 -I scripts/reserved-usernames.py | sed -n 's/^KC_USERNAME_PATTERN=//p')"
-          docker compose --profile sso up -d --wait keycloak-db keycloak
-          docker compose --profile sso up --no-deps --exit-code-from keycloak-config-cli keycloak-config-cli
-          docker compose --profile sso up -d --wait --no-deps oauth2-proxy keycloak-admin-proxy gateway
+          docker compose up -d --wait keycloak-db keycloak
+          docker compose up --no-deps --exit-code-from keycloak-config-cli keycloak-config-cli
+          docker compose up -d --wait --no-deps oauth2-proxy keycloak-admin-proxy gateway
 
       - name: Probe from lan-probe (outside every compose network)
         run: |
@@ -139,7 +140,7 @@ jobs:
 
       - name: Gateway and Keycloak logs on failure
         if: failure()
-        run: docker compose --profile sso logs gateway keycloak oauth2-proxy | tail -n 300
+        run: docker compose logs gateway keycloak oauth2-proxy | tail -n 300
 
       - uses: actions/upload-artifact@v4
         if: always()

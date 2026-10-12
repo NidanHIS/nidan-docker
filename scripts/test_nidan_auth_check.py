@@ -120,7 +120,7 @@ assert any("org.itech.login.form" in p for p in problems(c)), problems(c)
 assert problems(cfg(extra={"openelis": {"environment": {"CATALINA_OPTS": "-Dorg.itech.login.form=true"}}})) == []
 # KC-45-01: no secret as a -D flag (Tomcat logs them); datasource.password reported only
 c = cfg(extra={"openelis": {"environment": {"CATALINA_OPTS": "-Dds.url=x -Dorg.x.sync.secret=abc -Dapi.token=t -Doauth.tokenUri=http://kc/token -Dkey.path=/k"}}})
-assert sum("in CATALINA_OPTS is logged" in p for p in problems(c)) == 2, problems(c)
+assert sum("in CATALINA_OPTS/JAVA_OPTS is logged" in p for p in problems(c)) == 2, problems(c)
 c = cfg(extra={"openelis": {"environment": {"CATALINA_OPTS": "-Ddatasource.password=x -Dorg.x.enabled=true"}}})
 assert problems(c) == [] and any("datasource.password" in l for l in nac.check(c)[0])
 # KC-43-03: databases on data-net only; the gateway never on it; data-net internal
@@ -141,3 +141,17 @@ c = cfg()
 c["volumes"] = {v: {} for v in real_vols | real_excl | {"brand-new-data"}}
 assert any("brand-new-data" in p and "KC-28-02" in p for p in problems(c)), problems(c)
 print("nidan-auth-check: all cases OK (incl. -D secrets and backup coverage)")
+
+# docker-compose.yml alone is plain Nidan: no Keycloak service, network or setting (keycloak.docker-compose.yml)
+plain = {"services": {"odoo": {"environment": {"ODOO_DB_FILTER": "x"}, "networks": {"nidan-network": None}}}}
+assert nac.plain_nidan_problems(plain) == []
+leaky = {"services": {"keycloak": {}, "gateway": {"networks": {"auth-net": {}}},
+                      "odoo": {"environment": {"NIDAN_SSO_ENABLED": "false", "NIDAN_KEYCLOAK_CLIENT_ID": "odoo"}}}}
+assert len(nac.plain_nidan_problems(leaky)) == 4, nac.plain_nidan_problems(leaky)
+# OpenELIS's login flags live in JAVA_OPTS with the Keycloak file: secrets there are caught too
+j = {"services": {"openelis": {"environment": {"JAVA_OPTS": "-Dorg.itech.login.oauth.clientSecret=x"}}}}
+assert any("JAVA_OPTS is logged" in p for p in nac.check(j)[1]), nac.check(j)[1]
+assert not any("needs OPENMRS_AUTH" in p for p in nac.check(
+    {"services": {"nidan-cis": {"environment": {"OPENMRS_AUTH_MODE": "jwt"}},
+                  "openmrs-backend": {"environment": {"OPENMRS_SSO_ENABLED": "true"}}}}, secrets=False)[1])
+print("plain-nidan / JAVA_OPTS checks ok")

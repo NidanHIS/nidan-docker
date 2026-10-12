@@ -5,9 +5,9 @@ name: Realm import
 
 on:
   push:
-    paths: ["keycloak/**", "docker-compose.yml", "tests/e2e-auth/harness/keycloak.yml", "tests/e2e-auth/harness/realm-snapshot.py", "tests/e2e-auth/specs/realm.spec.ts", "scripts/keycloak-admin-permissions.py", "scripts/realm-audit.py", ".github/workflows/realm-import.yml"]
+    paths: ["keycloak/**", "docker-compose.yml", "keycloak.docker-compose.yml", "tests/e2e-auth/harness/keycloak.yml", "tests/e2e-auth/harness/realm-snapshot.py", "tests/e2e-auth/specs/realm.spec.ts", "scripts/keycloak-admin-permissions.py", "scripts/realm-audit.py", ".github/workflows/realm-import.yml"]
   pull_request:
-    paths: ["keycloak/**", "docker-compose.yml", "tests/e2e-auth/harness/keycloak.yml", "tests/e2e-auth/harness/realm-snapshot.py", "tests/e2e-auth/specs/realm.spec.ts", "scripts/keycloak-admin-permissions.py", "scripts/realm-audit.py", ".github/workflows/realm-import.yml"]
+    paths: ["keycloak/**", "docker-compose.yml", "keycloak.docker-compose.yml", "tests/e2e-auth/harness/keycloak.yml", "tests/e2e-auth/harness/realm-snapshot.py", "tests/e2e-auth/specs/realm.spec.ts", "scripts/keycloak-admin-permissions.py", "scripts/realm-audit.py", ".github/workflows/realm-import.yml"]
   workflow_dispatch:
 
 permissions:

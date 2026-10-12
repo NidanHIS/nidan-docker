@@ -23,7 +23,11 @@ This repository contains the containerized architecture for **NidanEHR**, orches
 *   `proxy/`: Nginx configuration for the main gateway.
 *   `keycloak/`: Realm imports and themes.
 *   `_backup_legacy/`: Archived legacy Bahmni-based configuration (can be removed).
-*   `docker-compose.yml`: Main orchestration file.
+*   `docker-compose.yml`: Main orchestration file: the whole Nidan stack, each app with its own login.
+*   `keycloak.docker-compose.yml`: optional central login (Keycloak) on top of it. Without it nothing of Keycloak
+    runs; with it (`COMPOSE_FILE=docker-compose.yml:keycloak.docker-compose.yml` in `.env.local`, or
+    `docker compose -f docker-compose.yml -f keycloak.docker-compose.yml ...`) every app signs in through Keycloak.
+    Moving a live site over: `docs/RUNBOOK-central-login-cutover.md`.
 
 ## Build & Deployment Instructions
 
@@ -72,8 +76,8 @@ This repository contains the containerized architecture for **NidanEHR**, orches
    layout with `python3 -I tests/e2e-auth/harness/net-probe.py`.
    **auth-net address range (2026-10-12):** `auth-net` now hands out automatic addresses from .128 only, so nothing
    can take the gateway's fixed 172.31.250.10 (if Keycloak ever got it, the gateway would not start). Docker does not
-   change an existing network: in a maintenance window, `docker compose --profile sso down` (no `-v`: volumes and
-   data stay), then `docker compose --profile sso up -d`. Until then, start the gateway before Keycloak after any
+   change an existing network: in a maintenance window, `docker compose down` (no `-v`: volumes and
+   data stay), then `docker compose up -d` (with `keycloak.docker-compose.yml` in COMPOSE_FILE). Until then, start the gateway before Keycloak after any
    restart.
    **Odoo without the DB superuser (KC-48-02):** Odoo images built from the current `odoo_19_addons/packages`
    entrypoint start without the database superuser password. Once a site runs such an image, set
@@ -161,7 +165,8 @@ OpenELIS uses pre-built images from I-TECH. Configuration is managed through env
 Keycloak uses the official Quay.io image with realm imports.
 ```bash
 # No build needed - uses pre-built image
-# Realm configuration is in keycloak/realm/ (imported by keycloak-config-cli, see docker-compose.yml)
+# Realm configuration is in keycloak/realm/ (imported by keycloak-config-cli, see keycloak.docker-compose.yml;
+# Keycloak runs only with that file, see "Repository Layout")
 ```
 
 ---

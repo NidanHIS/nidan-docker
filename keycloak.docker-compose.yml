@@ -1,0 +1,337 @@
+# Central login (Keycloak) on top of the plain Nidan stack in docker-compose.yml. Opt in per site:
+#
+#   docker compose -f docker-compose.yml -f keycloak.docker-compose.yml up -d
+#   or once in .env:  COMPOSE_FILE=docker-compose.yml:keycloak.docker-compose.yml   (then plain `docker compose ...`)
+#
+# Without this file Nidan runs exactly as before: every app with its own login, no Keycloak containers, no :9443.
+# With it: Keycloak + its DB, the realm import (keycloak-config-cli), the gateway's login gate (oauth2-proxy), the
+# operators' admin-console tunnel, the role sync, and each app's central-login settings (the oauth2login OMOD for
+# OpenMRS, Odoo's nidan_keycloak_sso, OpenELIS / Superset / DHIS2 OIDC). Setup: docs/RUNBOOK-central-login-cutover.md.
+#
+# NIDAN_SSO_ENABLED (default true here) switches the login gates; a site moving over sets it false (and
+# OPENMRS_AUTH_MODE=basic, DHIS2_AUTH_PROVIDER=env_file) until the runbook's switch-on step.
+
+x-default-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+networks:
+  # Central login (KC-07 / KC-43): gateway, keycloak, keycloak-db, keycloak-config-cli, oauth2-proxy, role sync only.
+  # Internal = no route out. Fixed subnet so the gateway has a static address for KC_PROXY_TRUSTED_ADDRESSES.
+  auth-net:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.31.250.0/24
+          # automatic addresses come from .128-.254 only, so no container can take the gateway's fixed .10
+          # (a Keycloak started first once did on a harness, and the gateway then could not start)
+          ip_range: 172.31.250.128/25
+          gateway: 172.31.250.1         # pinned: with ip_range alone Docker moves the gateway to .128
+  # Only keycloak-admin-proxy: a non-internal network so its 127.0.0.1:8180 is served (KC-07-04).
+  kc-admin-net:
+    driver: bridge
+
+volumes:
+  keycloak-db-data:
+
+services:
+  # ---- the stack's services, with central login added (merged onto docker-compose.yml) ----
+  gateway:
+    ports:
+      - "9443:9443"   # Keycloak login (central login) + Staff page; serves nothing else (D1)
+    environment:
+      # Central login: true = every app route needs a Keycloak session (KC-10).
+      - NIDAN_SSO_ENABLED=${NIDAN_SSO_ENABLED:-true}
+      # KC-12-07: Keycloak login/token requests per client IP and minute; exempt CIDRs (comma separated) only for a
+      # known shared address such as a NAT in front of the gateway (each exemption removes the limit for it)
+      - KC_LOGIN_RATE_PER_MIN=${KC_LOGIN_RATE_PER_MIN:-10}
+      - KC_LOGIN_RATE_EXEMPT=${KC_LOGIN_RATE_EXEMPT:-}
+      # Launcher "Change password" link to Keycloak (KC-55-05); empty = no link.
+      - KEYCLOAK_PUBLIC_URL=${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}
+      # With central login on, the gateway authenticates to Orthanc behind its gates (KC-30-06).
+      - ORTHANC_USERNAME=${ORTHANC_USERNAME:-nidan}
+      - ORTHANC_PASSWORD=${ORTHANC_PASSWORD:-}
+      - ORTHANC_VIEWER_PASSWORD=${ORTHANC_VIEWER_PASSWORD:-}
+    networks:
+      auth-net:
+        ipv4_address: 172.31.250.10
+    volumes:
+      - ${STAFF_SITE_DIR:-./proxy/staff-site}:/etc/nginx/staff-site:ro   # scripts/staff-config.py output (KC-21-09)
+
+  openmrs-backend:
+    environment:
+      # Central login (KC-34): oauth2login + oauth2.properties (startup-custom.sh)
+      OPENMRS_SSO_ENABLED: ${OPENMRS_SSO_ENABLED:-${NIDAN_SSO_ENABLED:-true}}
+      KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}
+      KC_OPENMRS_CLIENT_SECRET: ${KC_OPENMRS_CLIENT_SECRET:-}
+      GATEWAY_DOMAIN: ${GATEWAY_DOMAIN:-localhost}
+    volumes:
+      # the oauth2.properties template and the oauth2login OMOD (build openmrs-module-oauth2login, copy
+      # omod/target/oauth2login-*.omod into openmrs/sso_modules; OpenMRS refuses to start without it)
+      - ./openmrs/sso:/openmrs/distribution/sso:ro
+      - ./openmrs/sso_modules:/openmrs/distribution/sso_modules:ro
+
+  openmrs-frontend:
+    environment:
+      # central login (KC-35): adds config-sso.json (O3 login/logout through Keycloak)
+      - OPENMRS_SSO_ENABLED=${OPENMRS_SSO_ENABLED:-${NIDAN_SSO_ENABLED:-true}}
+
+  odoo:
+    environment:
+      # Central login (nidan_keycloak_sso, KC-37): provider record is synced from these at module install/upgrade.
+      # Browser login goes to the public URL; token and keys via the gateway's internal back-channel (KC-43).
+      - NIDAN_SSO_ENABLED=${NIDAN_SSO_ENABLED:-true}
+      - NIDAN_KEYCLOAK_CLIENT_ID=odoo
+      - NIDAN_KEYCLOAK_CLIENT_SECRET=${KC_ODOO_CLIENT_SECRET:-}
+      - NIDAN_KEYCLOAK_AUTH_URL=${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}/realms/nidan/protocol/openid-connect/auth
+      - NIDAN_KEYCLOAK_TOKEN_URL=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/token
+      - NIDAN_KEYCLOAK_JWKS_URL=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/certs
+      - NIDAN_ROLE_SYNC_SECRET=${NIDAN_ROLE_SYNC_SECRET:-}   # /api/nidan/role-catalog for keycloak-role-sync
+      # Odoo -> OpenMRS auth (KC-33): OpenMRS takes no Basic once its central login is on: jwt with the realm's
+      # odoo-sync client. The secret is env-only, never an Odoo config parameter.
+      - OPENMRS_AUTH_MODE=${OPENMRS_AUTH_MODE:-jwt}
+      - OPENMRS_AUTH_TOKEN_URL=${OPENMRS_AUTH_TOKEN_URL:-http://gateway:8099/auth/realms/nidan/protocol/openid-connect/token}
+      - OPENMRS_AUTH_CLIENT_ID=odoo-sync
+      - OPENMRS_AUTH_CLIENT_SECRET=${KC_ODOO_SYNC_CLIENT_SECRET:-}
+
+  openelis:
+    environment:
+      # Central login (KC-38). JAVA_OPTS, not CATALINA_OPTS (the base file's): Tomcat passes both to the JVM.
+      - JAVA_OPTS=
+          -Dorg.itech.login.oauth=${OPENELIS_SSO_ENABLED:-${NIDAN_SSO_ENABLED:-true}}
+          -Dorg.itech.login.oauth.config=${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}/realms/nidan
+          -Dorg.itech.login.oauth.clientID=openelis
+          -Dorg.itech.login.oauth.authorizationUri=${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}/realms/nidan/protocol/openid-connect/auth
+          -Dorg.itech.login.oauth.tokenUri=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/token
+          -Dorg.itech.login.oauth.jwkSetUri=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/certs
+          -Dorg.itech.login.oauth.userInfoUri=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/userinfo
+          -Dorg.itech.login.oauth.issuerUri=${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}/realms/nidan
+          -Dorg.itech.login.oauth.redirectUri=https://${GATEWAY_DOMAIN:-localhost}/api/OpenELIS-Global/login/oauth2/code/nidan-keycloak
+          -Dorg.itech.login.oauth.successUrl=https://${GATEWAY_DOMAIN:-localhost}/openelis/
+          -Dorg.itech.login.oauth.loginpage=false
+      - ORG_ITECH_LOGIN_OAUTH_CLIENTSECRET=${KC_OPENELIS_CLIENT_SECRET:-}
+      - NIDAN_ROLE_SYNC_SECRET=${NIDAN_ROLE_SYNC_SECRET:-}   # /rest/nidan/role-catalog for keycloak-role-sync
+
+  nidan-cis:
+    environment:
+      # CIS -> OpenMRS auth (KC-32-01): jwt with the realm's cis client (OpenMRS takes no Basic with central login).
+      - OPENMRS_AUTH_MODE=${OPENMRS_AUTH_MODE:-jwt}
+      - OPENMRS_AUTH_TOKEN_URL=${OPENMRS_AUTH_TOKEN_URL:-http://gateway:8099/auth/realms/nidan/protocol/openid-connect/token}
+      - OPENMRS_AUTH_CLIENT_ID=cis
+      - OPENMRS_AUTH_CLIENT_SECRET=${KC_CIS_CLIENT_SECRET:-}
+
+  nidan-dhis2:
+    environment:
+      # Central login (KC-40). Browser -> public URL; token/keys -> back-channel.
+      - AUTH_PROVIDER=${DHIS2_AUTH_PROVIDER:-oidc}
+      - DHIS2_OIDC_AUTH_URL=${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}/realms/nidan/protocol/openid-connect/auth
+      - DHIS2_OIDC_TOKEN_URL=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/token
+      - DHIS2_OIDC_JWKS_URL=http://gateway:8099/auth/realms/nidan/protocol/openid-connect/certs
+      - DHIS2_OIDC_ISSUER=${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}/realms/nidan
+      - DHIS2_OIDC_CLIENT_ID=dhis2
+      - DHIS2_OIDC_CLIENT_SECRET=${KC_DHIS2_CLIENT_SECRET:-}
+      - DHIS2_OIDC_REDIRECT_URI=https://${GATEWAY_DOMAIN:-localhost}/dhis2/auth/oidc/callback
+
+  superset:
+    environment:
+      # Central login (KC-39): on with SUPERSET_SSO_ENABLED, default NIDAN_SSO_ENABLED
+      SUPERSET_SSO_ENABLED: ${SUPERSET_SSO_ENABLED:-${NIDAN_SSO_ENABLED:-true}}
+      KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}
+      KC_SUPERSET_CLIENT_SECRET: ${KC_SUPERSET_CLIENT_SECRET:-}
+    volumes:
+      - ./superset/nidan_sso.py:/app/pythonpath/nidan_sso.py:ro
+
+  # ============================================================================
+  # Keycloak and its DB live only on auth-net; the admin console is reachable only through an SSH tunnel to 127.0.0.1:8180 (D34).
+  # Keycloak's public origin (decision D1) is the gateway's :9443: KEYCLOAK_PUBLIC_URL, default
+  # https://<GATEWAY_DOMAIN>:9443/auth. Browsers never reach Keycloak directly.
+  # TODO(KC-01-01): first live import; TODO(KC-07-07): switch config-cli to its own client, remove bootstrap admin.
+  # ============================================================================
+  keycloak-db:
+    logging: *default-logging
+    image: postgres:16.15@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
+    container_name: nidan-keycloak-db
+    environment:
+      POSTGRES_DB: ${KEYCLOAK_DB_NAME:-keycloak}
+      POSTGRES_USER: ${KEYCLOAK_DB_USER:-keycloak}
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD (generate-secrets.sh writes .env.local)}
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+    networks:
+      - auth-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  keycloak:
+    logging: *default-logging
+    image: quay.io/keycloak/keycloak:26.8.0@sha256:b0f60d489d51c5d113390bdf5461d4c06e6051be026c05549f2e1e10ec352bcc
+    container_name: nidan-keycloak
+    command: ["start"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/${KEYCLOAK_DB_NAME:-keycloak}
+      # own non-superuser login once scripts/app-db-roles.py has run (KEYCLOAK_DB_APP_*); the superuser otherwise
+      KC_DB_USERNAME: ${KEYCLOAK_DB_APP_USER:-${KEYCLOAK_DB_USER:-keycloak}}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_APP_PASSWORD:-${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD (generate-secrets.sh writes .env.local)}}
+      KC_HTTP_ENABLED: "true"                  # TLS ends at the gateway; keycloak is only on auth-net
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}
+      KC_HOSTNAME_ADMIN: http://127.0.0.1:8180/auth
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_PROXY_TRUSTED_ADDRESSES: 172.31.250.10
+      KC_HEALTH_ENABLED: "true"                # management port 9000, auth-net only (KC-07-05)
+      KC_METRICS_ENABLED: "false"
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD (generate-secrets.sh writes .env.local)}
+      NIDAN_SMS_TOKEN: ${NIDAN_SMS_TOKEN:-}     # read by nidan-code-otp; kept out of the realm (unmasked there)
+    volumes:
+      - ./keycloak/themes/nidan:/opt/keycloak/themes/nidan:ro   # login theme (KC-17)
+      # email / SMS sign-in codes: build first (keycloak/providers/README.md); the realm's login flow needs it
+      - ./keycloak/providers/dist:/opt/keycloak/providers:ro
+      - ./keycloak/password-blocklist.txt:/opt/keycloak/data/password-blacklists/nidan.txt:ro   # passwordBlacklist(nidan.txt)
+    networks:
+      - auth-net
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /auth/health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    restart: unless-stopped
+
+  # Admin console for operators: 127.0.0.1:8180 (SSH tunnel) -> keycloak:8080 (KC-07-04). Keycloak itself is on the
+  # internal auth-net, where Docker silently ignores published ports; this proxy is the only member of kc-admin-net.
+  keycloak-admin-proxy:
+    logging: *default-logging
+    image: nginx:1.31.6-alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2
+    container_name: nidan-keycloak-admin-proxy
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp", "/var/cache/nginx"]
+    volumes:
+      - ./proxy/keycloak-admin-proxy.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "127.0.0.1:8180:8180"                  # admin console via SSH tunnel only (KC-07-04)
+    networks:
+      - auth-net
+      - kc-admin-net
+
+  keycloak-config-cli:
+    logging: *default-logging
+    image: adorsys/keycloak-config-cli:6.5.1-26.5.5@sha256:0955d98c8a341898b7aa177477edf8a1e90569ae50bbe7598141c1270b773274
+    container_name: nidan-keycloak-config-cli
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080/auth
+      # First import as the bootstrap admin (password grant); after it, set KEYCLOAK_CONFIG_CLI_CLIENT=nidan-config-cli
+      # and KEYCLOAK_CONFIG_CLI_GRANT=client_credentials, then remove the bootstrap admin (KC-07-07).
+      KEYCLOAK_GRANTTYPE: ${KEYCLOAK_CONFIG_CLI_GRANT:-password}
+      KEYCLOAK_CLIENTID: ${KEYCLOAK_CONFIG_CLI_CLIENT:-admin-cli}
+      KEYCLOAK_CLIENTSECRET: ${KC_CONFIG_CLI_CLIENT_SECRET:-}
+      KEYCLOAK_USER: ${KEYCLOAK_ADMIN_USER:-admin}
+      KEYCLOAK_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD (generate-secrets.sh writes .env.local)}
+      KEYCLOAK_AVAILABILITYCHECK_ENABLED: "true"
+      KEYCLOAK_AVAILABILITYCHECK_TIMEOUT: 180s
+      IMPORT_FILES_LOCATIONS: /config/base/*.yaml,/config/master/*.yaml   # realm files only; roles/ catalogs are not imports
+      IMPORT_VARSUBSTITUTION_ENABLED: "true"
+      IMPORT_MANAGED_GROUP: full                     # groups not in the files are removed (no drift)
+      # $(env:...) values for keycloak/realm/base/nidan.yaml; preflight rejects empty secrets in production
+      GATEWAY_DOMAIN: ${GATEWAY_DOMAIN:-localhost}
+      GATEWAY_AUTH_IP: 172.31.250.10                    # the gateway's fixed auth-net address (Odoo back-channel logout)
+      NIDAN_BRAND_NAME: ${NIDAN_BRAND_NAME:-Nidan EHR}  # realm display name: login page tab title
+      # email / SMS sign-in codes (optional; each channel stays off until set): env.template
+      NIDAN_SMTP_HOST: ${NIDAN_SMTP_HOST:-}
+      NIDAN_SMTP_PORT: ${NIDAN_SMTP_PORT:-587}
+      NIDAN_SMTP_FROM: ${NIDAN_SMTP_FROM:-}
+      NIDAN_SMTP_STARTTLS: ${NIDAN_SMTP_STARTTLS:-true}
+      NIDAN_SMTP_AUTH: ${NIDAN_SMTP_AUTH:-true}
+      NIDAN_SMTP_USER: ${NIDAN_SMTP_USER:-}
+      NIDAN_SMTP_PASSWORD: ${NIDAN_SMTP_PASSWORD:-}
+      NIDAN_SMS_PROVIDER: ${NIDAN_SMS_PROVIDER:-none}
+      NIDAN_SMS_URL: ${NIDAN_SMS_URL:-}
+      NIDAN_SMS_FROM: ${NIDAN_SMS_FROM:-}
+      NIDAN_SYNC_USERNAME: ${NIDAN_SYNC_USERNAME:-nidan-sync}
+      KC_USERNAME_PATTERN: ${KC_USERNAME_PATTERN:-}
+      DEFAULT_LOCALE: ${DEFAULT_LOCALE:-en}             # login/Staff page language when the browser asks for none
+      KC_GATEWAY_CLIENT_SECRET: ${KC_GATEWAY_CLIENT_SECRET:-}
+      KC_OPENMRS_CLIENT_SECRET: ${KC_OPENMRS_CLIENT_SECRET:-}
+      KC_ODOO_CLIENT_SECRET: ${KC_ODOO_CLIENT_SECRET:-}
+      KC_DHIS2_CLIENT_SECRET: ${KC_DHIS2_CLIENT_SECRET:-}
+      KC_SUPERSET_CLIENT_SECRET: ${KC_SUPERSET_CLIENT_SECRET:-}
+      KC_CIS_CLIENT_SECRET: ${KC_CIS_CLIENT_SECRET:-}
+      KC_ODOO_SYNC_CLIENT_SECRET: ${KC_ODOO_SYNC_CLIENT_SECRET:-}
+      KC_PORTAL_SYNC_CLIENT_SECRET: ${KC_PORTAL_SYNC_CLIENT_SECRET:-}
+      KC_OPENELIS_CLIENT_SECRET: ${KC_OPENELIS_CLIENT_SECRET:-}
+      KC_CONFIG_CLI_CLIENT_SECRET: ${KC_CONFIG_CLI_CLIENT_SECRET:-}     # master/automation.yaml sets the clients' own secrets
+      KC_AUTOMATION_CLIENT_SECRET: ${KC_AUTOMATION_CLIENT_SECRET:-}
+      KC_ROLE_SYNC_CLIENT_SECRET: ${KC_ROLE_SYNC_CLIENT_SECRET:-}
+      KC_ROLE_SYNC_ADMIN_SECRET: ${KC_ROLE_SYNC_ADMIN_SECRET:-}
+    volumes:
+      - ./keycloak/realm:/config:ro
+    networks:
+      - auth-net
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    restart: "no"
+
+  # The apps' client roles come from the apps (keycloak/role-sync/role_sync.py): at start, then hourly.
+  # On demand: docker compose exec keycloak-role-sync python3 -I /app/role_sync.py --once
+  # On auth-net (Keycloak admin API) and nidan-network (the apps' role lists); reads only, from the apps.
+  keycloak-role-sync:
+    logging: *default-logging
+    image: python:3.12-alpine@sha256:1b668429b3511ab407d8e00648891631b0b1a4d7e15e3ca70f38ab5b91ad4ab4
+    container_name: nidan-keycloak-role-sync
+    command: ["python3", "-I", "/app/role_sync.py"]
+    user: "65534:65534"
+    read_only: true
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080/auth
+      KC_ROLE_SYNC_ADMIN_SECRET: ${KC_ROLE_SYNC_ADMIN_SECRET:-}
+      KC_ROLE_SYNC_CLIENT_SECRET: ${KC_ROLE_SYNC_CLIENT_SECRET:-}
+      NIDAN_ROLE_SYNC_SECRET: ${NIDAN_ROLE_SYNC_SECRET:-}
+      OPENMRS_URL: http://openmrs-backend:8080/openmrs
+      ODOO_URL: http://odoo:8069
+      OPENELIS_URL: http://openelis:8080
+      ROLE_SYNC_INTERVAL: ${ROLE_SYNC_INTERVAL:-3600}
+    volumes:
+      - ./keycloak/role-sync/role_sync.py:/app/role_sync.py:ro
+    networks:
+      - auth-net
+      - nidan-network
+    depends_on:
+      keycloak-config-cli:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  oauth2-proxy:
+    logging: *default-logging
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.5@sha256:8498b0d0ef0a7b29686414000a08aee467f02d0299c9ed1e006a8f33fc017916
+    container_name: nidan-oauth2-proxy
+    command: ["--config=/etc/oauth2-proxy.cfg"]
+    environment:
+      OAUTH2_PROXY_CLIENT_SECRET: ${KC_GATEWAY_CLIENT_SECRET:-}
+      OAUTH2_PROXY_COOKIE_SECRET: ${OAUTH2_PROXY_COOKIE_SECRET:-}
+      OAUTH2_PROXY_OIDC_ISSUER_URL: ${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}/realms/nidan
+      OAUTH2_PROXY_LOGIN_URL: ${KEYCLOAK_PUBLIC_URL:-https://${GATEWAY_DOMAIN:-localhost}:9443/auth}/realms/nidan/protocol/openid-connect/auth
+      OAUTH2_PROXY_REDEEM_URL: http://keycloak:8080/auth/realms/nidan/protocol/openid-connect/token
+      OAUTH2_PROXY_OIDC_JWKS_URL: http://keycloak:8080/auth/realms/nidan/protocol/openid-connect/certs
+      OAUTH2_PROXY_WHITELIST_DOMAINS: ${GATEWAY_DOMAIN:-localhost}:*   # post-login rd= only back to the gateway
+    volumes:
+      - ./proxy/oauth2-proxy.cfg:/etc/oauth2-proxy.cfg:ro
+    networks:
+      - auth-net
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    restart: unless-stopped
