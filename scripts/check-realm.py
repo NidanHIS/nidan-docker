@@ -111,10 +111,23 @@ def check(doc, where):
     return errs
 
 
-def config_cli_env(compose=ROOT / "keycloak.docker-compose.yml"):
+def config_cli_env(compose=ROOT / "keycloak.docker-compose.yml", values=False):
     svc = (yaml.safe_load(compose.read_text()).get("services") or {}).get("keycloak-config-cli") or {}
     env = svc.get("environment") or {}
-    return set(env) if isinstance(env, dict) else {e.split("=", 1)[0] for e in env}
+    env = env if isinstance(env, dict) else dict(e.split("=", 1) if "=" in e else (e, "") for e in env)
+    return env if values else set(env)
+
+
+def default_problems(text, where, compose_env):
+    """A realm default $(env:X:-d) is lost when compose passes X as an empty string (config-cli applies the default
+    only to an unset variable): compose must pass ${X:-d} itself. Found live 2026-10-13: no SMTP -> from '' -> the
+    realm import failed (Keycloak refuses an empty sender)."""
+    errs = []
+    for var, d in re.findall(r"\$\(env:([A-Z0-9_]+):-([^)]*)\)", text):
+        passed = str(compose_env.get(var, ""))
+        if d and var in compose_env and passed != f"${{{var}:-{d}}}":
+            errs.append(f"{where}: $(env:{var}:-{d}) but keycloak-config-cli gets {var}: {passed!r}; pass ${{{var}:-{d}}}")
+    return errs
 
 
 def substitution_problems(text, where, env):
@@ -232,6 +245,7 @@ def main():
         name = f.relative_to(ROOT) if f.is_absolute() and f.is_relative_to(ROOT) else f
         errs += check(yaml.safe_load(f.read_text()) or {}, str(name))
         errs += substitution_problems(f.read_text(), str(name), env)
+        errs += default_problems(f.read_text(), str(name), config_cli_env(values=True))
     if not sys.argv[1:]:                 # the jobs across all realm files (R3, R6, KC-09-08)
         errs += job_and_user_rules(job_role_mappings(), realm_docs())
     print(f"{len(files)} realm file(s), {len(errs)} violation(s)")

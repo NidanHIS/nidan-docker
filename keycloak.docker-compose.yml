@@ -252,7 +252,7 @@ services:
       # email / SMS sign-in codes (optional; each channel stays off until set): env.template
       NIDAN_SMTP_HOST: ${NIDAN_SMTP_HOST:-}
       NIDAN_SMTP_PORT: ${NIDAN_SMTP_PORT:-587}
-      NIDAN_SMTP_FROM: ${NIDAN_SMTP_FROM:-}
+      NIDAN_SMTP_FROM: ${NIDAN_SMTP_FROM:-noreply@nidan.invalid}   # = the realm default: Keycloak refuses an empty sender
       NIDAN_SMTP_STARTTLS: ${NIDAN_SMTP_STARTTLS:-true}
       NIDAN_SMTP_AUTH: ${NIDAN_SMTP_AUTH:-true}
       NIDAN_SMTP_USER: ${NIDAN_SMTP_USER:-}

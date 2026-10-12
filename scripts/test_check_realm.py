@@ -76,4 +76,8 @@ assert any("/staff/cashier" in p and "base.group_user" in p for p in out), out
 assert any("user admin" in p and "R6" in p for p in out) and any("service-account-cis" in p for p in out), out
 assert any("user ram" in p and "KC-09-08" in p for p in out) and not any("sita" in p for p in out), out
 assert len(out) == 4, out
+# a realm default must survive compose (2026-10-13: empty NIDAN_SMTP_FROM broke the import)
+assert cr.default_problems('from: "$(env:F:-a@b)"', "t", {"F": "${F:-}"}) != []
+assert cr.default_problems('from: "$(env:F:-a@b)"', "t", {"F": "${F:-a@b}"}) == []
+assert cr.default_problems('host: "$(env:H:-)"', "t", {"H": "${H:-}"}) == []
 print("check-realm: OK")
