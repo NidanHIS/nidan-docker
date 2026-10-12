@@ -152,7 +152,7 @@ OpenELIS uses pre-built images from I-TECH. Configuration is managed through env
 Keycloak uses the official Quay.io image with realm imports.
 ```bash
 # No build needed - uses pre-built image
-# Realm configuration is in keycloak/imports/
+# Realm configuration is in keycloak/realm/ (imported by keycloak-config-cli, see docker-compose.yml)
 ```
 
 ---

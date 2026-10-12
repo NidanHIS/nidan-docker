@@ -224,7 +224,6 @@ services:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
     volumes:
-      - ./keycloak/imports:/opt/keycloak/data/import
       - ./openelis/keycloak:/opt/keycloak/data/import/openelis
       - certbot-etc:/etc/letsencrypt:ro
     networks:

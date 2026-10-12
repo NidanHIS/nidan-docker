@@ -74,7 +74,7 @@ realm_ready() {
     "$KC/realms/master/protocol/openid-connect/token" | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])' > "$tf"
   KC_TOKEN_FILE="$tf" python3 -I "$ND/scripts/keycloak-admin-permissions.py" --apply --url "$KC" >/dev/null
   python3 -I "$H/manual-users.py" --fixups-only >/dev/null || { echo "harness callbacks failed" >&2; return 1; }
-  local prc=$?; : > "$tf"
+  local prc=$?; rm -f "$tf"            # its own temp file (held the admin token)
   return $prc
 }
 
