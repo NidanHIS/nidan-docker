@@ -28,7 +28,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 # master-realm automation clients (KC-07-07): service-account only, like the machine clients
-AUTOMATION = {"nidan-config-cli", "nidan-incident", "nidan-role-sync"}
+AUTOMATION = {"nidan-config-cli", "nidan-incident"}
 MACHINE = {"cis", "odoo-sync", "portal-sync", "role-sync"}
 NO_PKCE_OK = {"openmrs"}
 BUILT_IN = {"admin-cli"}

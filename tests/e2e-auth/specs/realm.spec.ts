@@ -1,8 +1,5 @@
 import { test, expect, APIRequestContext } from '@playwright/test';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
-import { parse as parseYaml } from 'yaml';
 
 /**
  * Realm behaviour against a live Keycloak (backlog KC-54, KC-55, KC-01-03): the realm harness
@@ -184,11 +181,19 @@ test.describe('realm against a live Keycloak', () => {
     expect(ok.status()).toBe(201);
   });
 
-  test('only cis, odoo-sync, portal-sync and role-sync get service tokens, and theirs match the contract @KC-01-03 @KC-58-02 @security', async ({ request }) => {
+  test('only cis, odoo-sync, portal-sync, role-sync (and role-sync-admin, read-only admin) get service tokens, and theirs match the contract @KC-01-03 @KC-58-02 @security', async ({ request }) => {
     const clients: Array<{ clientId: string; publicClient: boolean }> = await (await admin(request, '/clients')).json();
     for (const c of clients.filter((x) => !x.publicClient)) {
       const r = await request.post(`${KC}/realms/nidan/protocol/openid-connect/token`, {
         form: { grant_type: 'client_credentials', client_id: c.clientId, client_secret: SECRET } });
+      if (c.clientId === 'role-sync-admin') {          // keycloak/role-sync's admin API access: read-only roles only
+        expect(r.status(), c.clientId).toBe(200);
+        const t = claims((await r.json()).access_token);
+        expect(t.openmrs_user, 'no OpenMRS identity').toBeUndefined();
+        expect([t.aud].flat()).not.toContain('openmrs');
+        expect((t.resource_access?.['realm-management']?.roles ?? []).sort()).toEqual(['query-clients', 'query-groups', 'query-users', 'view-clients', 'view-realm', 'view-users']);   // view-* include query-*: all read only
+        continue;
+      }
       if (!MACHINE.includes(c.clientId)) {
         expect(r.status(), `${c.clientId} must not get a service token`).not.toBe(200);
         continue;
@@ -592,14 +597,18 @@ test.describe('realm against a live Keycloak', () => {
     test.skip(!process.env.KC_ADMIN_PERMISSIONS, 'set KC_ADMIN_PERMISSIONS=1 after keycloak-admin-permissions.py --apply');
     test.setTimeout(180_000);
     const request = await playwright.request.newContext();
-    const rolesDir = join(__dirname, '..', '..', '..', 'keycloak', 'realm', 'roles');
-    const superuser = new Set<string>();
-    for (const f of readdirSync(rolesDir).filter((x) => x.endsWith('.yaml'))) {
-      for (const r of (parseYaml(readFileSync(join(rolesDir, f), 'utf8')).roles ?? []) as Array<{ name: string; superuser?: boolean }>) {
-        if (r.superuser) superuser.add(r.name);
+    // superuser roles: those the role sync marked from the live apps (nidan_superuser), and the fixed admin roles of
+    // the apps whose roles the realm file declares (OpenELIS, Superset, DHIS2)
+    const superuser = new Set<string>(['Global Administrator', 'User Account Administrator', 'Admin', 'Alpha', 'sql_lab',
+      'admin', 'report-admin']);
+    for (const c of ['openmrs', 'odoo', 'openelis']) {
+      const cid = (await (await admin(request, `/clients?clientId=${c}`)).json())[0].id;
+      for (const r of await (await admin(request, `/clients/${cid}/roles?briefRepresentation=false`)).json() as
+        Array<{ name: string; attributes?: Record<string, string[]> }>) {
+        if (r.attributes?.nidan_superuser?.[0] === 'true') superuser.add(r.name);
       }
     }
-    expect(superuser.size, 'superuser roles in the catalogs').toBeGreaterThan(0);
+    expect(superuser.size, 'superuser roles known').toBeGreaterThan(7);
     const hadmin = await makeUser(request, ['hospital-admin']);
     const t = await userToken(request, 'nidan-gateway', `https://${DOMAIN}/oauth2/callback`, hadmin);
     const groups: Array<{ id: string; path: string }> = await (await admin(request, '/groups')).json();

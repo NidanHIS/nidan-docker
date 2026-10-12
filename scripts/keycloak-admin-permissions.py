@@ -9,6 +9,8 @@ resolves the groups by path and makes realm "nidan" hold exactly:
   policy      is-hospital-admin            member of /hospital-admin
   permission  hospital-admin-staff-groups  Groups = every /staff/<job> group: view, view-members, manage-members,
                                            manage-membership, manage-membership-of-members
+  policy      is-role-sync                 the client role-sync-admin (keycloak/role-sync's admin access)
+  permission  role-sync-app-clients        Clients = openmrs, odoo, openelis: manage (create / delete their roles)
 Nothing is granted on any other user or group, so admins, app-superusers members and service accounts are out of
 reach (403), and so are role mapping and impersonation (KC-09-04/05/06). Credential deletion is part of Keycloak's
 "manage" and cannot be split off here: the gateway's /staff-api allow-list refuses it (KC-09-07).
@@ -24,6 +26,10 @@ from pathlib import Path
 POLICY = "is-hospital-admin"
 PERMISSION = "hospital-admin-staff-groups"
 SCOPES = ["view", "view-members", "manage-members", "manage-membership", "manage-membership-of-members"]
+RS_POLICY = "is-role-sync"
+RS_PERMISSION = "role-sync-app-clients"
+RS_CLIENT = "role-sync-admin"
+RS_APPS = ["openmrs", "odoo", "openelis"]        # the apps whose roles keycloak/role-sync reads
 
 
 class Api:
@@ -87,6 +93,42 @@ def plan(api):
                 or (pol and have_pols != [pol["id"]]) or detail.get("decisionStrategy") != "UNANIMOUS"):
             steps.append((f"update permission {PERMISSION} to {', '.join(g['name'] for g in jobs)}", "PUT",
                           f"{authz}/permission/scope/{perm['id']}", dict(perm_body, id=perm["id"])))
+    return steps + role_sync_plan(api, authz, policies)
+
+
+def role_sync_plan(api, authz, policies):
+    """The role sync manages the three app clients' roles and nothing else (its realm roles are read-only)."""
+    found = {c: api("GET", f"/clients?clientId={c}") for c in [RS_CLIENT] + RS_APPS}
+    missing = [c for c, f in found.items() if not f]
+    if missing:
+        raise SystemExit(f"clients missing in realm nidan: {missing} (import keycloak/realm first)")
+    steps = []
+    want_clients = [found[RS_CLIENT][0]["id"]]
+    pol = policies.get(RS_POLICY)
+    body = {"name": RS_POLICY, "type": "client", "logic": "POSITIVE", "decisionStrategy": "UNANIMOUS",
+            "description": "the role sync's admin client", "clients": want_clients}
+    if not pol:
+        steps.append((f"create policy {RS_POLICY}", "POST", f"{authz}/policy/client", body))
+        ref = RS_POLICY
+    else:
+        detail = api("GET", f"{authz}/policy/client/{pol['id']}")
+        have = detail.get("clients") or json.loads((detail.get("config") or {}).get("clients") or "[]")
+        if sorted(have) != want_clients or detail.get("logic") != "POSITIVE":
+            steps.append((f"update policy {RS_POLICY}", "PUT", f"{authz}/policy/client/{pol['id']}", dict(body, id=pol["id"])))
+        ref = pol["id"]
+    apps = sorted(found[c][0]["id"] for c in RS_APPS)
+    perm = policies.get(RS_PERMISSION)
+    pbody = {"name": RS_PERMISSION, "type": "scope", "resourceType": "Clients", "decisionStrategy": "UNANIMOUS",
+             "description": "role sync: the app clients' roles only", "resources": apps, "scopes": ["manage"],
+             "policies": [ref]}
+    if not perm:
+        steps.append((f"create permission {RS_PERMISSION} on {', '.join(RS_APPS)}", "POST", f"{authz}/permission/scope", pbody))
+    else:
+        have_res = sorted(r["name"] for r in api("GET", f"{authz}/policy/{perm['id']}/resources") or [])
+        have_scopes = sorted(sc["name"] for sc in api("GET", f"{authz}/policy/{perm['id']}/scopes") or [])
+        if have_res != apps or have_scopes != ["manage"]:
+            steps.append((f"update permission {RS_PERMISSION}", "PUT", f"{authz}/permission/scope/{perm['id']}",
+                          dict(pbody, id=perm["id"])))
     return steps
 
 
@@ -109,9 +151,9 @@ def main(argv):
         for what, method, path, body in steps:
             print(("  " if "--apply" in argv else "  would ") + what)
             if "--apply" in argv:
-                if body.get("policies") == [POLICY]:  # the policy was created a step earlier: use its id now
-                    authz = path.split("/permission/")[0]
-                    body = dict(body, policies=[next(p["id"] for p in api("GET", f"{authz}/policy?max=500") if p["name"] == POLICY)])
+                if body.get("policies") in ([POLICY], [RS_POLICY]):  # created a step earlier: use its id now
+                    authz, name = path.split("/permission/")[0], body["policies"][0]
+                    body = dict(body, policies=[next(p["id"] for p in api("GET", f"{authz}/policy?max=500") if p["name"] == name)])
                 api(method, path, body)
     except urllib.error.HTTPError as e:
         print(f"Keycloak answered {e.code}: {e.read().decode()[:300]}", file=sys.stderr)

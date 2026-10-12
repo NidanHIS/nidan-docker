@@ -1,4 +1,4 @@
-# Master realm: the automation clients (backlog KC-07-07, KC-50). Imported with realm "nidan" by
+# Master realm: the two automation clients (backlog KC-07-07, KC-50). Imported with realm "nidan" by
 # keycloak-config-cli. Client-credentials only, no browser flow, secrets from .env.local.
 #
 # Bootstrap: the FIRST import runs as the bootstrap admin (KC_BOOTSTRAP_ADMIN_*), which creates these clients.
@@ -31,18 +31,6 @@ clients:
     fullScopeAllowed: false
     attributes: {standard.token.exchange.enabled: "false"}
 
-  # keycloak/role-sync: creates and removes the apps' client roles in realm nidan; reads who holds them.
-  - clientId: nidan-role-sync
-    protocol: openid-connect
-    publicClient: false
-    secret: $(env:KC_ROLE_SYNC_ADMIN_SECRET)
-    standardFlowEnabled: false
-    implicitFlowEnabled: false
-    directAccessGrantsEnabled: false
-    serviceAccountsEnabled: true
-    fullScopeAllowed: false
-    attributes: {standard.token.exchange.enabled: "false"}
-
 # fullScopeAllowed is false on both clients, so a role reaches their tokens only through these scope mappings;
 # without them the admin API answers 403 (found on the realm harness, 2026-10-08).
 scopeMappings:
@@ -52,8 +40,6 @@ clientScopeMappings:
   nidan-realm:
     - client: nidan-incident
       roles: [manage-realm, manage-users, manage-clients, view-realm, view-clients, view-events]   # view-events: event shipper / realm audit
-    - client: nidan-role-sync
-      roles: [manage-clients, view-clients, view-users, view-realm]
 
 users:
   - username: service-account-nidan-config-cli
@@ -65,8 +51,3 @@ users:
     serviceAccountClientId: nidan-incident
     clientRoles:
       nidan-realm: [manage-realm, manage-users, manage-clients, view-realm, view-clients, view-events]
-  - username: service-account-nidan-role-sync
-    enabled: true
-    serviceAccountClientId: nidan-role-sync
-    clientRoles:
-      nidan-realm: [manage-clients, view-clients, view-users, view-realm]

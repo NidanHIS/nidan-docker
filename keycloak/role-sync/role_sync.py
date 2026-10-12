@@ -20,8 +20,9 @@ In Keycloak, per app client:
     no composite role); a role still in use is kept and reported. Roles from the realm files are never touched;
   - nothing is deleted when an app answers with no roles or cannot be read;
   - a staff job group holding a superuser role is reported as an error (exit 1 with --once).
-Keycloak admin access: master-realm client nidan-role-sync (manage-clients, view-clients, view-users, view-realm
-on realm nidan; view-realm only to see which composite roles include a role before deleting it).
+Keycloak admin access: client role-sync-admin in realm nidan: view-clients, view-users, view-realm (read only;
+view-realm to see which composite roles include a role before deleting it), and "manage" on the openmrs, odoo and
+openelis clients only (fine-grained permission, scripts/keycloak-admin-permissions.py).
 Never logs secrets or tokens.
 """
 import json
@@ -139,7 +140,7 @@ class Keycloak:
 
     def refresh(self):
         """A fresh admin token (master tokens live about a minute): once per app."""
-        self.token = client_token("master", "nidan-role-sync", os.environ["KC_ROLE_SYNC_ADMIN_SECRET"])
+        self.token = client_token(REALM, "role-sync-admin", os.environ["KC_ROLE_SYNC_ADMIN_SECRET"])
 
     def get(self, path):
         return http("GET", self.base + path, self.token)

@@ -512,8 +512,36 @@ clients:
         config: {included.client.audience: openmrs, access.token.claim: "true", id.token.claim: "false",
                  userinfo.token.claim: "false", introspection.token.claim: "true"}
 
+  # keycloak/role-sync's admin access: read-only realm roles here (view-clients, view-users, view-realm, below), and
+  # "manage" on the openmrs, odoo and openelis clients only, through a fine-grained admin permission
+  # (scripts/keycloak-admin-permissions.py): it can create and delete those apps' roles, not touch any other client.
+  - clientId: role-sync-admin
+    protocol: openid-connect
+    publicClient: false
+    secret: $(env:KC_ROLE_SYNC_ADMIN_SECRET)
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
+    directAccessGrantsEnabled: false
+    serviceAccountsEnabled: true
+    fullScopeAllowed: false
+    redirectUris: []
+    webOrigins: []
+    attributes: {standard.token.exchange.enabled: "false"}
+
   # Built-in client hardening: no password grant anywhere (KC-54-03).
   - clientId: admin-cli
     directAccessGrantsEnabled: false
 
   # TODO(KC-37..KC-40): odoo, openelis, superset, dhis2 clients (P2) with exact redirect URIs.
+
+# role-sync-admin's read-only admin roles (fullScopeAllowed is false: they reach its token only through this mapping)
+clientScopeMappings:
+  realm-management:
+    - client: role-sync-admin
+      roles: [view-clients, view-users, view-realm]
+users:
+  - username: service-account-role-sync-admin
+    enabled: true
+    serviceAccountClientId: role-sync-admin
+    clientRoles:
+      realm-management: [view-clients, view-users, view-realm]

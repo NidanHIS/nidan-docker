@@ -125,3 +125,18 @@ test('the role lists answer only the internal network with the secret @KC-53-02 
   expect(ok.status()).toBe(200);
   expect((await ok.json()).roles.length).toBeGreaterThan(10);
 });
+
+test('the role sync\'s admin access manages the three apps\' roles and nothing else @KC-24-01 @security @sso-on-only', async ({ request }) => {
+  const t = await request.post(`${KC}/realms/nidan/protocol/openid-connect/token`, { form: { grant_type: 'client_credentials',
+    client_id: 'role-sync-admin', client_secret: 'harness-only-not-a-real-secret-0123456789' } });
+  const auth = { Authorization: `Bearer ${(await t.json()).access_token}` };
+  const A = `${KC}/admin/realms/nidan`;
+  const id = async (c: string) => (await (await request.get(`${A}/clients?clientId=${c}`, { headers: auth })).json())[0].id;
+  expect((await request.get(`${A}/users?max=1`, { headers: auth })).status(), 'reads who holds a role').toBe(200);
+  // refused, so nothing is created or changed
+  expect((await request.post(`${A}/clients/${await id('nidan-gateway')}/roles`, { headers: auth, data: { name: 'x-probe' } })).status()).toBe(403);
+  const cis = await (await request.get(`${A}/clients/${await id('cis')}`, { headers: auth })).json();
+  expect((await request.put(`${A}/clients/${cis.id}`, { headers: auth, data: cis })).status(), 'another client').toBe(403);
+  expect((await request.post(`${A}/users`, { headers: auth, data: { username: 'x-probe-user' } })).status()).toBe(403);
+  expect((await request.put(A, { headers: auth, data: { registrationAllowed: true } })).status(), 'the realm').toBe(403);
+});
