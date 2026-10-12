@@ -263,7 +263,7 @@ services:
 
   openelis-frontend:
     profiles: ["openelis"]
-    image: trigonaltechnology/openelis-global-2-frontend:latest
+    image: nidan-openelis-frontend-harness        # images/build.sh openelis-frontend (this tree's login page)
     platform: linux/amd64
     environment:
       PUBLIC_URL: /openelis
@@ -463,6 +463,8 @@ networks:
     ipam:
       config:
         - subnet: 172.31.252.0/24
+          ip_range: 172.31.252.128/25     # automatic addresses never take the gateway's fixed .10
+          gateway: 172.31.252.1           # pinned: with ip_range alone Docker moves it to .128 (KC_LOGIN_RATE_EXEMPT)
 
 volumes:
   openmrs-db-data: {}

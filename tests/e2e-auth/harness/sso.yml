@@ -147,3 +147,5 @@ networks:
     ipam:
       config:
         - subnet: 172.31.251.0/24
+          ip_range: 172.31.251.128/25     # automatic addresses never take the gateway's fixed .10
+          gateway: 172.31.251.1           # pinned: with ip_range alone Docker moves it to .128 (KC_LOGIN_RATE_EXEMPT)

@@ -197,6 +197,8 @@ def main():
             value = "" if value is None else str(value)
             if not value and key in OPTIONAL_EMPTY:
                 continue
+            if not value and name == "odoo" and key == "POSTGRES_PASSWORD":
+                continue        # ODOO_APP_POSTGRES_PASSWORD= : Odoo without the DB superuser (KC-48-02); odoo-db keeps its own
             why = ("empty" if not value
                    else "placeholder" if value.upper().startswith("CHANGEME")
                    else "well-known default" if value.lower() in KNOWN_WEAK

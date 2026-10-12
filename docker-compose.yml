@@ -25,6 +25,10 @@ networks:
     ipam:
       config:
         - subnet: 172.31.250.0/24
+          # automatic addresses come from .128-.254 only, so no container can take the gateway's fixed .10
+          # (a Keycloak started first once did on a harness, and the gateway then could not start)
+          ip_range: 172.31.250.128/25
+          gateway: 172.31.250.1         # pinned: with ip_range alone Docker moves the gateway to .128
 
 volumes:
   openelis-logs:          # OpenELIS application logs (KC-45-03)
@@ -293,9 +297,11 @@ services:
       - ODOO_DB_NAME=${ODOO_DB_NAME}
       - ODOO_ADMIN_EMAIL=${ODOO_ADMIN_EMAIL:-nidan}
       - ODOO_ADMIN_PASSWORD=${ODOO_ADMIN_PASSWORD:?set ODOO_ADMIN_PASSWORD (generate-secrets.sh writes .env.local)}
-      # PostgreSQL superuser for database creation
+      # PostgreSQL superuser for database creation. Older images need it to start; with an image built from the
+      # current entrypoint set ODOO_APP_POSTGRES_PASSWORD= (empty) and Odoo holds only its own login (KC-48-02).
+      # "-" not ":-": an empty value is kept empty, only an unset one falls back.
       - POSTGRES_USER=${ODOO_POSTGRES_USER}
-      - POSTGRES_PASSWORD=${ODOO_POSTGRES_PASSWORD}
+      - POSTGRES_PASSWORD=${ODOO_APP_POSTGRES_PASSWORD-${ODOO_POSTGRES_PASSWORD}}
       # Nidan OIS connector
       - NIDAN_OIS_URL=${NIDAN_OIS_URL}
       # Central login (nidan_keycloak_sso, KC-37): provider record is synced from these at module install/upgrade.

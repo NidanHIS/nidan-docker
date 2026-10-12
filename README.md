@@ -70,6 +70,15 @@ This repository contains the containerized architecture for **NidanEHR**, orches
    services that use them; the gateway and the central-login services (`auth-net`) are not on it. On an upgraded
    site `docker compose up -d` recreates those containers on the new network (data volumes are kept). Check the
    layout with `python3 -I tests/e2e-auth/harness/net-probe.py`.
+   **auth-net address range (2026-10-12):** `auth-net` now hands out automatic addresses from .128 only, so nothing
+   can take the gateway's fixed 172.31.250.10 (if Keycloak ever got it, the gateway would not start). Docker does not
+   change an existing network: in a maintenance window, `docker compose --profile sso down` (no `-v`: volumes and
+   data stay), then `docker compose --profile sso up -d`. Until then, start the gateway before Keycloak after any
+   restart.
+   **Odoo without the DB superuser (KC-48-02):** Odoo images built from the current `odoo_19_addons/packages`
+   entrypoint start without the database superuser password. Once a site runs such an image, set
+   `ODOO_APP_POSTGRES_PASSWORD=` (empty) in `.env.local` and `docker compose up -d odoo`: Odoo then holds only its
+   own login. Left unset, compose passes `ODOO_POSTGRES_PASSWORD` as before (older images need it to start).
    **Ports and origins (2026-10-10):** the gateway publishes only 80, 443, 8443, 8069 and 9443 (plus DICOM 4242 on
    `DICOM_BIND_IP`). Orthanc 8042, CIS 8081, OIS 8082, OpenELIS 8083/8085, Superset 8088 and the DHIS2 app 5003 are
    no longer published (KC-02); port 80 only redirects to https and serves certificate renewal (KC-47). Odoo is
