@@ -2,9 +2,8 @@
 # is red or skipped. Feed it the Playwright JSON report of the prod-like run when that job exists.
 name: Release gate
 
+# Manual only since 2026-10-13: it needs tests/e2e-auth, which is kept out of git (run it locally).
 on:
-  push:
-    tags: ["site-*", "v*"]
   workflow_dispatch:
 
 permissions:

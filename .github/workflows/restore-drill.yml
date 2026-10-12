@@ -2,12 +2,8 @@
 # new volume, a staff user logs in on the restored Keycloak; the whole drill must finish within 15 minutes.
 name: Restore drill
 
+# Manual only since 2026-10-13: it needs tests/e2e-auth, which is kept out of git (run it locally).
 on:
-  schedule:
-    - cron: "10 2 * * *"
-  push:
-    paths: ["scripts/volume-backup.sh", "scripts/keycloak-restore-drill.sh", "backup-age/**", "keycloak/**",
-            "tests/e2e-auth/harness/restore-drill.yml", "tests/e2e-auth/harness/drill-login.py", ".github/workflows/restore-drill.yml"]
   workflow_dispatch:
 
 permissions:
