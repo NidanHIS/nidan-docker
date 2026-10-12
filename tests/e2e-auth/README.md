@@ -77,6 +77,7 @@ fails on tags that point at no criterion and on security criteria whose tests la
 | `superset-sso` | no local admin login, cookie names the gateway expires, Superset JWT without the gateway cookie refused, no sign-in without a Superset role, no public dashboards |
 | `keycloak-origin` | issuer on :9443, Keycloak paths 404 elsewhere, master/admin/registration refused on every port, login rate limit, real client IP in events, internal back-channel, cross-origin isolation |
 | `realm` | realm settings: no self-registration, no password grant, reserved names, token contracts, staff cannot edit themselves, hospital-admin permissions, OTP for admins, login messages (English/Nepali), password policy, lockout, lifetimes, events |
+| `multi-app` | people with two or three apps (clinician, front desk, lab cashier): one login opens each permitted app with its own roles, the rest refuse, launcher cards exact; user switch on one browser; removing one app keeps the others; disable signs out of every app |
 | `cis-sync` | CIS writes patients and visits as nidan-sync with a Keycloak token; retries through a Keycloak outage |
 | `imaging-sso` | a doctor opens a study in OHIF through the gateway |
 | `dhis2-local` | the DHIS2 app's local login with central login off |

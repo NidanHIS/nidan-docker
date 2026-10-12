@@ -995,7 +995,7 @@
    "id": "KC-19-01",
    "harness": "PW",
    "security": true,
-   "summary": "(on) Odoo, OpenELIS, Superset, DHIS2, O3 logout → Keycloak login; reopening the app needs login."
+   "summary": "(on) An app's own logout (Odoo, OpenELIS, Superset, DHIS2, O3) ends that app's session and returns to the launcher: the person's only app -> signed out of everything (Keycloak login); several apps -> launcher with the others still open and 'sign out of everything' (rule 7 as changed 2026-10-12)."
   },
   {
    "id": "KC-19-02",

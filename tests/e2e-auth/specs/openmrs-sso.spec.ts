@@ -272,7 +272,9 @@ test.describe('central login into OpenMRS', () => {
       for (const phase of ['running gateway', 'gateway restarted while the SPA is down']) {
         if (phase.startsWith('gateway restarted')) {
           dockerDo('restart', GATEWAY);
-          await expect.poll(() => dockerDo('inspect', '-f', '{{.State.Health.Status}}', GATEWAY), { timeout: 60_000 }).toBe('healthy');
+          // the internal health listener (not Docker's status: an older container's healthcheck probed /, now gated)
+          await expect.poll(() => { try { dockerDo('exec', GATEWAY, 'curl', '-fsS', 'http://localhost:8099/gateway-health'); return 'up'; } catch { return 'down'; } },
+            { timeout: 60_000 }).toBe('up');
         }
         // the gateway's own page, fast: 504 while nginx still holds the stopped container's address (connect times
         // out after 5 s), 502 once Docker's DNS answer has expired
@@ -388,8 +390,7 @@ test.describe('central login into OpenMRS', () => {
       expect([400, 431], `${path}`).not.toContain(resp?.status());
     }
     if (process.env.ODOO_SSO_FULL) {                         // Odoo (:8069) with every role in the token
-      await page.goto('https://localhost:8069/web/login');   // through the gateway's :8069 (session already there)
-      await page.locator('a[href*="/protocol/openid-connect/auth"]').first().click();
+      await page.goto('https://localhost:8069/web/login');   // through :8069; goes on to Keycloak (session there) and back
       await page.waitForURL(/localhost:8069\/(odoo|web)(\/|\?|#|$)/, { timeout: 60_000 });
     }
     console.log(`KC-10-10: ${jobs.length} jobs, gateway session cookie ${cookieBytes} bytes`);

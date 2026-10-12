@@ -41,7 +41,8 @@ test.describe('app cookie names', () => {
     const expired = new Set([...conf.matchAll(/Set-Cookie "([^=]+)=; Path=([^;]+);/g)].map((m) => `${m[1]} ${m[2]}`));
     const live = (url: string, accept = 'text/html') => {
       const out = execFileSync('docker', ['exec', 'nidan-sso-openmrs-harness-gateway-1', 'sh', '-c',
-        `wget -qSO /dev/null --header 'Accept: ${accept}' '${url}' 2>&1 | grep -i 'set-cookie'; true`]).toString();
+        // curl, not busybox wget: wget drops the headers after a Location (Superset's /login/ now redirects)
+        `curl -sS -o /dev/null -D - -H 'Accept: ${accept}' '${url}' | grep -i 'set-cookie'; true`]).toString();
       return [...out.matchAll(/Set-Cookie:\s*([^=]+)=[^;]*;(.*)$/gim)].map((m) => {
         const path = /Path=([^;\s]+)/i.exec(m[2])?.[1] ?? '/';
         return `${m[1].trim()} ${path}`;

@@ -30,6 +30,7 @@ services:
     extends: { file: sso.yml, service: config-cli }
     environment:
       GATEWAY_DOMAIN: localhost                          # https://localhost/... on port 443
+      GATEWAY_AUTH_IP: 172.31.252.10                     # the Odoo back-channel logout relay (this gateway)
     networks: [sso]
   oauth2-proxy:
     extends: { file: sso.yml, service: oauth2-proxy }
@@ -225,6 +226,7 @@ services:
         -Dorg.itech.login.oauth.issuerUri=https://localhost:18445/auth/realms/nidan
         -Dorg.itech.login.oauth.redirectUri=https://localhost/api/OpenELIS-Global/login/oauth2/code/nidan-keycloak
         -Dorg.itech.login.oauth.successUrl=https://localhost/openelis/
+        -Dorg.itech.login.oauth.loginpage=false
       ORG_OPENELISGLOBAL_MIDDLEWARE_TEST_SYNC_SECRET: harness-openelis-sync-0123456789
       ORG_OPENELISGLOBAL_MIDDLEWARE_RESULT_SYNC_SECRET: harness-openelis-sync-0123456789
       ORG_OPENELISGLOBAL_NIDAN_PAYWALL_ODOO_SECRET: harness

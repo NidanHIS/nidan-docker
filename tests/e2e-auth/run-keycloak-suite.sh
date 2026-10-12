@@ -73,6 +73,7 @@ realm_ready() {
   curl -s -d grant_type=password -d client_id=admin-cli -d username=admin -d password=harness-admin-password \
     "$KC/realms/master/protocol/openid-connect/token" | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])' > "$tf"
   KC_TOKEN_FILE="$tf" python3 -I "$ND/scripts/keycloak-admin-permissions.py" --apply --url "$KC" >/dev/null
+  python3 -I "$H/manual-users.py" --fixups-only >/dev/null || { echo "harness callbacks failed" >&2; return 1; }
   local prc=$?; : > "$tf"
   return $prc
 }
@@ -82,6 +83,12 @@ full_env() {
     IMAGING_SSO_FULL=1 DHIS2_LOCAL=1 KC_ADMIN_PERMISSIONS=1 KEYCLOAK_URL=$KC KEYCLOAK_PUBLIC_URL=$KC_PUBLIC \
     GATEWAY_DOMAIN=localhost GATEWAY_URL=https://localhost GATEWAY_HTTP=http://localhost GATEWAY_OE_URL=https://localhost:18444
   [ -n "${PAYWALL_PATIENT:-}" ] || echo "note: PAYWALL_PATIENT unset - the paywall tests (KC-14-04/05/07) will skip"
+}
+
+# the stub-harness stages must not see the full stage's settings (they would run the real-app specs against stubs)
+clear_full_env() {
+  unset OPENMRS_SSO_FULL OPENMRS_DB_EXEC ODOO_SSO_FULL SUPERSET_SSO_FULL OPENELIS_SSO_FULL CIS_SYNC_FULL IMAGING_SSO_FULL \
+    DHIS2_LOCAL KC_ADMIN_PERMISSIONS KEYCLOAK_URL KEYCLOAK_PUBLIC_URL GATEWAY_DOMAIN GATEWAY_URL GATEWAY_HTTP GATEWAY_OE_URL
 }
 
 require_full_harness() {
@@ -99,10 +106,10 @@ if [ $matrixonly -eq 0 ] && [ $full -eq 1 ]; then
   say "stage full"
   if require_full_harness && realm_ready; then
     full_env
-    grep_slow=(--grep-invert @slow); [ "${SLOW:-}" = 1 ] && grep_slow=()
+    grep_slow=(--grep-invert @slow); [ "${SLOW:-}" = 1 ] && grep_slow=(--grep .)   # not (): bash 3.2 + set -u
     pw full-apps --project=sso-on --workers=1 "${grep_slow[@]}" \
       specs/openmrs-sso.spec.ts specs/odoo-sso.spec.ts specs/superset-sso.spec.ts specs/openelis-sso.spec.ts \
-      specs/keycloak-origin.spec.ts specs/cis-sync.spec.ts specs/imaging-sso.spec.ts specs/port80.spec.ts
+      specs/keycloak-origin.spec.ts specs/cis-sync.spec.ts specs/imaging-sso.spec.ts specs/port80.spec.ts specs/multi-app.spec.ts
     pw full-gateway --project=sso-on --workers=2 \
       specs/launcher.spec.ts specs/status-pages.spec.ts specs/exempt-routes.spec.ts specs/routes.spec.ts \
       specs/live-exposure.spec.ts specs/i18n.spec.ts
@@ -119,8 +126,9 @@ if [ $matrixonly -eq 0 ] && [ $disruptive -eq 1 ]; then
     full_env; export HARNESS_DISRUPTIVE=1
     for g in KC-32-03 KC-14-07 KC-11-07 KC-10-11; do
       pw "disruptive-$g" --project=sso-on --workers=1 -g "@$g\\b" specs/cis-sync.spec.ts specs/openmrs-sso.spec.ts
-      running "$P-keycloak-1" || docker start "$P-keycloak-1" >/dev/null
+      # gateway first: it has a fixed address that a Keycloak started before it can take (then the gateway cannot start)
       running "$P-gateway-1" || docker start "$P-gateway-1" >/dev/null
+      running "$P-keycloak-1" || docker start "$P-keycloak-1" >/dev/null
       realm_ready || rc=1
     done
     unset HARNESS_DISRUPTIVE
@@ -131,6 +139,7 @@ fi
 
 if [ $matrixonly -eq 0 ] && [ $contract -eq 1 ]; then
   say "stage contract (stub apps; the full harness gateway is paused)"
+  clear_full_env
   paused=0; running "$P-gateway-1" && { docker stop "$P-gateway-1" >/dev/null; paused=1; }
   C="$H/docker-compose.yml"
   ( export GATEWAY_URL=https://localhost:18443 GATEWAY_HTTP=http://localhost:18080 GATEWAY_OE_URL=https://localhost:18444 \
@@ -146,25 +155,27 @@ fi
 
 if [ $matrixonly -eq 0 ] && [ $ssostub -eq 1 ]; then
   say "stage sso-stub (login flow on stub apps; the full harness Keycloak and gateway are paused)"
+  clear_full_env
   kc_paused=0; gw_paused=0
   running "$P-gateway-1" && { docker stop "$P-gateway-1" >/dev/null; gw_paused=1; }
   running "$P-keycloak-1" && { docker stop "$P-keycloak-1" >/dev/null; kc_paused=1; }
   F="$H/sso.yml"
   ( export KC_USERNAME_PATTERN="$(python3 -I "$ND/scripts/reserved-usernames.py" | sed -n 's/^KC_USERNAME_PATTERN=//p')"
     docker compose -f "$F" up -d --build --wait keycloak
-    docker compose -f "$F" --profile import run --rm config-cli
+    docker compose -f "$F" --profile import up --no-deps --abort-on-container-exit --exit-code-from config-cli config-cli
     docker compose -f "$F" up -d --build --wait
-    SSO_FULL=1 KEYCLOAK_URL=http://localhost:18180/auth GATEWAY_URL=https://localhost:18443 \
+    SSO_FULL=1 KEYCLOAK_URL=http://localhost:18180/auth KEYCLOAK_PUBLIC_URL=https://localhost:18445/auth GATEWAY_URL=https://localhost:18443 \
       pw sso-stub --project=sso-on specs/sso-flow.spec.ts
     exit $rc ) || rc=1
   docker compose -f "$F" stop >/dev/null
+  [ $gw_paused -eq 1 ] && docker start "$P-gateway-1" >/dev/null    # gateway first (fixed address, see above)
   [ $kc_paused -eq 1 ] && docker start "$P-keycloak-1" >/dev/null
-  [ $gw_paused -eq 1 ] && docker start "$P-gateway-1" >/dev/null
   [ $kc_paused -eq 1 ] && { realm_ready || rc=1; }
 fi
 
 if [ $matrixonly -eq 0 ] && [ $orthanc -eq 1 ]; then
   say "stage orthanc"
+  clear_full_env
   O="$H/orthanc.yml"
   docker compose -f "$O" up -d
   wait_for "curl -sf -u nidan:harness-orthanc-admin http://127.0.0.1:18042/system >/dev/null" 40   # gitleaks:allow (harness)
@@ -173,7 +184,9 @@ if [ $matrixonly -eq 0 ] && [ $orthanc -eq 1 ]; then
 fi
 
 say "acceptance matrix"
-python3 -I ac-matrix.py "$RUN"/*.json --out "$RUN/KEYCLOAK-TEST-MATRIX.md" || rc=1
+shopt -s nullglob; reports=("$RUN"/*.json); shopt -u nullglob
+[ ${#reports[@]} -gt 0 ] || { echo "no test reports in $RUN: nothing ran"; exit 1; }
+python3 -I ac-matrix.py "${reports[@]}" --out "$RUN/KEYCLOAK-TEST-MATRIX.md" || rc=1
 cp "$RUN/KEYCLOAK-TEST-MATRIX.md" KEYCLOAK-TEST-MATRIX.md
 echo "matrix: $E2E/KEYCLOAK-TEST-MATRIX.md"
 exit $rc

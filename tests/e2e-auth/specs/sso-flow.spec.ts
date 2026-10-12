@@ -8,7 +8,8 @@ import { execFileSync } from 'node:child_process';
  * (the base realm's job groups carry none; sites map them).
  */
 const FULL = !!process.env.SSO_FULL;
-const KC = process.env.KEYCLOAK_URL ?? 'http://localhost:18180/auth';
+const KC = process.env.KEYCLOAK_URL ?? 'http://localhost:18180/auth';                 // admin API
+const KC_PUBLIC = process.env.KEYCLOAK_PUBLIC_URL ?? 'https://localhost:18445/auth';  // login pages: the gateway's :9443 (D1)
 const GW = process.env.GATEWAY_URL ?? 'https://localhost:18443';
 
 async function adminToken(request: APIRequestContext) {
@@ -35,7 +36,7 @@ async function staff(request: APIRequestContext, roles: string[]) {
 }
 
 async function signIn(page: Page, username: string) {
-  await expect(page).toHaveURL(new RegExp('^' + KC.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '/realms/nidan/'));
+  await expect(page).toHaveURL(new RegExp('^' + KC_PUBLIC.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '/realms/nidan/'));
   await page.fill('#username', username);
   await page.fill('#password', 'Harness-Pass-123');
   await page.click('#kc-login');
@@ -115,12 +116,12 @@ test.describe('central login, end to end', () => {
     ['DHIS2', 'app-dhis2', '/dhis2/auth/logout', '/dhis2/'],
     ['OpenELIS', 'app-openelis', '/api/OpenELIS-Global/Logout', '/api/OpenELIS-Global/rest/x'],
   ] as const) {
-    test(`${app}'s own logout signs out of central login; reopening it needs a login @KC-19-01 @security @sso-on-only`, async ({ page, request }) => {
+    test(`${app} as the person's only app: its own logout signs out of central login; reopening it needs a login @KC-19-01 @security @sso-on-only`, async ({ page, request }) => {
       const user = await staff(request, [role]);
       await page.goto(GW + reopen);
       await signIn(page, user);
       await expect(page).toHaveURL(GW + reopen);
-      await page.goto(GW + logout);                     // the app redirects; the gateway turns that into sign_out
+      await page.goto(GW + logout);                     // the app redirects; the gateway -> launcher -> sign_out (one app)
       await page.waitForLoadState();
       const id = (await (await admin(request, `/users?username=${user}&exact=true`)).json())[0].id;
       await expect.poll(async () => (await (await admin(request, `/users/${id}/sessions`)).json()).length,
@@ -129,6 +130,21 @@ test.describe('central login, end to end', () => {
       await expect(page.locator('#username'), 'login form again').toBeVisible();
     });
   }
+
+  // Rule 7 as changed 2026-10-12: with several apps, one app's logout returns to the launcher (signed out of that app,
+  // a notice, "sign out of everything"); the central session and the other apps stay.
+  test('with several apps, an app\'s own logout returns to the launcher and the other apps stay open @KC-19-01 @security @sso-on-only', async ({ page, request }) => {
+    const user = await staff(request, ['app-superset', 'app-dhis2']);
+    await page.goto(GW + '/superset/welcome/');
+    await signIn(page, user);
+    await expect(page).toHaveURL(GW + '/superset/welcome/');
+    await page.goto(GW + '/superset/logout/');
+    await expect(page).toHaveURL(GW + '/');              // ?signed_out= is dropped from the address bar
+    await expect(page.locator('#signed-out')).toBeVisible();
+    await expect(page.locator('#signed-out a[href="/oauth2/sign_out"]'), 'sign out of everything').toBeVisible();
+    await page.goto(GW + '/dhis2/');
+    await expect(page, 'the other app opens with no new login').toHaveURL(GW + '/dhis2/');
+  });
 
   test('the session cookie is refreshed after a minute, and a disabled user is out at the next refresh @KC-10-07 @KC-11-01 @security @slow @sso-on-only', async ({ page, request }) => {
     test.setTimeout(240_000);

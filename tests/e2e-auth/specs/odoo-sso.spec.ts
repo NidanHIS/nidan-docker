@@ -52,8 +52,7 @@ async function odooLogin(browser: Browser, username: string, keep?: (page: impor
   await page.fill('#username', username);
   await page.fill('#password', 'Harness-Pass-123');
   await page.click('#kc-login');
-  await page.waitForURL(/localhost:8069\/web\/login/, { timeout: 60_000 });
-  await page.locator('a[href*="/protocol/openid-connect/auth"]').first().click();   // Keycloak session: no prompt
+  // Odoo's login page goes on to Keycloak by itself (session there already: no prompt) and back signed in
   await page.waitForURL(/localhost:8069\/(odoo|web)(\/|\?|#|$)/, { timeout: 60_000 });
   const info = await (await page.request.post(`${ODOO}/web/session/get_session_info`, { data: { jsonrpc: '2.0', method: 'call', params: {} } })).json();
   if (keep) await keep(page);
@@ -121,7 +120,7 @@ test.describe('central login into Odoo', () => {
 
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
-    await page.goto(`${ODOO_DIRECT}/web/login`);
+    await page.goto(`${ODOO_DIRECT}/web/login?local=1`);   // the password form (a plain GET goes to Keycloak)
     await page.fill('input[name="login"]', login);
     await page.fill('input[name="password"]', local);
     await page.locator('form[action*="/web/login"] button[type="submit"]').first().click();
@@ -141,7 +140,7 @@ test.describe('central login into Odoo', () => {
   test('central login off: the login page says so and local login works @KC-37-04 @sso-on-only', async ({ page, request }) => {
     const [provider] = await rpc(request, 'auth.oauth.provider', 'search_read', [[['nidan_keycloak', '=', true]]], { fields: ['enabled'] });
     expect(provider.enabled, 'harness starts with central login on').toBe(true);
-    await page.goto(`${ODOO_DIRECT}/web/login`);
+    await page.goto(`${ODOO_DIRECT}/web/login?local=1`);
     await expect(page.locator('.nidan-central-login-off')).toHaveCount(0);
     await rpc(request, 'auth.oauth.provider', 'write', [[provider.id], { enabled: false }]);
     try {
@@ -288,13 +287,12 @@ test.describe('central login into Odoo', () => {
 
   // KC-11-02: a cashier's open POS/bus websocket closes once she is disabled the way the Staff page does it (sign out
   // everywhere -> Keycloak's back-channel logout to Odoo, then disable), and a reconnect gets 401 within 6 min.
-  // The realm points Odoo's back-channel at the production gateway address (172.31.250.10); here it is set to this
-  // harness's gateway for the test.
+  // The realm import sets Odoo's back-channel to each stack's gateway (GATEWAY_AUTH_IP; this harness 172.31.252.10).
   test('disabling a cashier closes her open POS websocket; reconnects get 401 within 6 min @KC-11-02 @security @slow @sso-on-only', async ({ browser, request }) => {
     test.setTimeout(10 * 60_000);
     const oc = (await (await admin(request, '/clients?clientId=odoo')).json())[0];
-    await admin(request, `/clients/${oc.id}`, 'PUT', { ...oc, attributes: { ...oc.attributes,
-      'backchannel.logout.url': 'http://172.31.252.10:8099/backchannel-logout/odoo' } });
+    expect(oc.attributes['backchannel.logout.url'], 'the realm points at this gateway, not production\'s address')
+      .toBe('http://172.31.252.10:8099/backchannel-logout/odoo');
     const { username, id } = await staff(request, ['point_of_sale.group_pos_user']);
     let state = { log: [] as string[] };
     await odooLogin(browser, username, async (page) => {
@@ -328,6 +326,21 @@ test.describe('central login into Odoo', () => {
       state = { log: [`refused after ${Math.round((Date.now() - t0) / 1000)} s`] };
     });
     console.log(`KC-11-02: ${state.log.join(' ')}`);
+  });
+
+  // bug 2026-10-11: the launcher's Odoo card stopped on Odoo's own login page (password form, "Sign in with Nidan",
+  // "Don't have an account?"). With central login on, a plain visit goes straight to Keycloak; nobody can sign up.
+  test('the login page goes straight to central login and offers no sign-up @KC-37-07 @KC-10-05 @security @sso-on-only', async ({ request }) => {
+    const r = await request.get(`${ODOO_DIRECT}/web/login?redirect=%2Fodoo%3F`, { maxRedirects: 0 });
+    expect(r.status(), 'redirect, not the login page').toBe(303);
+    const loc = new URL(r.headers()['location']);
+    expect(loc.pathname).toMatch(/\/realms\/nidan\/protocol\/openid-connect\/auth$/);
+    expect(decodeURIComponent(JSON.parse(loc.searchParams.get('state')!).r), 'keeps where the person was going').toContain('/odoo');
+    const failed = await request.get(`${ODOO_DIRECT}/web/login?oauth_error=3`, { maxRedirects: 0 });
+    expect(failed.status(), 'after a refused sign-in the page shows (no loop)').toBe(200);
+    expect(await failed.text()).toContain('/protocol/openid-connect/auth');
+    const signup = await request.get(`${ODOO_DIRECT}/web/signup`, { maxRedirects: 0 });
+    expect(signup.status() === 200 && (await signup.text()).includes('name="password"'), 'no self sign-up form').toBe(false);
   });
 });
 

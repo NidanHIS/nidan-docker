@@ -30,7 +30,7 @@ services:
       upstreams:
         condition: service_started
     healthcheck:
-      test: ["CMD", "curl", "-fsk", "https://localhost/"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8099/gateway-health"]   # internal listener: / needs a login now
       interval: 2s
       timeout: 3s
       retries: 30

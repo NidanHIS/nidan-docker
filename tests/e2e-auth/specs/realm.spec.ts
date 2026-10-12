@@ -92,7 +92,10 @@ class KcSession {
     const cookie = () => Object.entries(this.jar).map(([k, v]) => `${k}=${v}`).join('; ');
     let r = await this.request.fetch(url, { method, form, headers: { Cookie: cookie() }, maxRedirects: 0 });
     this.keep(r);
+    const hops: string[] = [];
     while ([302, 303].includes(r.status()) && [KC, KC_PUBLIC].some((o) => (r.headers()['location'] ?? '').startsWith(o)) && !/[?&]code=/.test(r.headers()['location'])) {
+      hops.push(r.headers()['location'].split('?')[0] + ' ' + (r.headers()['location'].match(/execution=[^&]+/)?.[0] ?? ''));
+      if (hops.length > 20) throw new Error('Keycloak redirect loop:\n' + hops.slice(-6).join('\n'));   // fail fast, not a 30 min hang
       r = await this.request.get(r.headers()['location'], { headers: { Cookie: cookie() }, maxRedirects: 0 });
       this.keep(r);
     }
@@ -483,12 +486,13 @@ test.describe('realm against a live Keycloak', () => {
     await page.goto(loginUrl() + '&ui_locales=ne');
     await expect(page.locator('html')).toHaveAttribute('lang', 'ne');
     await expect(page.locator('#kc-login')).toHaveText('साइन इन');
-    await expect(page.locator('#kc-page-title')).toHaveText('निदानमा साइन इन गर्नुहोस्');
+    await expect(page.locator('#kc-page-title')).toHaveText('साइन इन गर्नुहोस्');
     await page.context().clearCookies();
     await page.goto(loginUrl() + '&ui_locales=en');
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.locator('#kc-login')).toHaveText('Sign in');
-    await expect(page.locator('#kc-page-title')).toHaveText('Sign in to Nidan');
+    await expect(page.locator('#kc-page-title')).toHaveText('Sign in');
+    await expect(page, 'the tab names the hospital (realm display name, NIDAN_BRAND_NAME)').toHaveTitle('Sign in to Nidan EHR');
   });
 
   test('token and session lifetimes, events on for a year, nobody holds manage-events @KC-08-02 @KC-08-07 @security', async ({ request }) => {

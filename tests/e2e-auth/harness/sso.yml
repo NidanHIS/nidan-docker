@@ -55,6 +55,8 @@ services:
       IMPORT_VARSUBSTITUTION_ENABLED: "true"
       IMPORT_MANAGED_GROUP: full
       GATEWAY_DOMAIN: localhost:18443                    # redirect URIs https://localhost:18443/oauth2/callback
+      GATEWAY_AUTH_IP: 172.31.251.10                     # the Odoo back-channel logout relay (this gateway)
+      NIDAN_BRAND_NAME: Nidan EHR
       NIDAN_SYNC_USERNAME: nidan-sync
       # reserved names are tested on harness/keycloak.yml; a default here keeps `stop`/`down` usable without the export
       KC_USERNAME_PATTERN: '${KC_USERNAME_PATTERN:-^[a-z][a-z0-9._-]{2,39}$}'
@@ -121,7 +123,7 @@ services:
       upstreams:
         condition: service_started
     healthcheck:
-      test: ["CMD", "curl", "-fsk", "https://localhost/"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8099/gateway-health"]   # internal listener: / needs a login now
       interval: 2s
       timeout: 3s
       retries: 30

@@ -118,4 +118,46 @@ test.describe('OpenELIS central login', () => {
     expect(body.paymentStatus, 'Odoo answered (an outage allow carries no payment status)').toBeTruthy();
     await ctx.close();
   });
+
+  // Keycloak allows usernames up to 40 characters and names up to 255; OpenELIS's system_user columns were 20/20/30, so
+  // such a person could never sign in (found live with a 25-character username; widened by a Nidan changeset).
+  test('a 40-character username and long names still provision @KC-38-01 @sso-on-only', async ({ browser, request }) => {
+    const username = `lab${Date.now()}`.padEnd(40, 'x');
+    const first = 'Bishnuprasad Kumari Rajbhandari';             // 31 characters
+    const last = 'Shrestha-Maharjan-Bajracharya-Tuladhar';       // 38 characters
+    const r = await admin(request, '/users', 'POST', { username, firstName: first, lastName: last, enabled: true,
+      attributes: { gender: ['F'] }, groups: ['/staff/Lab Tech'] });
+    expect(r.status(), 'Keycloak accepts the 40-character username').toBe(201);
+    const id = r.headers()['location'].split('/').pop()!;
+    await admin(request, `/users/${id}/reset-password`, 'PUT', { type: 'password', value: 'Harness-Pass-123', temporary: false });
+    const gw = (await (await admin(request, '/clients?clientId=nidan-gateway')).json())[0].id;
+    await admin(request, `/users/${id}/role-mappings/clients/${gw}`, 'POST', [await (await admin(request, `/clients/${gw}/roles/app-openelis`)).json()]);
+    const { page, ctx } = await openelisLogin(browser, username);
+    const s = await session(page.request);
+    expect(s.authenticated).toBe(true);
+    expect(s.loginName).toBe(username);
+    expect([s.firstName, s.lastName]).toEqual([first, last]);
+    await ctx.close();
+  });
+
+  // KC-38-05 in the UI: with central login in charge the login page (shown only when the automatic redirect is held
+  // back, e.g. right after a failed sign-in) offers the single sign-on button and no password form, which the gateway
+  // refuses anyway (/ValidateLogin -> 403).
+  test('the OpenELIS login page shows no password form under central login, only single sign-on @KC-38-05 @security @sso-on-only', async ({ browser, request }) => {
+    const { username } = await labStaff(request, LAB_TECH);
+    const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
+    // hold back the automatic redirect, as after a failed sign-in (Login.js: at most once per 30 s)
+    await ctx.addInitScript(() => { try { sessionStorage.setItem('oauthAutoRedirect', String(Date.now())); } catch (e) { /* none */ } });
+    const page = await ctx.newPage();
+    await page.goto('https://localhost/openelis/');
+    await page.fill('#username', username);
+    await page.fill('#password', 'Harness-Pass-123');
+    await page.click('#kc-login');
+    await page.waitForURL(/localhost\/openelis\/login/, { timeout: 60_000 });
+    await expect(page.getByRole('button', { name: /Single Sign On/i })).toBeVisible();
+    await expect(page.locator('#loginName'), 'no username field').toHaveCount(0);
+    await expect(page.locator('input[type="password"]'), 'no password field').toHaveCount(0);
+    await ctx.close();
+  });
 });
+
