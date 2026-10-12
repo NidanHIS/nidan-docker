@@ -4,7 +4,8 @@
 // Unknown keys fall back to English, never to the raw key.
 (function () {
   'use strict';
-  const SUPPORTED = ['en', 'ne'];
+  const SUPPORTED = ['en', 'ne', 'es', 'fr', 'ar'];   // the login theme's languages too (keycloak/themes/nidan)
+  const RTL = ['ar'];
   const m = document.cookie.match(/(?:^|;\s*)nidan_locale=([a-z]+)/);
   const locale = m && SUPPORTED.includes(m[1]) ? m[1] : 'en';
   let msgs = {};
@@ -43,6 +44,7 @@
     en = e || {};
     msgs = l || en;
     document.documentElement.lang = locale;
+    document.documentElement.dir = RTL.includes(locale) ? 'rtl' : 'ltr';
     apply();
     const picker = document.getElementById('locale-picker');
     if (picker) {

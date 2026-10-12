@@ -10,6 +10,9 @@
   --pf-v5-global--primary-color--200: var(--nidan-primary);
   --pf-v5-global--link--Color: var(--nidan-primary);
   --pf-v5-global--link--Color--hover: var(--nidan-primary);
+  /* the launcher's system font, so the login page and the apps' front door look like one product */
+  --pf-v5-global--FontFamily--text: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --pf-v5-global--FontFamily--heading: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 #kc-locale,
 .kc-locale-select,
@@ -19,19 +22,69 @@
 }
 body#keycloak-bg,
 .pf-v5-c-login {
-  background: var(--nidan-bg) none !important;   /* no dark polygon image */
+  /* the branding folder's photo (background.jpg, if any) over its background.svg (default: digital-health line
+     art), never Keycloak's dark polygons. A plain colour: put a plain background.svg in the branding folder. */
+  background: url(../brand/background.jpg) center / cover no-repeat, url(../brand/background.svg) center / cover no-repeat,
+    var(--nidan-bg) !important;
   color: var(--nidan-text);
 }
-/* the logo instead of the realm name */
+
+/* the logo, with the hospital's name (realm display name = NIDAN_BRAND_NAME) under it */
 #kc-header-wrapper {
   display: block;
-  width: 280px;
-  max-width: 80vw;
-  height: 96px;
-  margin: 0 auto;
-  background: url(../brand/logo.svg) no-repeat center / contain;
-  font-size: 0;
-  color: transparent;
+  max-width: 90vw;
+  margin: 0 auto 1.5rem;                 /* room between the logo and the card */
+  padding-top: 92px;
+  background: url(../brand/logo.svg) no-repeat top center / min(280px, 80vw) auto;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+  color: var(--nidan-text);
+}
+#kc-header-wrapper,
+#kc-header-wrapper * {
+  color: var(--nidan-text) !important;   /* keycloak.v2 prints the realm name white and in capitals */
+  text-transform: none !important;
+}
+/* language dropdown at the top corner (top left for right-to-left Arabic), like the launcher's picker; Keycloak's
+   native dropdown inside the card stays hidden */
+#nidan-locale {
+  position: fixed;
+  top: 16px;
+  inset-inline-end: 16px;
+}
+#nidan-locale-select {
+  min-height: 36px;
+  padding: 0.3rem 2rem 0.3rem 0.75rem;
+  padding-inline: 0.75rem 2rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--nidan-text);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+#nidan-locale-select:focus-visible {
+  outline: 2px solid var(--nidan-primary);
+  outline-offset: 1px;
+}
+/* copyright at the foot of the page */
+#nidan-copyright {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  margin: 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #475569;
+}
+/* the card's top line is a fixed PatternFly blue on the header, not a variable */
+.pf-v5-c-login__main-header {
+  border-top-color: var(--nidan-primary) !important;
+  border-radius: 12px 12px 0 0;
 }
 .pf-v5-c-login__main {
   border-radius: 12px;
@@ -52,4 +105,76 @@ body#keycloak-bg,
 a,
 .pf-v5-c-button.pf-m-link {
   color: var(--nidan-primary);
+}
+/* focus stays clearly visible (keyboard users), in the brand colour instead of PatternFly / browser blue */
+.pf-v5-c-login__main input:focus-visible {
+  outline: 2px solid var(--nidan-primary);
+  outline-offset: 1px;
+}
+/* Fields (UI review 2026-10-12): a clear 1px box with rounded corners like the card and button, 44px tall
+   (touch target), instead of PatternFly's faint box with a dark underline; focus = brand border + soft ring. */
+.pf-v5-c-login__main .pf-v5-c-form-control {
+  min-height: 44px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+}
+.pf-v5-c-login__main .pf-v5-c-form-control::before,
+.pf-v5-c-login__main .pf-v5-c-form-control::after {
+  border: 0 !important;
+}
+.pf-v5-c-login__main .pf-v5-c-form-control:focus-within {
+  border-color: var(--nidan-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--nidan-primary) 20%, transparent);
+}
+.pf-v5-c-login__main .pf-v5-c-form-control input:focus-visible {
+  outline: none;                       /* the box shows focus (above) */
+}
+/* password field + show/hide button read as one control */
+.pf-v5-c-login__main .pf-v5-c-input-group .pf-v5-c-form-control {
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+.pf-v5-c-login__main .pf-v5-c-input-group .pf-v5-c-button {
+  min-height: 44px;
+  border: 1px solid #cbd5e1;
+  border-inline-start: 0;
+  border-radius: 0;                       /* logical corners: the eye sits on the left in right-to-left Arabic */
+  border-start-end-radius: 8px;
+  border-end-end-radius: 8px;
+}
+.pf-v5-c-login__main .pf-v5-c-input-group .pf-v5-c-button::after {
+  border: 0;
+}
+#kc-login {
+  min-height: 44px;
+  font-weight: 600;
+}
+#nidan-forgot-password {
+  margin: 0;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+/* phones: a 16px gutter so the card keeps its rounded edges instead of touching the screen sides */
+@media (max-width: 600px) {
+  .pf-v5-c-login__main {
+    margin-inline: 16px;
+  }
+  .pf-v5-c-login__container {
+    padding-top: 56px;                    /* room for the language links fixed at the top */
+  }
+}
+/* a field with an error shows it on its border too (red, like the message under it) */
+.pf-v5-c-login__main .pf-v5-c-form-control.pf-m-error,
+.pf-v5-c-login__main .pf-v5-c-form-control.pf-m-error:focus-within {
+  border-color: #c9190b;
+  box-shadow: none;
+}
+/* short screens: the copyright follows the card instead of floating over it */
+@media (max-height: 700px) {
+  #nidan-copyright {
+    position: static;
+    margin-top: 1rem;
+  }
 }

@@ -81,10 +81,11 @@ jobs:
           python3 -I - <<'PY'
           import json
           en = json.load(open("proxy/assets/i18n/messages_en.json"))
-          ne = json.load(open("proxy/assets/i18n/messages_ne.json")); ne.pop("_review", None)
-          assert set(en) == set(ne), ("missing in ne", sorted(set(en) - set(ne)), "extra", sorted(set(ne) - set(en)))
-          assert all(str(v).strip() for v in ne.values()), "empty Nepali string"
-          print(len(en), "keys, en == ne")
+          for loc in ("ne", "es", "fr", "ar"):          # proxy/assets/i18n.js SUPPORTED
+              d = json.load(open(f"proxy/assets/i18n/messages_{loc}.json")); d.pop("_review", None)
+              assert set(en) == set(d), (loc, "missing", sorted(set(en) - set(d)), "extra", sorted(set(d) - set(en)))
+              assert all(str(v).strip() for v in d.values()), f"empty {loc} string"
+          print(len(en), "keys in every language")
           PY
 
       - name: Tracked demo .env holds only approved demo values (KC-05-07)

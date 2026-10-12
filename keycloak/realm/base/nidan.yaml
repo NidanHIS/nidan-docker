@@ -25,8 +25,8 @@ duplicateEmailsAllowed: true         # email is optional and never an identity k
 verifyEmail: false
 loginTheme: nidan                    # keycloak/themes/nidan (KC-17), mounted into the keycloak service
 internationalizationEnabled: true
-supportedLocales: [en, ne]
-defaultLocale: $(env:DEFAULT_LOCALE)        # en | ne (env.template; preflight refuses others)
+supportedLocales: [en, ne, es, fr, ar]       # login theme messages for each (keycloak/themes/nidan; ar = right to left)
+defaultLocale: $(env:DEFAULT_LOCALE)        # en | ne | es | fr | ar (env.template; preflight refuses others)
 
 # --- passwords and lockout (D52, ds8) ---
 # TODO(KC-08-04): add a common-password blocklist (passwordBlacklist needs a list file on the server).

@@ -397,6 +397,80 @@ test.describe('people with several apps', () => {
     await expect(page.locator('#who a.sign-out[href="/oauth2/sign_out"]')).toBeVisible();
     await expect(page.locator('#to-apps')).toHaveAttribute('href', 'https://localhost/');
     expect(await page.locator('header .logo').evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0), 'logo loaded').toBe(true);
+    // and it works: the people list loads (the jobs come from harness/staff-site-sync.sh, real group ids)
+    const nurse = await person(request, 'stfnurse', { 'nidan-gateway': ['app-openmrs'] });
+    await page.selectOption('#job-filter', { label: 'Nurse' });
+    await expect(page.locator('#people tbody tr', { hasText: nurse.username }), 'a nurse in the list').toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Your session has ended'), 'no session error').toHaveCount(0);
+    await ctx.close();
+  });
+
+  // Reported 2026-10-12: in a browser set to dark mode the login card turned dark under the light brand text
+  // (unreadable labels) and kept PatternFly's blue top line. The Nidan look stays light, in the brand colour.
+  test('the login page stays light and readable when the browser is in dark mode @KC-17-01 @sso-on-only', async ({ browser }) => {
+    const ctx = await browser.newContext({ ignoreHTTPSErrors: true, colorScheme: 'dark' });
+    const page = await ctx.newPage();
+    await page.goto(`${GW}/`);
+    await expect(page.locator('#kc-login')).toBeVisible();
+    const look = await page.evaluate(() => {
+      const css = (sel: string, prop: string, pseudo?: string) => getComputedStyle(document.querySelector(sel)!, pseudo).getPropertyValue(prop);
+      return { dark: document.documentElement.classList.contains('pf-v5-theme-dark'), card: css('.pf-v5-c-login__main', 'background-color'),
+        label: css('label', 'color'), line: css('.pf-v5-c-login__main-header', 'border-top-color'),
+        brand: getComputedStyle(document.documentElement).getPropertyValue('--brand-primary').trim() };
+    });
+    expect(look.dark, 'no dark theme class').toBe(false);
+    expect(look.card, 'white card').toBe('rgb(255, 255, 255)');
+    const [r, g, b] = look.label.match(/\d+/g)!.map(Number);
+    expect(r + g + b, `dark label text on the white card (${look.label})`).toBeLessThan(250);
+    expect(look.line, 'top line in the brand colour, not PatternFly blue').not.toBe('rgb(0, 102, 204)');
+    // self-service reset is off: the page says who resets a password (UI review 2026-10-12)
+    await expect(page.locator('#nidan-forgot-password')).toContainText('Ask your hospital admin');
+    const h = await page.locator('#kc-login').boundingBox();
+    expect(h!.height, 'a 44px touch target').toBeGreaterThanOrEqual(44);
+    // branding: the hospital's name under the logo, its favicon (not Keycloak's), a copyright line, a background
+    await expect(page.locator('#kc-header-wrapper')).toHaveText('Nidan EHR');
+    const nameColour = await page.locator('#kc-header-wrapper').evaluate((e) => getComputedStyle(e).color);
+    expect(nameColour, 'the name is readable (not white)').not.toBe('rgb(255, 255, 255)');
+    const icon = await page.locator('link[rel="icon"]').first().evaluate((l: HTMLLinkElement) => l.href);
+    const [mine, theirs] = await Promise.all([page.request.get(icon), page.request.get(`${GW}/assets/brand/favicon.ico`)]);
+    expect(Buffer.compare(await mine.body(), await theirs.body()), 'login favicon = the branding folder favicon').toBe(0);
+    await expect(page.locator('#nidan-copyright')).toContainText(`© ${new Date().getFullYear()} Nidan EHR`);
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundImage), 'branding background').toMatch(/brand\/background\.svg/);
+    // the language dropdown: five languages; Nepali, then Arabic (right to left), then back to English
+    const pick = async (lang: string) => page.selectOption('#nidan-locale-select',
+      (await page.locator(`#nidan-locale-select option[lang="${lang}"]`).getAttribute('value'))!);
+    expect(await page.locator('#nidan-locale-select option').evaluateAll((o) => o.map((x) => x.getAttribute('lang')).sort()))
+      .toEqual(['ar', 'en', 'es', 'fr', 'ne']);
+    await pick('ne');
+    await expect(page.locator('#kc-login')).toHaveText('साइन इन');
+    await pick('ar');
+    await expect(page.locator('#kc-login')).toHaveText('تسجيل الدخول');
+    expect(await page.evaluate(() => document.documentElement.dir)).toBe('rtl');
+    await pick('en');
+    await expect(page.locator('#kc-login')).toHaveText('Sign in');
+    await ctx.close();
+  });
+
+  // Five languages on the launcher too, and one choice for both: picking Arabic on the login page sets the gateway's
+  // cookie, so the launcher opens in Arabic (right to left); picking French on the launcher gives a French login page.
+  test('the language chosen on the login page carries to the launcher and back; Arabic is right to left @KC-18-01 @sso-on-only', async ({ browser, request }) => {
+    const p = await person(request, 'lang', MIXES[0].roles);
+    const { ctx, page } = await newPage(browser);
+    await page.goto(`${GW}/?launcher`);
+    await page.selectOption('#nidan-locale-select', (await page.locator('#nidan-locale-select option[lang="ar"]').getAttribute('value'))!);
+    await expect(page.locator('#kc-login')).toHaveText('تسجيل الدخول');
+    await page.fill('#username', p.username);
+    await page.fill('#password', PASSWORD);
+    await page.click('#kc-login');
+    await page.waitForURL(`${GW}/**`);
+    await expect(page.locator('h1')).toContainText('مرحبًا');
+    expect(await page.evaluate(() => document.documentElement.dir)).toBe('rtl');
+    expect(await page.locator('#locale-picker option').evaluateAll((o) => o.map((x) => (x as HTMLOptionElement).value).sort()))
+      .toEqual(['ar', 'en', 'es', 'fr', 'ne']);
+    await page.selectOption('#locale-picker', 'fr');
+    await expect(page.locator('h1')).toContainText('Bienvenue');
+    await page.goto(`${GW}/oauth2/sign_out`);
+    await expect(page.locator('#kc-login')).toHaveText('Se connecter');
     await ctx.close();
   });
 

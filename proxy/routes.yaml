@@ -132,7 +132,8 @@ routes:
   - {server: staff, match: regex, path: "^/auth/realms/nidan/protocol/openid-connect/(certs|userinfo|login-status-iframe\\.html|logout|logout/logout-confirm)$", gate: exempt, kind: api, reason: OIDC endpoints and logout confirmation}
   - {server: staff, match: prefix, path: /auth/realms/nidan/login-actions/, gate: exempt, kind: page, reason: "login, OTP and required-action forms; 10/min per IP"}
   - {server: staff, match: exact, path: /auth/realms/nidan/.well-known/openid-configuration, gate: exempt, kind: api, reason: discovery}
-  - {server: staff, match: regex, path: "^/auth/resources/[^/]+/login/nidan/brand/([A-Za-z0-9_-]+\\.(css|svg|png))$", gate: exempt, kind: static, reason: "login theme branding from the gateway's branding folder"}
+  - {server: staff, match: regex, path: "^/auth/resources/[^/]+/login/nidan/brand/([A-Za-z0-9_-]+\\.(css|svg|png|jpg|webp|ico))$", gate: exempt, kind: static, reason: "login theme branding from the gateway's branding folder"}
+  - {server: staff, match: regex, path: "^/auth/resources/[^/]+/login/nidan/img/favicon\\.ico$", gate: exempt, kind: static, reason: "login pages' favicon from the branding folder"}
   - {server: staff, match: prefix, path: /auth/resources/, gate: exempt, kind: static, reason: theme assets}
   - {server: staff, match: prefix, path: /auth/js/, gate: exempt, kind: static, reason: keycloak js}
   - {server: staff, match: prefix, path: /auth/, gate: deny, kind: api, reason: "master realm, admin, account console, client registration -> 404 (KC-07-03)"}

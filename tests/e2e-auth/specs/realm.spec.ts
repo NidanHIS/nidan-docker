@@ -434,6 +434,23 @@ test.describe('realm against a live Keycloak', () => {
     expect(await failedLoginText(page, disabled, 'Wrong-Pass-1', 'ne'), 'disabled account').toBe(unknown);
   });
 
+  // The same guard for every other login language (es, fr, ar): Keycloak's own translations name a disabled
+  // account; the theme replaces them with the one failure text (+ English, spec 8.3).
+  for (const [loc, local] of [['es', 'Usuario o contraseña incorrectos'], ['fr', 'Identifiant ou mot de passe incorrect'],
+    ['ar', 'اسم المستخدم أو كلمة المرور غير صحيحة']] as const) {
+    test(`in ${loc}, a failed login reads the same for an unknown and a disabled account, with the English text @KC-17-02 @KC-17-04 @security`, async ({ page, playwright }) => {
+      const request = await playwright.request.newContext();
+      const disabled = await makeUser(request, ['staff/Nurse']);
+      const id = (await (await admin(request, `/users?username=${disabled}&exact=true`)).json())[0].id;
+      await admin(request, `/users/${id}`, { method: 'PUT', data: { enabled: false } });
+      const unknown = await failedLoginText(page, `nobody${Date.now()}`, 'Wrong-Pass-1', loc);
+      expect(unknown).toContain(local);
+      expect(unknown).toContain('Wrong username or password');
+      expect(await failedLoginText(page, disabled, 'Wrong-Pass-1', loc), 'disabled account').toBe(unknown);
+      if (loc === 'ar') expect(await page.evaluate(() => document.documentElement.dir), 'Arabic is right to left').toBe('rtl');
+    });
+  }
+
   // KC-17-05: the login page in English and in Nepali is the same page: same layout (pixel baselines would differ by
   // platform, so the two languages are compared with each other), no horizontal overflow from the longer Nepali text,
   // the Nidan theme in both. Screenshots are attached to the report for a person to look at.

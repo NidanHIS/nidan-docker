@@ -213,8 +213,8 @@ def main():
     problems += keycloak_db_isolation_problems(services)
     problems += dicom_problems(services)
     cli = dict(env_items(services.get("keycloak-config-cli", {})))
-    if cli and cli.get("DEFAULT_LOCALE") not in ("en", "ne"):  # supportedLocales in keycloak/realm/base/nidan.yaml
-        problems.append(f"keycloak-config-cli: DEFAULT_LOCALE {cli.get('DEFAULT_LOCALE')!r} is not en or ne")
+    if cli and cli.get("DEFAULT_LOCALE") not in ("en", "ne", "es", "fr", "ar"):  # supportedLocales in the realm file
+        problems.append(f"keycloak-config-cli: DEFAULT_LOCALE {cli.get('DEFAULT_LOCALE')!r} is not en, ne, es, fr or ar")
     problems += reporting_problems(services)
     problems += code_otp_problems(services)
     su_problems, su_notes = db_superuser_findings(services)

@@ -5,7 +5,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .logo { height: 36px; width: auto; }
 .who { display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem; color: #64748b; }
 .who strong { color: #1e293b; }
-.who a { color: var(--brand-primary, #008080); }
+.who a { color: var(--brand-primary, #008080); white-space: nowrap; }
 .who .sign-out { padding: 0.3rem 0.8rem; border-radius: 6px; background: var(--brand-primary, #008080); color: #fff; text-decoration: none; }
 .tab { border: 0; background: none; padding: 0.4rem 0.8rem; cursor: pointer; }
 .tab[aria-pressed="true"] { border-bottom: 2px solid var(--brand-primary, #008080); font-weight: 600; }

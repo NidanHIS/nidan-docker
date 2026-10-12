@@ -5,4 +5,6 @@
   --brand-primary: #008080;          /* buttons, links, footer */
   --brand-bg: #dbe3ea;               /* page background */
   --brand-text: #1e293b;
+  /* Sign-in page background: background.jpg if this folder has one, drawn over background.svg (the default line
+     art); a plain colour = a plain background.svg. */
 }

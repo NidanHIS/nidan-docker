@@ -61,8 +61,17 @@ def problems(themes=THEMES, keycloak_version=None):
                     if d.get(k, d["invalidUserMessage"]) != d["invalidUserMessage"]:
                         out.append(f"{msgdir.relative_to(themes)}/messages_{loc}: {k} differs from invalidUserMessage "
                                    "(reveals that the account exists)")
-        if "en" in files and "ne" in files and set(files["en"]) != set(files["ne"]):
-            out.append(f"{msgdir.relative_to(themes)}: en/ne keys differ: {sorted(set(files['en']) ^ set(files['ne']))}")
+        # every locale carries exactly the English keys: a missing key falls back to Keycloak's own translation, which
+        # for the failure messages above differs per case (an es/fr/ar page would then reveal a disabled account)
+        for loc, d in files.items():
+            if loc != "en" and "en" in files and set(d) != set(files["en"]):
+                out.append(f"{msgdir.relative_to(themes)}: en/{loc} keys differ: {sorted(set(files['en']) ^ set(d))}")
+        tp = msgdir.parent / "theme.properties"
+        listed = [x.strip() for x in props(tp).get("locales", "").split(",") if x.strip()] if tp.exists() else []
+        for loc in listed:
+            if loc not in files:
+                out.append(f"{msgdir.relative_to(themes)}: locale {loc} is listed in theme.properties but has no "
+                           f"messages_{loc}.properties (Keycloak's own texts would show, unguarded)")
     return out
 
 
