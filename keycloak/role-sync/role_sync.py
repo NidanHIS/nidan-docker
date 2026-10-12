@@ -37,7 +37,8 @@ REALM = os.environ.get("KEYCLOAK_REALM", "nidan")
 SOURCE = "nidan_source"
 SUPER = "nidan_superuser"
 
-# OpenMRS: superuser derived as scripts/check-catalog.py does; the machine accounts' roles never go to people
+# OpenMRS: superuser = an administrative privilege, directly or inherited (also used by scripts/bootstrap-export.py);
+# the machine accounts' roles never go to people
 OPENMRS_ADMIN_PRIVS = {"Manage Roles", "Manage Modules", "Manage Privileges", "Edit Users", "Edit User Passwords",
                        "Assign System Developer Role", "Manage Global Properties", "Manage Scheduler"}
 OPENMRS_SKIP = {"Anonymous", "Nidan Sync", "Nidan Odoo Read", "Nidan Portal", "Nidan Role Sync"}

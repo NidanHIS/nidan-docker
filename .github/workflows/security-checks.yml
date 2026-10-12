@@ -30,9 +30,6 @@ jobs:
           python3 -I scripts/check-realm.py
           python3 -I scripts/test_check_realm.py
 
-      - name: Role catalogs match app sources; no superuser role in a staff job (KC-24-01/02, KC-57-01)
-        run: python3 -I scripts/check-catalog.py
-
       - name: Gateway routes match the contract proxy/routes.yaml exactly (KC-10); port 80 is redirect + ACME (KC-47-02)
         run: |
           python3 -I scripts/check-routes.py
@@ -45,7 +42,6 @@ jobs:
           python3 -I scripts/test_check_public_routes.py
           python3 -I scripts/test_check_secret_compare.py
           python3 -I scripts/test_nidan_auth_check.py
-          python3 -I scripts/test_check_catalog.py
           python3 -I scripts/test_bootstrap_export.py
           python3 -I scripts/test_dry_run_diff.py
           python3 -I scripts/test_apply_links.py

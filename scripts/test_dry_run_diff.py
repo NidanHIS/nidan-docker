@@ -6,19 +6,13 @@ import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parent.parent
 spec = importlib.util.spec_from_file_location("drd", HERE / "dry-run-diff.py")
 drd = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(drd)
 
-REALM = """groups:
-  - name: staff
-    subGroups:
-      - name: pharmacist
-        clientRoles:
-          openmrs: [Inventory Dispensing]
-          odoo: [nidan_blood_bank.group_blood_bank_manager]
-"""
+# the realm's job mappings (check-realm.job_role_mappings), passed in so the test needs no realm files
+JOBS = [("/staff/pharmacist", "openmrs", "Inventory Dispensing"),
+        ("/staff/pharmacist", "odoo", "nidan_blood_bank.group_blood_bank_manager")]
 LINK = ["username", "app", "app_user_id", "decision"]
 
 
@@ -27,19 +21,22 @@ def export(extra_openmrs=(), extra_odoo=()):
     # Odoo stores implied groups as memberships: manager -> user -> stock user
     od = ["nidan_blood_bank.group_blood_bank_manager", "nidan_blood_bank.group_blood_bank_user",
           "stock.group_stock_user", *extra_odoo]
+    # the site's own data: what each role includes (Odoo implied groups) and OpenMRS privileges
     return {
-        "openmrs": {"users": [], "roles": {r: 1 for r in om} | {"Site Custom": 3},
-                    "memberships": [{"user_id": "7", "role": r} for r in om]},
-        "odoo": {"users": [], "roles": {r: 1 for r in od}, "memberships": [{"user_id": "9", "role": r} for r in od]},
+        "openmrs": {"users": [], "roles": {r: 1 for r in om} | {"Site Custom": 3, "System Developer": 0},
+                    "memberships": [{"user_id": "7", "role": r} for r in om],
+                    "includes": {}, "privileges": {"Inventory Dispensing": ["Get Patients"]}},
+        "odoo": {"users": [], "roles": {r: 1 for r in od} | {"base.group_system": 0},
+                 "memberships": [{"user_id": "9", "role": r} for r in od],
+                 "includes": {"nidan_blood_bank.group_blood_bank_manager": ["nidan_blood_bank.group_blood_bank_user"],
+                              "nidan_blood_bank.group_blood_bank_user": ["stock.group_stock_user"],
+                              "account.group_account_manager": ["base.group_system"]}},
     }
 
 
 def run(exp, jobs, link=None):
     with tempfile.TemporaryDirectory() as d:
         d = Path(d)
-        drd.cc.REALM_DIR, drd.cc.CATALOG_DIR = d / "realm", HERE.parent / "keycloak/realm/roles"
-        (d / "realm").mkdir()
-        (d / "realm/jobs.yaml").write_text(REALM)
         (d / "e.json").write_text(json.dumps(exp))
         wb = d / "wb"
         wb.mkdir()
@@ -49,9 +46,9 @@ def run(exp, jobs, link=None):
                 w = csv.writer(fh)
                 w.writerow(fields)
                 w.writerows(rows)
-        code = drd.main(["x", str(d / "e.json"), str(wb), str(ROOT)])
+        code = drd.main(["x", str(d / "e.json"), str(wb)], mappings=JOBS)
         losses, notes, orphans = drd.diff(exp, drd.read_csv(wb / "link-table.csv"), drd.read_csv(wb / "jobs.csv"),
-                                          drd.job_grants(ROOT), drd.cc.derived(ROOT))
+                                          drd.job_grants(exp, JOBS))
         return code, losses, notes, orphans
 
 
@@ -63,14 +60,24 @@ def test_clean_mapping_exits_zero():
 
 def test_lost_permission_listed_and_fails():
     # KC-26-01
-    code, losses, _, _ = run(export(extra_odoo=["account.group_account_manager"]), [["ram", "pharmacist", "", ""]])
-    assert code == 1 and any("account.group_account_manager" in l for l in losses), losses
+    code, losses, _, _ = run(export(extra_odoo=["point_of_sale.group_pos_user"]), [["ram", "pharmacist", "", ""]])
+    assert code == 1 and any("point_of_sale.group_pos_user" in l for l in losses), losses
 
 
 def test_accepted_loss_passes():
-    code, losses, _, _ = run(export(extra_odoo=["account.group_account_manager"]),
-                             [["ram", "pharmacist", "", "odoo:account.group_account_manager"]])
+    code, losses, _, _ = run(export(extra_odoo=["point_of_sale.group_pos_user"]),
+                             [["ram", "pharmacist", "", "odoo:point_of_sale.group_pos_user"]])
     assert (code, losses) == (0, []), losses
+
+
+def test_superuser_from_the_sites_own_data():
+    # an Odoo group implying settings (per the export, not repository files) is superuser: a job may not keep it
+    exp = export(extra_odoo=["account.group_account_manager"])
+    code, losses, _, _ = run(exp, [["ram", "pharmacist", "", ""]])
+    assert code == 1 and any("account.group_account_manager" in l and "app-superusers" in l for l in losses), losses
+    exp["openmrs"]["privileges"]["Inventory Dispensing"] = ["Manage Roles"]     # this site made it an admin role
+    _, _, notes, _ = run(exp, [["ram", "pharmacist", "yes", ""]])
+    assert any("'Inventory Dispensing'" in n and "KC-57" in n for n in notes), notes
 
 
 def test_superuser_today_must_be_routed_to_app_superusers():
@@ -96,15 +103,10 @@ def test_unknown_job_and_unlinked_rows():
 
 
 def test_orphan_roles_reported_not_fatal():
-    # KC-26-03
+    # KC-26-03: held today, granted by no job (and not superuser): reported, never fatal
     code, _, _, orphans = run(export(), [["ram", "pharmacist", "", ""]])
     assert code == 0 and any("Site Custom" in o for o in orphans), orphans
-
-
-def test_site_overlay_role_is_not_an_orphan():
-    exp = export()
-    _, _, orphans = drd.diff(exp, [], [], {}, drd.cc.derived(ROOT), site={"openmrs": {"Site Custom"}})
-    assert not any("Site Custom" in o for o in orphans), orphans
+    assert not any("Inventory Dispensing" in o or "System Developer" in o for o in orphans), orphans
 
 
 def test_failed_export_blocks():

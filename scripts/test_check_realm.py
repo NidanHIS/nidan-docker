@@ -40,4 +40,40 @@ assert [p.split(": ", 1)[0] for p in probs] == ["t.yaml:1", "t.yaml:2", "t.yaml:
 seeded = copy.deepcopy(base)
 next(r for r in seeded["roles"]["realm"] if r["name"] == "default-roles-nidan")["composites"]["client"]["account"].append("manage-account")
 assert any("default-roles-nidan" in p for p in cr.check(seeded, "base"))
+
+# jobs (moved from check-catalog.py): composites expanded, R3 baseline, R6, KC-09-08
+import tempfile
+with tempfile.TemporaryDirectory() as d:
+    cr.REALM_DIR = Path(d)
+    (Path(d) / "r.yaml").write_text("""roles:
+  realm:
+    - name: ward-bundle
+      composites: {realm: [inner]}
+    - name: inner
+      composites: {client: {openmrs: [System Developer]}}
+groups:
+  - name: staff
+    subGroups: [{name: nurse, realmRoles: [ward-bundle]}]
+""")
+    got = cr.job_role_mappings()
+assert ("/staff/nurse", "openmrs", "System Developer") in got, got
+docs = [yaml.safe_load("""groups:
+  - name: staff
+    subGroups:
+      - {name: cashier, clientRoles: {nidan-gateway: [app-odoo], odoo: [point_of_sale.group_pos_user]}}
+      - {name: reporter, clientRoles: {nidan-gateway: [app-superset], superset: [Gamma]}}
+      - {name: empty}
+users:
+  - {username: admin, groups: [/staff/cashier]}
+  - {username: service-account-cis, groups: [staff/empty]}
+  - {username: ram, groups: [/staff/reporter, /app-superusers]}
+  - {username: sita, groups: [/staff/cashier]}
+""")]
+mappings = [("/staff/cashier", "nidan-gateway", "app-odoo"), ("/staff/cashier", "odoo", "point_of_sale.group_pos_user"),
+            ("/staff/reporter", "nidan-gateway", "app-superset"), ("/staff/reporter", "superset", "Gamma")]
+out = cr.job_and_user_rules(mappings, docs)
+assert any("/staff/cashier" in p and "base.group_user" in p for p in out), out
+assert any("user admin" in p and "R6" in p for p in out) and any("service-account-cis" in p for p in out), out
+assert any("user ram" in p and "KC-09-08" in p for p in out) and not any("sita" in p for p in out), out
+assert len(out) == 4, out
 print("check-realm: OK")

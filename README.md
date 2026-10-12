@@ -204,7 +204,6 @@ Each has a usage block at its top; `scripts/test_*.py` are their self-tests (CI:
 | `scripts/keycloak-restore-drill.sh` | Keycloak restore drill: back up a Keycloak with `volume-backup.sh` (throwaway key), restore into a new volume, log in there, within 15 min (backlog KC-28-06). Leaves two stopped drill projects behind. |
 | `scripts/keycloak-event-shipper.py` | Every 5 min (docs/keycloak-events.cron): appends Keycloak's new login and admin events to JSONL files outside its database (backlog KC-23-05). |
 | `scripts/keycloak-reapply-after-restore.py` | After a Keycloak restore: re-applies disables, removals and deletions recorded since the backup, never a grant (backlog KC-28-07). Dry run unless `--apply`. |
-| `scripts/check-catalog.py` | Role catalog check (backlog KC-24 / R1, KC-57). |
 | `scripts/check-demo-env.py` | The tracked demo .env may only hold reviewed public demo values (backlog KC-05-07). |
 | `scripts/check-openmrs-basic-clients.py` | Inventory of OpenMRS Basic-auth clients across the monorepo (backlog KC-32-06). |
 | `scripts/check-pins.py` | Supply-chain pins (backlog KC-46-01): images by tag AND digest, no moving refs. |

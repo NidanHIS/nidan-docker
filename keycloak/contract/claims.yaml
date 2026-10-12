@@ -20,7 +20,7 @@ clients:
   openmrs:                  # oauth2login user login
     grant: authorization_code
     required: [preferred_username, gender, given_name, family_name]
-    roles: "list of OpenMRS role names from the openmrs client-role catalog; Keycloak omits it when empty, which oauth2login reads as zero roles (KC-58-07, UserInfoTest)"
+    roles: "list of OpenMRS role names (the openmrs client roles, synced from OpenMRS by keycloak/role-sync); Keycloak omits it when empty, which oauth2login reads as zero roles (KC-58-07, UserInfoTest)"
     gender: "one of M F O U"
     forbidden: [openmrs_user]
 

@@ -59,18 +59,22 @@ def test_export_parses_and_records_failures():
     def fake(argv, input, capture_output, text):
         if "nidan-odoo-db" in argv:
             return subprocess.CompletedProcess(argv, 2, "", "connection refused")
-        return subprocess.CompletedProcess(argv, 0, "U\t7\tram\t1\t3-4\nR\tDoctor\t1\nM\t7\tDoctor\n", "")
+        return subprocess.CompletedProcess(argv, 0, "U\t7\tram\t1\t3-4\nR\tDoctor\t1\nM\t7\tDoctor\n"
+                                           "I\tDoctor\tProvider\nP\tDoctor\tGet Patients\n", "")
     with tempfile.TemporaryDirectory() as d:
         data = be.export(Path(d) / "e.json", run=fake)
     assert data["openmrs"]["users"] == [{"id": "7", "username": "ram", "active": True, "note": "3-4"}]
     assert data["openmrs"]["roles"] == {"Doctor": 1}
+    assert data["openmrs"]["includes"] == {"Doctor": ["Provider"]}
+    assert data["openmrs"]["privileges"] == {"Doctor": ["Get Patients"]}
     assert "error" in data["odoo"]
 
 
 EXPORT = {
     "openmrs": {"users": [{"id": "7", "username": "ram", "active": True, "note": "3-4"},
                           {"id": "1", "username": "localadm", "active": True, "note": "1-2"}],
-                "roles": {"Doctor Role": 1, "Ghost": 0, "Site Thing": 2}, "memberships": []},
+                "roles": {"Doctor Role": 1, "Ghost": 0, "Site Thing": 2}, "memberships": [],
+                "includes": {"Doctor Role": ["Site Thing"]}, "privileges": {"Site Thing": ["Edit User Passwords"]}},
     "odoo": {"users": [{"id": "9", "username": "Ram", "active": True, "note": ""}], "roles": {}, "memberships": []},
 }
 
@@ -101,9 +105,11 @@ def test_workbook_never_autolinks_and_reserves_unlinked():
         assert (wb / "reserved-usernames.txt").read_text().split() == ["localadm"]
 
         roles = {(r["app"], r["role"]): r for r in csv.DictReader(open(wb / "roles.csv"))}
-        assert roles[("openmrs", "Doctor Role")]["catalog"] == "superuser"
+        # superuser from the site's own data: Site Thing changes passwords, Doctor Role inherits it
+        assert roles[("openmrs", "Doctor Role")]["superuser"] == "yes"
+        assert roles[("openmrs", "Site Thing")]["superuser"] == "yes"
+        assert roles[("openmrs", "Ghost")]["superuser"] == "no"
         assert roles[("openmrs", "Ghost")]["proposed_class"] == "unused"
-        assert roles[("openmrs", "Site Thing")]["catalog"] == "site-only"
 
 
 def test_workbook_refuses_a_git_work_tree():
@@ -114,6 +120,16 @@ def test_workbook_refuses_a_git_work_tree():
         assert "git" in str(e)
     assert not (HERE / "wb").exists()
 
+
+
+
+def test_superusers_from_live_data():
+    odoo = {"roles": {"base.group_system": 0, "acc.manager": 1, "acc.user": 2},
+            "includes": {"acc.manager": ["acc.user", "base.group_erp_manager"]}}
+    assert be.superusers("odoo", odoo) == {"base.group_system", "acc.manager"}
+    assert be.superusers("openelis", {"roles": {"Results": 1, "Global Administrator": 1}}) == {"Global Administrator"}
+    assert be.superusers("openmrs", {"roles": {"Dev": 1, "Nurse": 1},
+                                     "includes": {"Dev": ["System Developer"]}, "privileges": {}}) == {"Dev"}
 
 if __name__ == "__main__":
     n = 0

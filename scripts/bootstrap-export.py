@@ -8,7 +8,7 @@ export: fixed SELECT-only queries, each app inside a READ ONLY transaction (the 
 refuses writes, whatever account runs it; Superset's SQLite is opened mode=ro). Credentials stay
 inside each DB container (its own env); nothing is written on the server.
 workbook (DIR must be outside any git repo: it holds staff names):
-  roles.csv            app, role, users, catalog (base | superuser | site-only), proposed class
+  roles.csv            app, role, users, superuser (yes | no, from the app's own data), proposed class
   link-table.csv       one row per (username, app). decision/keycloak_sub start EMPTY: same-username
                        pairs are grouped for review, never auto-linked (KC-25-02). Re-running keeps
                        every decision already entered and never removes rows.
@@ -16,18 +16,17 @@ workbook (DIR must be outside any git repo: it holds staff names):
                        refuse these names (KC-25-03 -> KC-55-03), so nobody can claim a local account.
 """
 import csv
+import importlib.util
 import json
 import subprocess
 import sys
 from pathlib import Path
 
-import yaml
-
 HERE = Path(__file__).resolve().parent
-CATALOG_DIR = HERE.parent / "keycloak" / "realm" / "roles"
 
 # Each row: kind<TAB>a<TAB>b<TAB>c<TAB>d. U = user (id, username, active 1/0, note),
-# R = role (name, member count), M = membership (user id, role).
+# R = role (name, member count), M = membership (user id, role), I = role a includes role b (OpenMRS inherited
+# role, Odoo implied group), P = OpenMRS role a has privilege b.
 MYSQL = 'MYSQL_PWD="$MYSQL_PASSWORD" mysql -u"$MYSQL_USER" "$MYSQL_DATABASE" -B -N'
 PSQL = 'psql -X -q -At -F "\t" -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d {db}'
 APPS = {
@@ -37,6 +36,8 @@ APPS = {
             "SELECT 'U', user_id, username, IF(retired, 0, 1), system_id FROM users WHERE username <> ''",
             "SELECT 'R', r.role, COUNT(ur.user_id) FROM role r LEFT JOIN user_role ur ON ur.role = r.role GROUP BY r.role",
             "SELECT 'M', user_id, role FROM user_role",
+            "SELECT 'I', child_role, parent_role FROM role_role",
+            "SELECT 'P', role, privilege FROM role_privilege",
         ],
     },
     "odoo": {
@@ -49,6 +50,10 @@ APPS = {
             "LEFT JOIN res_groups_users_rel r ON r.gid = g.id GROUP BY 2",
             "SELECT 'M', r.uid, COALESCE(d.module || '.' || d.name, 'id:' || r.gid) FROM res_groups_users_rel r "
             "LEFT JOIN ir_model_data d ON d.model = 'res.groups' AND d.res_id = r.gid",
+            "SELECT 'I', COALESCE(a.module || '.' || a.name, 'id:' || i.gid), COALESCE(b.module || '.' || b.name, "
+            "'id:' || i.hid) FROM res_groups_implied_rel i "
+            "LEFT JOIN ir_model_data a ON a.model = 'res.groups' AND a.res_id = i.gid "
+            "LEFT JOIN ir_model_data b ON b.model = 'res.groups' AND b.res_id = i.hid",
         ],
     },
     "openelis": {
@@ -103,7 +108,7 @@ def script_for(app):
 
 
 def parse(app, text):
-    out = {"users": [], "roles": {}, "memberships": []}
+    out = {"users": [], "roles": {}, "memberships": [], "includes": {}, "privileges": {}}
     for line in text.splitlines():
         f = line.split("\t")
         if f[0] == "U" and len(f) >= 4:
@@ -112,7 +117,46 @@ def parse(app, text):
             out["roles"][f[1]] = int(f[2] or 0)
         elif f[0] == "M" and len(f) >= 3:
             out["memberships"].append({"user_id": f[1], "role": f[2]})
+        elif f[0] == "I" and len(f) >= 3:
+            out["includes"].setdefault(f[1], []).append(f[2])
+        elif f[0] == "P" and len(f) >= 3:
+            out["privileges"].setdefault(f[1], []).append(f[2])
     return out
+
+
+# Superuser roles never go to a staff job, only to the operator-managed app-superusers group (KC-57). Taken from
+# the site's own data: OpenMRS by privileges (the same rule as keycloak/role-sync), Odoo groups implying settings,
+# access rights or technical features, and the fixed admin roles of the others.
+_rs = importlib.util.spec_from_file_location("role_sync", HERE.parent / "keycloak" / "role-sync" / "role_sync.py")
+role_sync = importlib.util.module_from_spec(_rs)
+_rs.loader.exec_module(role_sync)
+ODOO_SUPER = {"base.group_system", "base.group_erp_manager", "base.group_no_one"}
+FIXED_SUPER = {"openelis": {"Global Administrator", "User Account Administrator"},
+               "superset": {"Admin", "Alpha", "sql_lab"}, "dhis2": {"admin", "report-admin"}}
+
+
+def includes_closure(d, role):
+    """The role and everything it includes (OpenMRS inherited roles, Odoo implied groups), from the export."""
+    seen, todo = set(), [role]
+    while todo:
+        r = todo.pop()
+        if r not in seen:
+            seen.add(r)
+            todo.extend((d.get("includes") or {}).get(r, ()))
+    return seen
+
+
+def superusers(app, d):
+    roles = set(d.get("roles") or {})
+    if app == "openmrs":
+        rows = [{"name": r, "privileges": [{"name": p} for p in (d.get("privileges") or {}).get(r, [])],
+                 "inheritedRoles": [{"name": p} for p in (d.get("includes") or {}).get(r, [])]} for r in roles]
+        if "System Developer" not in roles:   # inheriting it makes a role superuser even if the export lacks it
+            rows.append({"name": "System Developer", "privileges": [], "inheritedRoles": []})
+        return {n for n, i in role_sync.openmrs_roles(rows).items() if i["superuser"]} & roles
+    if app == "odoo":
+        return {r for r in roles if includes_closure(d, r) & ODOO_SUPER}
+    return roles & FIXED_SUPER.get(app, set())
 
 
 def export(out_path, run=subprocess.run):
@@ -128,12 +172,6 @@ def export(out_path, run=subprocess.run):
         print(f"{app}: {len(data[app]['users'])} users, {len(data[app]['roles'])} roles")
     Path(out_path).write_text(json.dumps(data, indent=1, sort_keys=True), encoding="utf-8")
     return data
-
-
-def catalog(app):
-    f = CATALOG_DIR / f"{app}.yaml"
-    roles = (yaml.safe_load(f.read_text()) or {}).get("roles", []) if f.exists() else []
-    return {r["name"]: r for r in roles}
 
 
 def inside_git(path):
@@ -156,13 +194,11 @@ def workbook(export_path, out_dir):
 
     with open(out / "roles.csv", "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
-        w.writerow(["app", "role", "users", "catalog", "proposed_class"])
+        w.writerow(["app", "role", "users", "superuser", "proposed_class"])
         for app, d in sorted(data.items()):
-            cat = catalog(app)
+            supers = superusers(app, d)
             for role, n in sorted((d.get("roles") or {}).items()):
-                c = cat.get(role)
-                kind = "site-only" if c is None else ("superuser" if c.get("superuser") else "base")
-                w.writerow([app, role, n, kind, "unused" if n == 0 else ("site-only" if c is None else "in-use")])
+                w.writerow([app, role, n, "yes" if role in supers else "no", "unused" if n == 0 else "in-use"])
 
     names = {}
     for app, d in data.items():

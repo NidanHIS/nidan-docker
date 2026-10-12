@@ -13,6 +13,10 @@ For every client:
   * only the machine clients may carry an openmrs_user mapper, and those have no browser flow
 Realm-level: no self-registration, no reset-password, no username edits, no permanent lockout,
 no offline_access default role.
+Jobs (/staff/*, composites expanded): a job that opens an app carries its baseline role (R3); no admin or
+service account in a job (R6); nobody in both an admin group and a job (KC-09-08). Which roles are superuser
+comes from the apps themselves, so a job holding one is caught by keycloak/role-sync (runtime) and
+scripts/dry-run-diff.py (cutover), not here (KC-57).
 Exit 0 = clean, 1 = violations (printed).
 """
 import json
@@ -126,6 +130,100 @@ def substitution_problems(text, where, env):
     return errs
 
 
+REALM_DIR = ROOT / "keycloak" / "realm"
+
+
+def realm_docs():
+    return [yaml.safe_load(f.read_text()) or {} for f in sorted(REALM_DIR.rglob("*.yaml"))]
+
+
+def composites(docs):
+    """(client|None, role) -> {(client|None, role)} for every composite role in the realm files."""
+    out = {}
+    for doc in docs:
+        roles = doc.get("roles") or {}
+        defs = [(None, r) for r in roles.get("realm") or []]
+        defs += [(c, r) for c, rs in (roles.get("client") or {}).items() for r in rs or []]
+        for owner, r in defs:
+            comp = r.get("composites") or {}
+            kids = {(None, n) for n in comp.get("realm") or []}
+            kids |= {(c, n) for c, ns in (comp.get("client") or {}).items() for n in ns or []}
+            out.setdefault((owner, r.get("name")), set()).update(kids)
+    return out
+
+
+def job_role_mappings():
+    """(job group path, client, role) for every staff/* job in the realm files, with
+    Keycloak composite roles expanded (KC-57-01 "directly or via composite")."""
+    docs = realm_docs()
+    comp = composites(docs)
+
+    def expand(key, seen):
+        if key in seen:
+            return set()
+        seen.add(key)
+        s = {key}
+        for kid in comp.get(key, ()):
+            s |= expand(kid, seen)
+        return s
+
+    out = []
+    for doc in docs:
+        def walk(groups, prefix):
+            for g in groups or []:
+                path = f"{prefix}/{g.get('name')}"
+                if path.startswith("/staff/"):
+                    direct = {(None, r) for r in g.get("realmRoles") or []}
+                    direct |= {(c, r) for c, rs in (g.get("clientRoles") or {}).items() for r in rs or []}
+                    for key in direct:
+                        out.extend((path, c, r) for c, r in expand(key, set()) if c)
+                walk(g.get("subGroups"), path)
+        walk(doc.get("groups"), "")
+    return out
+
+
+# R3: the role every job that opens the app must carry. OpenMRS adds "Authenticated" to every user
+# itself; OpenELIS has no login-only role (a lab job maps its own working roles).
+BASELINE = {"odoo": "base.group_user", "superset": "Gamma", "dhis2": "reporter"}
+GATEWAY_APP = {"app-openmrs": "openmrs", "app-odoo": "odoo", "app-openelis": "openelis", "app-superset": "superset",
+               "app-dhis2": "dhis2"}
+ADMIN_GROUPS = {"/app-superusers", "/hospital-admin", "/cis-admin", "/orthanc-admin"}
+NEVER_STAFF = {"admin", "nidan", "nidan-sync", "daemon", "__system__", "dead-letter-admin"}
+
+
+def job_and_user_rules(mappings, docs):
+    """KC-08-09 (R3 baseline, R6 no admin/service account in a job) and KC-09-08 (static: nobody in
+    both an admin group and a staff job)."""
+    problems = []
+    jobs = {}
+    for path, client, role in mappings:
+        jobs.setdefault(path, set()).add((client, role))
+    for doc in docs:
+        def walk(groups, prefix):
+            for g in groups or []:
+                path = f"{prefix}/{g.get('name')}"
+                if path.startswith("/staff/"):
+                    jobs.setdefault(path, set())
+                walk(g.get("subGroups"), path)
+        walk(doc.get("groups"), "")
+    for path, roles in sorted(jobs.items()):
+        opens = {GATEWAY_APP[r] for c, r in roles if c == "nidan-gateway" and r in GATEWAY_APP}
+        opens |= {c for c, _ in roles if c in BASELINE}
+        for app in sorted(opens & set(BASELINE)):
+            if (app, BASELINE[app]) not in roles:
+                problems.append(f"{path}: opens {app} but lacks its baseline role {BASELINE[app]!r} (R3)")
+    for doc in docs:
+        for u in doc.get("users") or []:
+            name = str(u.get("username", "")).lower()
+            groups = {"/" + g.lstrip("/") for g in u.get("groups") or []}
+            staff = sorted(g for g in groups if g.startswith("/staff/"))
+            if staff and (name in NEVER_STAFF or name.startswith("service-account-")):
+                problems.append(f"user {name}: admin/service account in job {staff[0]} (R6)")
+            if staff and groups & ADMIN_GROUPS:
+                problems.append(f"user {name}: in {sorted(groups & ADMIN_GROUPS)[0]} and job {staff[0]} (KC-09-08)")
+    return problems
+
+
 def main():
     files = [Path(a) for a in sys.argv[1:]] or sorted((ROOT / "keycloak" / "realm").rglob("*.yaml"))
     errs = []
@@ -133,8 +231,9 @@ def main():
     for f in files:
         name = f.relative_to(ROOT) if f.is_absolute() and f.is_relative_to(ROOT) else f
         errs += check(yaml.safe_load(f.read_text()) or {}, str(name))
-        if "roles" not in f.parts:   # role catalogs are not imported
-            errs += substitution_problems(f.read_text(), str(name), env)
+        errs += substitution_problems(f.read_text(), str(name), env)
+    if not sys.argv[1:]:                 # the jobs across all realm files (R3, R6, KC-09-08)
+        errs += job_and_user_rules(job_role_mappings(), realm_docs())
     print(f"{len(files)} realm file(s), {len(errs)} violation(s)")
     for e in errs:
         print("  " + e)

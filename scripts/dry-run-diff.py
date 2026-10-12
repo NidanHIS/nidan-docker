@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Dry-run permission diff + orphan report before a site cutover (backlog KC-26, spec §9.2 step 5).
 
-  scripts/dry-run-diff.py EXPORT.json WORKBOOK_DIR [MONOREPO_ROOT] [--site keycloak/realm/sites/<site>]
+  scripts/dry-run-diff.py EXPORT.json WORKBOOK_DIR
 
 Inputs: the bootstrap export, and in WORKBOOK_DIR the reviewed link-table.csv (rows with
 decision=link) plus jobs.csv, confirmed by the hospital:
@@ -12,8 +12,10 @@ decision=link) plus jobs.csv, confirmed by the hospital:
   accept_loss  "app:role; app:role" losses the hospital has signed off
 For every linked person: roles held today (export, per linked app account) minus roles the job
 grants (Keycloak composites expanded; Odoo implied groups and OpenMRS inherited roles counted as
-granted). Any loss not accepted -> listed, exit 1 (KC-26-01). Clean -> exit 0 (KC-26-02).
-Local roles not in the catalog are listed as orphans and do not fail the run (KC-26-03).
+granted, from the export: the site's own data). Any loss not accepted -> listed, exit 1 (KC-26-01).
+Clean -> exit 0 (KC-26-02). A job granting a superuser role (KC-57; superuser per the site's data,
+bootstrap-export.py superusers) is a problem. Roles people hold today that no job grants are listed
+as orphans and do not fail the run (KC-26-03).
 """
 import csv
 import importlib.util
@@ -22,27 +24,25 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-_spec = importlib.util.spec_from_file_location("check_catalog", HERE / "check-catalog.py")
-cc = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(cc)
 
 
-def job_grants(root):
-    """{job name: {app: {roles}}} with app-side inheritance (Odoo implied, OpenMRS inherited) added."""
-    # ponytail: Odoo core-module implications (not in this repo) are not modelled; they surface as
-    # losses to accept or add to the job. Read them from the site's res_groups_implied_rel if noisy.
-    _found, implied = cc.odoo_xml(root)
-    inherits = cc.openmrs_inheritance(root)
-    closure = {"odoo": implied, "openmrs": inherits}
+def load(name, file):
+    spec = importlib.util.spec_from_file_location(name, HERE / file)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+realm = load("check_realm", "check-realm.py")
+be = load("bootstrap_export", "bootstrap-export.py")
+
+
+def job_grants(export, mappings=None):
+    """{job name: {app: {roles}}} with app-side inheritance (Odoo implied, OpenMRS inherited) from the export."""
     out = {}
-    for path, app, role in cc.job_role_mappings():
-        job = path.split("/")[2]
-        todo, seen = [role], out.setdefault(job, {}).setdefault(app, set())
-        while todo:
-            r = todo.pop()
-            if r not in seen:
-                seen.add(r)
-                todo.extend(closure.get(app, {}).get(r, ()))
+    for path, app, role in realm.job_role_mappings() if mappings is None else mappings:
+        out.setdefault(path.split("/")[2], {}).setdefault(app, set()).update(
+            be.includes_closure(export.get(app) or {}, role))
     return out
 
 
@@ -50,7 +50,7 @@ def read_csv(path):
     return list(csv.DictReader(open(path, newline="", encoding="utf-8"))) if Path(path).exists() else []
 
 
-def diff(export, link_rows, job_rows, grants, truth, site=None):
+def diff(export, link_rows, job_rows, grants):
     held = {}  # (username, app) -> {roles} today
     for r in link_rows:
         if (r.get("decision") or "").strip().lower() != "link":
@@ -59,17 +59,22 @@ def diff(export, link_rows, job_rows, grants, truth, site=None):
         roles = {m["role"] for m in (export.get(app) or {}).get("memberships", []) if str(m["user_id"]) == uid}
         held.setdefault((r["username"].lower(), app), set()).update(roles)
     jobs = {r["username"].strip().lower(): r for r in job_rows}
+    supers = {app: be.superusers(app, d) for app, d in export.items() if "error" not in d}
     losses, notes = [], []
+    for job, apps in sorted(grants.items()):
+        for app, roles in sorted(apps.items()):
+            for role in sorted(roles & supers.get(app, set())):
+                notes.append(f"job {job!r} grants the {app} superuser role {role!r}; only app-superusers may (KC-57)")
     for (user, app), roles in sorted(held.items()):
         j = jobs.get(user, {})
         job = (j.get("job") or "").strip()
-        if job and job not in grants:
+        if job and job not in grants and f"{user}: job {job!r} is not a /staff group in the realm" not in notes:
             notes.append(f"{user}: job {job!r} is not a /staff group in the realm")
         granted = grants.get(job, {}).get(app, set())
         accepted = {a.strip() for a in (j.get("accept_loss") or "").split(";") if a.strip()}
         superuser = (j.get("superuser") or "").strip().lower() == "yes"
         for role in sorted(roles - granted):
-            is_super = (truth.get(app, {}).get(role) or {}).get("superuser", False)
+            is_super = role in supers.get(app, set())
             if is_super and superuser:
                 continue  # kept through app-superusers, an operator decision
             if f"{app}:{role}" in accepted:
@@ -79,28 +84,22 @@ def diff(export, link_rows, job_rows, grants, truth, site=None):
             losses.append(f"{user} loses {app}:{role!r} ({why})")
     orphans = []
     for app, d in sorted(export.items()):
-        known = set(truth.get(app, {})) | (site or {}).get(app, set())
+        granted = set().union(*(apps.get(app, set()) for apps in grants.values()))
         for role, n in sorted((d.get("roles") or {}).items()):
-            if role not in known:
-                orphans.append(f"{app}:{role!r} ({n} users) not in the catalog")
+            if n and role not in granted and role not in supers.get(app, set()):
+                orphans.append(f"{app}:{role!r} ({n} users) is granted by no job")
     return losses, notes, orphans
 
 
-def main(argv):
-    site = None
-    if "--site" in argv:
-        i = argv.index("--site")
-        site = cc.site_roles(argv[i + 1])
-        argv = argv[:i] + argv[i + 2:]
-    if len(argv) not in (3, 4):
+def main(argv, mappings=None):
+    if len(argv) != 3:
         print(__doc__)
         return 2
     export = json.loads(Path(argv[1]).read_text(encoding="utf-8"))
     wb = Path(argv[2])
-    root = Path(argv[3]).resolve() if len(argv) == 4 else HERE.parent.parent
     failed = [app for app, d in export.items() if "error" in d]
     losses, notes, orphans = diff(export, read_csv(wb / "link-table.csv"), read_csv(wb / "jobs.csv"),
-                                  job_grants(root), cc.derived(root), site)
+                                  job_grants(export, mappings))
     for title, items in (("UNACCEPTED PERMISSION LOSS", losses), ("PROBLEMS", notes),
                          ("ORPHAN ROLES (report only)", orphans)):
         print(f"{title}: {len(items)}")
