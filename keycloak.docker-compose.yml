@@ -306,6 +306,7 @@ services:
       ODOO_URL: http://odoo:8069
       OPENELIS_URL: http://openelis:8080
       ROLE_SYNC_INTERVAL: ${ROLE_SYNC_INTERVAL:-3600}
+      ROLE_SYNC_ACTIVITY_PORT: "8090"     # the Staff page Activity, for the gateway on auth-net only (no published port)
     volumes:
       - ./keycloak/role-sync/role_sync.py:/app/role_sync.py:ro
     networks:

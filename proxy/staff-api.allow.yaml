@@ -22,8 +22,8 @@ allow:
   - {method: GET,    path: "^/staff-api/users/(ID)/groups$",          upstream: "/users/$1/groups",        why: current job}
   - {method: PUT,    path: "^/staff-api/users/(ID)/groups/(ID)$",     upstream: "/users/$1/groups/$2",     why: "change job: add (FGAP: staff/* only)"}
   - {method: DELETE, path: "^/staff-api/users/(ID)/groups/(ID)$",     upstream: "/users/$1/groups/$2",     why: "change job: remove (membership only, the user is kept)"}
-  - {method: GET,    path: "^/staff-api/events$",                     upstream: "/events",                 why: Activity tab, read-only (A3)}
-  - {method: GET,    path: "^/staff-api/admin-events$",               upstream: "/admin-events",           why: "Activity tab; filtered to USER and GROUP_MEMBERSHIP resources (KC-23-04)"}
+# Activity (KC-23) is not a Keycloak call any more: /staff-api/activity goes to keycloak/role-sync, which filters the
+# realm's events to /staff members (nginx.conf location = /staff-api/activity).
 
 # Explicitly never allowed (documentation; anything not in `allow` is already 403):
 never:

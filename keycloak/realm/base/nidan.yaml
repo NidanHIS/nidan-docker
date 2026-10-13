@@ -534,14 +534,15 @@ clients:
 
   # TODO(KC-37..KC-40): odoo, openelis, superset, dhis2 clients (P2) with exact redirect URIs.
 
-# role-sync-admin's read-only admin roles (fullScopeAllowed is false: they reach its token only through this mapping)
+# role-sync-admin's read-only admin roles (fullScopeAllowed is false: they reach its token only through this mapping);
+# view-events for the Staff page Activity, which the job filters to /staff members (keycloak/role-sync)
 clientScopeMappings:
   realm-management:
     - client: role-sync-admin
-      roles: [view-clients, view-users, view-realm]
+      roles: [view-clients, view-users, view-realm, view-events]
 users:
   - username: service-account-role-sync-admin
     enabled: true
     serviceAccountClientId: role-sync-admin
     clientRoles:
-      realm-management: [view-clients, view-users, view-realm]
+      realm-management: [view-clients, view-users, view-realm, view-events]   # view-events: the Staff page's filtered Activity

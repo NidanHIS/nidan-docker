@@ -5,6 +5,13 @@
   python3 -I role_sync.py --once      sync once and exit (on demand:
                                       docker compose exec keycloak-role-sync python3 -I /app/role_sync.py --once)
   python3 -I role_sync.py --test      offline self-check
+  python3 -I role_sync.py --serve-activity    only the Staff page's activity list (below), no sync
+
+Staff page Activity (KC-23): GET :ROLE_SYNC_ACTIVITY_PORT/activity (internal; the gateway's /staff-api/activity, for
+hospital admins). Keycloak gives events only to a realm-wide reader (view-events), which would show hospital admins
+every login and admin change in the realm. This job reads them with its own client and returns only events about
+members of /staff/* jobs: their logins, password changes and the admin changes made to them, with names, never the
+admin events' details (representation) or events of admins, service accounts or unknown usernames.
 
 Sources (read only; each app answers with the roles it really has, with the modules it really has installed):
   openmrs   GET /openmrs/ws/rest/v1/nidan/role-catalog with a role-sync client-credentials token (nidancore;
@@ -27,6 +34,7 @@ Never logs secrets or tokens.
 """
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -188,6 +196,71 @@ def valid_name(name):
     return 0 < len(name) <= 255 and "/" not in name and not any(ord(c) < 32 for c in name)
 
 
+LOGIN_TYPES = ["LOGIN", "LOGIN_ERROR", "LOGOUT", "UPDATE_PASSWORD", "UPDATE_CREDENTIAL", "REMOVE_CREDENTIAL"]
+
+
+def filter_activity(staff, logins, admins, actor_name, limit=100):
+    """staff: {user id: username} of /staff/* members. Pure: tested offline. Rows: {time, what, who, details}."""
+    rows = []
+    for e in logins:
+        if e.get("userId") in staff:
+            rows.append({"time": e.get("time", 0), "what": e.get("type", ""), "who": staff[e["userId"]],
+                         "details": e.get("ipAddress", "")})
+    for e in admins:
+        m = re.match(r"^users/([0-9a-f-]{36})(/|$)", e.get("resourcePath") or "")
+        if m and m.group(1) in staff and e.get("resourceType") in ("USER", "GROUP_MEMBERSHIP"):
+            rows.append({"time": e.get("time", 0), "what": f"{e.get('operationType', '')} {e.get('resourceType', '')}",
+                         "who": actor_name((e.get("authDetails") or {}).get("userId")), "details": staff[m.group(1)]})
+    return sorted(rows, key=lambda r: -r["time"])[:limit]
+
+
+def activity(kc):
+    staff = {}
+    for _path, gid in kc.staff_groups():
+        for u in kc.get(f"/groups/{gid}/members?first=0&max=1000"):
+            staff[u["id"]] = u["username"]
+    types = "&".join(f"type={t}" for t in LOGIN_TYPES)
+    logins = kc.get(f"/events?max=500&{types}")
+    admins = kc.get("/admin-events?max=500&resourceTypes=USER&resourceTypes=GROUP_MEMBERSHIP")
+    names = {}
+
+    def actor_name(uid):
+        if not uid:
+            return ""
+        if uid not in names:
+            try:
+                names[uid] = kc.get(f"/users/{urllib.parse.quote(uid, safe='')}")["username"]
+            except (OSError, KeyError, ValueError):
+                names[uid] = uid
+        return names[uid]
+    return filter_activity(staff, logins, admins, actor_name)
+
+
+def serve_activity(port):
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):               # noqa: N802 (http.server's name)
+            if self.path.split("?", 1)[0] != "/activity":
+                self.send_error(404)
+                return
+            try:
+                body, code = json.dumps(activity(Keycloak())).encode(), 200
+            except Exception as e:      # never the reason to the browser; the log has it
+                log(f"activity failed ({type(e).__name__}: {getattr(e, 'code', '') or e})")
+                body, code = b'{"error": "unavailable"}', 503
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):   # no request lines in the job's log
+            pass
+    ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()
+
+
 def plan(app, live, kc_roles, now=None):
     """(create, update, delete_candidates) for one app. Pure: tested offline. A role this job made that the app no
     longer has is first marked missing (an update); it becomes a delete candidate DELETE_AFTER seconds later."""
@@ -321,6 +394,20 @@ def self_test():
     assert plan("openmrs", {}, kc, now=10 ** 10) == ([], [], [])   # an empty answer deletes nothing
     same = {"Nurse": {"name": "Nurse", "description": "ward", "attributes": {SOURCE: ["openmrs-sync"]}}}
     assert plan("openmrs", {"Nurse": live["Nurse"]}, same) == ([], [], [])
+    # activity: only /staff members, names not ids, never details
+    staff = {"a" * 8 + "-1111-1111-1111-" + "1" * 12: "sita"}
+    sid = next(iter(staff))
+    logins = [{"time": 3, "type": "LOGIN", "userId": sid, "ipAddress": "10.0.0.5", "details": {"username": "sita"}},
+              {"time": 4, "type": "LOGIN", "userId": "admin-id", "ipAddress": "10.0.0.9"},
+              {"time": 5, "type": "LOGIN_ERROR", "userId": None, "details": {"username": "guess"}}]
+    admins = [{"time": 2, "operationType": "UPDATE", "resourceType": "USER", "resourcePath": f"users/{sid}",
+               "authDetails": {"userId": "hadmin-id"}, "representation": '{"secret": "x"}'},
+              {"time": 6, "operationType": "UPDATE", "resourceType": "USER", "resourcePath": "users/admin-id"},
+              {"time": 7, "operationType": "UPDATE", "resourceType": "CLIENT", "resourcePath": f"users/{sid}"}]
+    rows = filter_activity(staff, logins, admins, lambda u: {"hadmin-id": "anita"}.get(u, u))
+    assert [r["what"] for r in rows] == ["LOGIN", "UPDATE USER"], rows
+    assert rows[1] == {"time": 2, "what": "UPDATE USER", "who": "anita", "details": "sita"}, rows
+    assert "secret" not in json.dumps(rows) and "admin-id" not in json.dumps(rows) and "guess" not in json.dumps(rows)
     print("role_sync self-test ok")
 
 
@@ -328,6 +415,13 @@ def main(argv):
     if "--test" in argv:
         self_test()
         return 0
+    port = int(os.environ.get("ROLE_SYNC_ACTIVITY_PORT", "0") or 0)
+    if "--serve-activity" in argv:
+        serve_activity(port or 8090)
+        return 0
+    if port and "--once" not in argv:
+        import threading
+        threading.Thread(target=serve_activity, args=(port,), daemon=True).start()
     if "--once" in argv:
         return 1 if sync_once() else 0
     interval = int(os.environ.get("ROLE_SYNC_INTERVAL", "3600"))

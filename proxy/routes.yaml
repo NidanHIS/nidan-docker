@@ -117,6 +117,7 @@ routes:
   - {server: staff, match: prefix, path: /staff/, gate: hospital-admin, kind: page}
   - {server: staff, match: prefix, path: /staff/brand/, gate: hospital-admin, kind: static, note: "branding folder (proxy/assets/brand)"}
   - {server: staff, match: exact, path: /staff/i18n.js, gate: hospital-admin, kind: static, note: "shared translation script (proxy/assets/i18n.js)"}
+  - {server: staff, match: exact, path: /staff-api/activity, gate: hospital-admin, kind: api, note: "Activity: staff events only, filtered by keycloak/role-sync (KC-23)"}
   - {server: staff, match: prefix, path: /staff-api/, gate: hospital-admin, kind: api, note: "allow-list + Origin/X-Nidan-Staff on every method (KC-20)"}
   - {server: staff, match: exact, path: /oauth2/start, gate: exempt, kind: page, reason: login start}
   - {server: staff, match: exact, path: /oauth2/callback, gate: exempt, kind: page, reason: login callback; expires app cookies}

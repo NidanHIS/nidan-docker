@@ -329,14 +329,8 @@
     const tbody = $('events').querySelector('tbody');
     tbody.textContent = '';
     try {
-      const [logins, admin] = await Promise.all([
-        api('GET', '/events?max=100'), api('GET', '/admin-events?max=100'),
-      ]);
-      const rows = [
-        ...(logins || []).map((e) => ({ time: e.time, what: e.type, who: (e.details && e.details.username) || e.userId, details: e.ipAddress })),
-        ...(admin || []).filter((e) => ['USER', 'GROUP_MEMBERSHIP'].includes(e.resourceType))
-          .map((e) => ({ time: e.time, what: e.operationType + ' ' + e.resourceType, who: e.authDetails && e.authDetails.userId, details: e.resourcePath })),
-      ].sort((a, b) => b.time - a.time);
+      // this hospital's staff only, already filtered and named server-side (keycloak/role-sync, KC-23)
+      const rows = (await api('GET', '/activity')) || [];
       for (const r of rows) {
         const tr = document.createElement('tr');
         tr.append(cell(new Date(r.time).toLocaleString()), cell(r.what), cell(r.who), cell(r.details));
