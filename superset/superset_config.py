@@ -186,7 +186,7 @@ if _SSO:
     AUTH_USER_REGISTRATION_ROLE = "Public"          # no permissions (KC-03); real roles come from the token
     AUTH_ROLES_SYNC_AT_LOGIN = True                 # KC-39-01: locally added roles are gone next login
     AUTH_ROLES_MAPPING = {r: [r] for r in ("Admin", "Alpha", "Gamma", "sql_lab", "Clinical", "Lab", "Pharmacy",
-                                           "Finance")}
+                                           "Finance", "Report Builder")}   # Report Builder: charts/dashboards (2026-10-15)
     OAUTH_PROVIDERS = [{
         "name": "nidan-keycloak",
         "icon": "fa-key",

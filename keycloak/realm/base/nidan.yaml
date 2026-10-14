@@ -107,6 +107,7 @@ roles:
       - {name: Lab}
       - {name: Pharmacy}
       - {name: Finance}
+      - {name: Report Builder}       # builds charts and dashboards; the four above only view (decision 2026-10-15)
     dhis2:                           # = nidan-dhis2-integration auth/oidc.py ROLE_MAP (KC-40)
       - {name: admin, description: "Full reporter admin (users, mappings, HMIS submit)"}
       - {name: report-admin, description: Writes SQL reports}

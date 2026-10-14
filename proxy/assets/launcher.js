@@ -122,6 +122,11 @@
     const name = document.createElement('strong');
     name.textContent = me.name;
     who.append(before, name, after);
+    // the person's own name when the session has one (gateway /whoami); the username stays as the tooltip
+    fetch('/whoami', { cache: 'no-cache', credentials: 'same-origin' })
+      .then((r) => (r.ok && (r.headers.get('content-type') || '').includes('json') ? r.json() : {}))
+      .then((w) => { if (w && w.name) { name.textContent = w.name; name.title = me.name; } })
+      .catch(() => {});
     line.append(who);
     const kc = line.dataset.keycloak;
     if (kc) {                       // KC-55-05: Keycloak's own update-password step, then back to the launcher

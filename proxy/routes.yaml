@@ -32,6 +32,7 @@ routes:
   - {server: main, match: exact, path: /not-allowed.html, gate: exempt, kind: page, reason: shown after a 403 (ds3)}
   - {server: main, match: exact, path: /outage.html, gate: exempt, kind: page, reason: shown when Keycloak is down (ds5)}
   - {server: main, match: prefix, path: /assets/, gate: exempt, kind: static, reason: launcher css/js/icons}
+  - {server: main, match: exact, path: /whoami, gate: session, kind: api, note: "the launcher's display name from the session's token (whoami.js)"}
   - {server: main, match: exact, path: /nidan-logo.png, gate: exempt, kind: static, reason: 502 page logo}
   - {server: main, match: exact, path: /trigonal-logo.png, gate: exempt, kind: static, reason: launcher / 502 footer logo}
   - {server: main, match: exact, path: /oauth2/start, gate: exempt, kind: page, reason: login start}

@@ -1663,6 +1663,23 @@ def main():
         from superset.extensions import security_manager as sm
 
         STAFF_ROLES = ["Clinical", "Lab", "Pharmacy", "Finance"]
+        # Decision 2026-10-15: staff view what IT publishes; building charts and dashboards is a separate role,
+        # Report Builder, given to chosen people (Keycloak maps it like the others). Superset's own Gamma (every
+        # staff token carries it) grants those writes and the database list by default, so it is trimmed too.
+        BUILDER = "Report Builder"
+        VIEW_ONLY_DROP = {
+            ("can_write", "Chart"), ("can_tag", "Chart"), ("can_write", "Dashboard"), ("can_tag", "Dashboard"),
+            ("can_delete_embedded", "Dashboard"), ("can_put_chart_customizations", "Dashboard"),
+            ("can_read", "Database"), ("menu_access", "Databases"), ("menu_access", "Data"),
+            ("menu_access", "Datasets"), ("can_write", "Tag"), ("can_write", "Theme"), ("menu_access", "Themes"),
+            ("can_add", "UserRegistrationsRestAPI"), ("can_delete", "UserRegistrationsRestAPI"),
+            ("can_edit", "UserRegistrationsRestAPI"),
+        }
+
+        def view_only(perms):
+            return [pv for pv in perms if (pv.permission.name, pv.view_menu.name) not in VIEW_ONLY_DROP]
+
+        gamma_defaults = list((sm.find_role("Gamma") or sm.add_role("Gamma")).permissions)   # as `superset init` left it
         # "public" dashboards go to every staff role only. Anonymous access (the Public role) is
         # off until the hospital picks public dashboards (decision 2026-10-07, backlog KC-03).
         PUBLIC_ROLE_NAMES = STAFF_ROLES
@@ -1675,18 +1692,27 @@ def main():
             role = sm.find_role(name)
             if not role:
                 role = sm.add_role(name)
-            # Clone Gamma's base permissions into custom staff roles so they can
-            # log in and render dashboards.
+            # Gamma's base permissions, view only, into the staff roles: log in and render dashboards
             if name in STAFF_ROLES:
-                gamma = sm.find_role("Gamma")
-                if gamma:
-                    role.permissions = list(gamma.permissions)
+                role.permissions = view_only(gamma_defaults)
             db.session.commit()
             role_cache[name] = role
             return role
 
         for rn in STAFF_ROLES:
             get_role(rn)
+        sm.find_role("Gamma").permissions = view_only(gamma_defaults)
+        # Report Builder: Gamma's defaults (charts, dashboards, the database list) plus every dataset to build on.
+        # ponytail: all datasets; per-department builder roles if a hospital needs to split them.
+        # built from the drop list itself, so it holds the writes even if `superset init` left Gamma trimmed
+        builder = sm.find_role(BUILDER) or sm.add_role(BUILDER)
+        every = db.session.query(sm.permissionview_model).all()
+        extra = [pv for pv in every if (pv.permission.name, pv.view_menu.name) in VIEW_ONLY_DROP
+                 or pv.permission.name == "datasource_access"]
+        base = view_only(gamma_defaults)
+        builder.permissions = base + [pv for pv in extra if pv not in base]
+        db.session.commit()
+        print(f"  ✓ Gamma and staff roles view only; {BUILDER}: {len(builder.permissions)} permissions")
         # Older images synced Gamma's permissions into Public (PUBLIC_ROLE_LIKE = "Gamma"); revoke
         # them so anonymous visitors get nothing. Re-applied every start, like the roles above.
         public_role = sm.find_role("Public")
