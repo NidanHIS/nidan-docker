@@ -17,6 +17,7 @@ volumes:
   certbot-etc:
   certbot-www:
   nidan-integration-db-data:
+  nidan-kafka-data:
   dhis2-integration-db-data:
   dhis2-integration-data:
   dhis2-integration-audit-logs:
@@ -483,34 +484,27 @@ services:
       timeout: 5s
       retries: 5
 
-  # Zookeeper for Kafka (Confluent images)
-  nidan-zookeeper:
-    profiles: ["middleware","nidanehr-standard"]
-    image: confluentinc/cp-zookeeper:7.5.0
-    container_name: nidan-zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT:-2181}
-      ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME:-2000}
-      ZOOKEEPER_HEAP_OPTS: ${ZOOKEEPER_HEAP_OPTS:--Xmx256m -Xms256m}
-    networks:
-      - nidan-network
-    healthcheck:
-      test: [ "CMD", "cub", "zk-ready", "localhost:2181", "10" ]
-      interval: 10s
-      timeout: 15s
-      retries: 6
-      start_period: 25s
-    restart: unless-stopped
-
+  # Kafka in combined KRaft mode (broker + controller). One node, replication factor 1.
   nidan-kafka:
     profiles: ["middleware","nidanehr-standard"]
-    image: confluentinc/cp-kafka:7.5.0
+    image: confluentinc/cp-kafka:7.5.0@sha256:fbbb6fa11b258a88b83f54d4f0bddfcffbf2279f99d66a843486e3da7bdfbf41
     container_name: nidan-kafka
     environment:
-      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID:-1}
-      KAFKA_ZOOKEEPER_CONNECT: "${KAFKA_ZOOKEEPER_CONNECT:-nidan-zookeeper:2181}"
-      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:${KAFKA_PORT:-9092}"
+      KAFKA_NODE_ID: ${KAFKA_NODE_ID:-1}
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@nidan-kafka:9093
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:${KAFKA_PORT:-9092},CONTROLLER://0.0.0.0:9093"
       KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://nidan-kafka:${KAFKA_PORT:-9092}"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # Per-host id. Compose reads the shell and .env only; put the value in .env.local and
+      # start with COMPOSE_ENV_FILES=.env,.env.local. Never regenerate it against this volume.
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID:?set KAFKA_CLUSTER_ID in .env.local and export COMPOSE_ENV_FILES=.env,.env.local}
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: "1"
+      KAFKA_LOG_RETENTION_HOURS: ${KAFKA_LOG_RETENTION_HOURS:-168}
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR:-1}
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: ${KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR:-1}
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: ${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR:-1}
@@ -526,9 +520,8 @@ services:
       KAFKA_SOCKET_REQUEST_MAX_BYTES: ${KAFKA_SOCKET_REQUEST_MAX_BYTES:-104857600}
       KAFKA_REPLICA_SOCKET_TIMEOUT_MS: ${KAFKA_REPLICA_SOCKET_TIMEOUT_MS:-60000}
       KAFKA_CONTROLLER_SOCKET_TIMEOUT_MS: ${KAFKA_CONTROLLER_SOCKET_TIMEOUT_MS:-60000}
-    depends_on:
-      nidan-zookeeper:
-        condition: service_healthy
+    volumes:
+      - nidan-kafka-data:/var/lib/kafka/data
     networks:
       - nidan-network
     healthcheck:

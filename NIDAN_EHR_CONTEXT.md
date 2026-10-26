@@ -38,8 +38,7 @@ nidanhis/
 | **nidan-cis** | trigonaltechnology/nidan-cis | 8081 | - | Clinical Integration Service (Kafka consumer) |
 | **nidan-ois** | trigonaltechnology/nidan-ois | 8082 | - | Order Integration Service (Odoo webhooks) |
 | **nidan-integration-db** | postgres:15 | - | - | Integration DB (CIS/OIS state, Debezium) |
-| **nidan-kafka** | confluentinc/cp-kafka:7.5.0 | 9092 | - | Event streaming |
-| **nidan-zookeeper** | confluentinc/cp-zookeeper:7.5.0 | 2181 | - | Kafka coordination |
+| **nidan-kafka** | confluentinc/cp-kafka:7.5.0 (KRaft combined) | 9092 | - | Event streaming; log on the `nidan-kafka-data` volume |
 | **nidan-dhis2** | trigonaltechnology/nidan-dhis2-integration | 5003→5000 | MySQL | DHIS2/Federal HMIS reporting |
 | **nidan-dhis2-db** | mysql:8.0 | - | - | DHIS2 audit DB |
 | **superset** | `./superset` | 8088 | - | BI/dashboards (connects to OpenMRS, OpenELIS, Odoo) |
