@@ -578,8 +578,8 @@ services:
       # OpenMRS
       - OPENMRS_ENABLED=${OPENMRS_ENABLED:-true}
       - OPENMRS_BASE_URL=${OPENMRS_BASE_URL:-http://openmrs-backend:8080/openmrs}
-      - OPENMRS_USERNAME=${OPENMRS_USERNAME:-${NIDAN_SYNC_USERNAME:-admin}}
-      - OPENMRS_PASSWORD=${OPENMRS_PASSWORD:-${NIDAN_SYNC_PASSWORD:-Admin123}}
+      - OPENMRS_USERNAME=${OPENMRS_USERNAME:-${OPENMRS_ADMIN_USERNAME:-admin}}
+      - OPENMRS_PASSWORD=${OPENMRS_PASSWORD:-${OPENMRS_ADMIN_PASSWORD:-Admin123}}
       # Sync-account provisioning (CIS creates the account in OpenMRS + OpenELIS on startup).
       # NIDAN_SYNC_* = the account CIS authenticates as; OPENMRS_ADMIN_* = real admin used only to create it.
       - NIDAN_SYNC_USERNAME=${NIDAN_SYNC_USERNAME:-nidan-sync}
