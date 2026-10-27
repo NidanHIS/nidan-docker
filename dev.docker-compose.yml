@@ -443,7 +443,7 @@ services:
 
   # Kafka in combined KRaft mode (broker + controller). Same contract as docker-compose.yml.
   nidan-kafka:
-    image: confluentinc/cp-kafka:7.5.0@sha256:fbbb6fa11b258a88b83f54d4f0bddfcffbf2279f99d66a843486e3da7bdfbf41
+    image: confluentinc/cp-kafka:7.5.0
     container_name: nidan-kafka
     environment:
       KAFKA_NODE_ID: ${KAFKA_NODE_ID:-1}
@@ -454,7 +454,7 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      CLUSTER_ID: ${KAFKA_CLUSTER_ID:?set KAFKA_CLUSTER_ID in .env.local and export COMPOSE_ENV_FILES=.env,.env.local}
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID:-qkw9pDzYSOi8qAjz8JpXgQ}
       KAFKA_LOG_DIRS: /var/lib/kafka/data
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_NUM_PARTITIONS: "1"

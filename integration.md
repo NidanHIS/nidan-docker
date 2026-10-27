@@ -42,7 +42,7 @@ Only the most relevant env groups for integration are listed here; see `env.temp
 
 - **Integration DB and Kafka**
   - `INTEGRATION_DB_NAME`, `INTEGRATION_DB_USER`, `INTEGRATION_DB_PASSWORD`, `INTEGRATION_DB_HOST`, `INTEGRATION_DB_PORT`
-  - `KAFKA_NODE_ID`, `KAFKA_PORT`, `KAFKA_CLUSTER_ID` (per host, in `.env.local`), `KAFKA_LOG_RETENTION_HOURS`, and related replication/min‑ISR flags.
+  - `KAFKA_NODE_ID`, `KAFKA_PORT`, `KAFKA_CLUSTER_ID` (optional, defaults in compose), `KAFKA_LOG_RETENTION_HOURS`, and related replication/min‑ISR flags.
 
 - **CIS/OIS runtime**
   - `CIS_PORT`, `CIS_KAFKA_GROUP_ID`

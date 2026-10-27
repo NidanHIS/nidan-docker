@@ -487,7 +487,7 @@ services:
   # Kafka in combined KRaft mode (broker + controller). One node, replication factor 1.
   nidan-kafka:
     profiles: ["middleware","nidanehr-standard"]
-    image: confluentinc/cp-kafka:7.5.0@sha256:fbbb6fa11b258a88b83f54d4f0bddfcffbf2279f99d66a843486e3da7bdfbf41
+    image: confluentinc/cp-kafka:7.5.0
     container_name: nidan-kafka
     environment:
       KAFKA_NODE_ID: ${KAFKA_NODE_ID:-1}
@@ -498,9 +498,9 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      # Per-host id. Compose reads the shell and .env only; put the value in .env.local and
-      # start with COMPOSE_ENV_FILES=.env,.env.local. Never regenerate it against this volume.
-      CLUSTER_ID: ${KAFKA_CLUSTER_ID:?set KAFKA_CLUSTER_ID in .env.local and export COMPOSE_ENV_FILES=.env,.env.local}
+      # Id written into nidan-kafka-data when the broker first starts. An existing volume keeps the id it
+      # was formatted with, so override KAFKA_CLUSTER_ID only to match a volume that has a different one.
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID:-qkw9pDzYSOi8qAjz8JpXgQ}
       KAFKA_LOG_DIRS: /var/lib/kafka/data
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_NUM_PARTITIONS: "1"
