@@ -96,7 +96,7 @@ services:
       _JAVA_OPTIONS: "-Dcsrf.enabled=false"
       # Nidan paywall → Odoo payment-status API (read by nidancore via System.getenv;
       # no openmrs-runtime.properties edit / startup.sh patch needed).
-      NIDANCORE_ODOO_URL: ${NIDANCORE_ODOO_URL:-http://odoo:8069}
+      NIDANCORE_ODOO_URL: ${NIDANCORE_ODOO_URL:-${ODOO_BASE_URL:-http://odoo:8069}}
       NIDANCORE_ODOO_PAYMENT_SECRET: ${NIDAN_ODOO_SECRET}
     # ports:
     #   - "5005:5005"  # Remote debug port
@@ -413,7 +413,7 @@ services:
           -Dorg.openelisglobal.nidan.testorder.enabled=${OPENELIS_NIDAN_TESTORDER_ENABLED:-true}
           -Dorg.openelisglobal.nidan.testorder.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/sample-collected
           -Dorg.openelisglobal.nidan.paywall.enabled=${OPENELIS_NIDAN_PAYWALL_ENABLED:-true}
-          -Dorg.openelisglobal.nidan.paywall.odoo.url=${NIDANCORE_ODOO_URL:-http://odoo:8069}
+          -Dorg.openelisglobal.nidan.paywall.odoo.url=${NIDANCORE_ODOO_URL:-${ODOO_BASE_URL:-http://odoo:8069}}
           -Dorg.openelisglobal.nidan.paywall.odoo.secret=${NIDAN_ODOO_SECRET}
           -Dorg.openelisglobal.nidan.paywall.insurance.bypass=${OPENELIS_NIDAN_PAYWALL_INSURANCE_BYPASS:-true}
           -Dorg.openelisglobal.nidan.cisretry.list.url=${CIS_BASE_URL:-http://nidan-cis:8081}/api/dead-letters
@@ -578,8 +578,8 @@ services:
       # OpenMRS
       - OPENMRS_ENABLED=${OPENMRS_ENABLED:-true}
       - OPENMRS_BASE_URL=${OPENMRS_BASE_URL:-http://openmrs-backend:8080/openmrs}
-      - OPENMRS_USERNAME=${OPENMRS_USERNAME:-admin}
-      - OPENMRS_PASSWORD=${OPENMRS_PASSWORD:-Admin123}
+      - OPENMRS_USERNAME=${OPENMRS_USERNAME:-${NIDAN_SYNC_USERNAME:-admin}}
+      - OPENMRS_PASSWORD=${OPENMRS_PASSWORD:-${NIDAN_SYNC_PASSWORD:-Admin123}}
       # Sync-account provisioning (CIS creates the account in OpenMRS + OpenELIS on startup).
       # NIDAN_SYNC_* = the account CIS authenticates as; OPENMRS_ADMIN_* = real admin used only to create it.
       - NIDAN_SYNC_USERNAME=${NIDAN_SYNC_USERNAME:-nidan-sync}
@@ -707,11 +707,11 @@ services:
       - NIDAN_SYNC_USERNAME=${NIDAN_SYNC_USERNAME:-nidan-sync}
       - NIDAN_SYNC_PASSWORD=${NIDAN_SYNC_PASSWORD:-}
       # Integration
-      - OIS_WEBHOOK_SECRET=${OIS_WEBHOOK_SECRET:-sample}
+      - OIS_WEBHOOK_SECRET=${OIS_WEBHOOK_SECRET:-${NIDAN_OIS_SECRET:-sample}}
       - SKIP_SOURCE_SYSTEMS_FOR_ODOO=${SKIP_SOURCE_SYSTEMS_FOR_ODOO:-ODOO}
       - NIDAN_OIS_URL=${NIDAN_OIS_URL:-http://nidan-ois:8082}
       - NIDAN_OIS_SECRET=${NIDAN_OIS_SECRET:-sample}
-      - ODOO_NIDAN_SECRET=${ODOO_NIDAN_SECRET:-sample}
+      - ODOO_NIDAN_SECRET=${ODOO_NIDAN_SECRET:-${NIDAN_ODOO_SECRET:-sample}}
       # Align with CIS / application.yml (radiology-mwl fallback)
       - ORTHANC_ENABLED=${ORTHANC_ENABLED:-true}
       # Per-flow toggles (integration.flows.* — see nidan-docker/env.template)
