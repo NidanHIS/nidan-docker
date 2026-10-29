@@ -151,8 +151,9 @@ services:
     profiles: ["openmrs","nidanehr-standard"]
     image: trigonaltechnology/openmrs-db:latest
     container_name: nidan-openmrs-db
+    # Binlog kept 7 days so a CIS/Debezium outage up to that long resumes from its bookmark instead of re-snapshotting.
     # Debezium/CIS: row-based binlog events for wide rows must fit max_allowed_packet (error 1236 if too small).
-    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --log-bin=mysql-bin --binlog_format=ROW --server-id=1 --binlog_row_image=FULL --max-allowed-packet=512M
+    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --log-bin=mysql-bin --binlog_format=ROW --server-id=1 --binlog_row_image=FULL --binlog_expire_logs_seconds=604800 --max-allowed-packet=512M
     healthcheck:
       test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
       interval: 5s
