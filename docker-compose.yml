@@ -17,6 +17,7 @@ volumes:
   certbot-etc:
   certbot-www:
   nidan-integration-db-data:
+  nidan-kafka-data:
   dhis2-integration-db-data:
   dhis2-integration-data:
   dhis2-integration-audit-logs:
@@ -95,7 +96,7 @@ services:
       _JAVA_OPTIONS: "-Dcsrf.enabled=false"
       # Nidan paywall → Odoo payment-status API (read by nidancore via System.getenv;
       # no openmrs-runtime.properties edit / startup.sh patch needed).
-      NIDANCORE_ODOO_URL: ${NIDANCORE_ODOO_URL:-http://odoo:8069}
+      NIDANCORE_ODOO_URL: ${NIDANCORE_ODOO_URL:-${ODOO_BASE_URL:-http://odoo:8069}}
       NIDANCORE_ODOO_PAYMENT_SECRET: ${NIDAN_ODOO_SECRET}
     # ports:
     #   - "5005:5005"  # Remote debug port
@@ -150,8 +151,9 @@ services:
     profiles: ["openmrs","nidanehr-standard"]
     image: trigonaltechnology/openmrs-db:latest
     container_name: nidan-openmrs-db
+    # Binlog kept 7 days so a CIS/Debezium outage up to that long resumes from its bookmark instead of re-snapshotting.
     # Debezium/CIS: row-based binlog events for wide rows must fit max_allowed_packet (error 1236 if too small).
-    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --log-bin=mysql-bin --binlog_format=ROW --server-id=1 --binlog_row_image=FULL --max-allowed-packet=512M
+    command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --log-bin=mysql-bin --binlog_format=ROW --server-id=1 --binlog_row_image=FULL --binlog_expire_logs_seconds=604800 --max-allowed-packet=512M
     healthcheck:
       test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
       interval: 5s
@@ -412,7 +414,7 @@ services:
           -Dorg.openelisglobal.nidan.testorder.enabled=${OPENELIS_NIDAN_TESTORDER_ENABLED:-true}
           -Dorg.openelisglobal.nidan.testorder.url=${CIS_BASE_URL:-http://nidan-cis:8081}/openelis/sample-collected
           -Dorg.openelisglobal.nidan.paywall.enabled=${OPENELIS_NIDAN_PAYWALL_ENABLED:-true}
-          -Dorg.openelisglobal.nidan.paywall.odoo.url=${NIDANCORE_ODOO_URL:-http://odoo:8069}
+          -Dorg.openelisglobal.nidan.paywall.odoo.url=${NIDANCORE_ODOO_URL:-${ODOO_BASE_URL:-http://odoo:8069}}
           -Dorg.openelisglobal.nidan.paywall.odoo.secret=${NIDAN_ODOO_SECRET}
           -Dorg.openelisglobal.nidan.paywall.insurance.bypass=${OPENELIS_NIDAN_PAYWALL_INSURANCE_BYPASS:-true}
           -Dorg.openelisglobal.nidan.cisretry.list.url=${CIS_BASE_URL:-http://nidan-cis:8081}/api/dead-letters
@@ -483,34 +485,27 @@ services:
       timeout: 5s
       retries: 5
 
-  # Zookeeper for Kafka (Confluent images)
-  nidan-zookeeper:
-    profiles: ["middleware","nidanehr-standard"]
-    image: confluentinc/cp-zookeeper:7.5.0
-    container_name: nidan-zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT:-2181}
-      ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME:-2000}
-      ZOOKEEPER_HEAP_OPTS: ${ZOOKEEPER_HEAP_OPTS:--Xmx256m -Xms256m}
-    networks:
-      - nidan-network
-    healthcheck:
-      test: [ "CMD", "cub", "zk-ready", "localhost:2181", "10" ]
-      interval: 10s
-      timeout: 15s
-      retries: 6
-      start_period: 25s
-    restart: unless-stopped
-
+  # Kafka in combined KRaft mode (broker + controller). One node, replication factor 1.
   nidan-kafka:
     profiles: ["middleware","nidanehr-standard"]
     image: confluentinc/cp-kafka:7.5.0
     container_name: nidan-kafka
     environment:
-      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID:-1}
-      KAFKA_ZOOKEEPER_CONNECT: "${KAFKA_ZOOKEEPER_CONNECT:-nidan-zookeeper:2181}"
-      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:${KAFKA_PORT:-9092}"
+      KAFKA_NODE_ID: ${KAFKA_NODE_ID:-1}
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@nidan-kafka:9093
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:${KAFKA_PORT:-9092},CONTROLLER://0.0.0.0:9093"
       KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://nidan-kafka:${KAFKA_PORT:-9092}"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # Id written into nidan-kafka-data when the broker first starts. An existing volume keeps the id it
+      # was formatted with, so override KAFKA_CLUSTER_ID only to match a volume that has a different one.
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID:-qkw9pDzYSOi8qAjz8JpXgQ}
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: "1"
+      KAFKA_LOG_RETENTION_HOURS: ${KAFKA_LOG_RETENTION_HOURS:-168}
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR:-1}
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: ${KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR:-1}
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: ${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR:-1}
@@ -526,9 +521,8 @@ services:
       KAFKA_SOCKET_REQUEST_MAX_BYTES: ${KAFKA_SOCKET_REQUEST_MAX_BYTES:-104857600}
       KAFKA_REPLICA_SOCKET_TIMEOUT_MS: ${KAFKA_REPLICA_SOCKET_TIMEOUT_MS:-60000}
       KAFKA_CONTROLLER_SOCKET_TIMEOUT_MS: ${KAFKA_CONTROLLER_SOCKET_TIMEOUT_MS:-60000}
-    depends_on:
-      nidan-zookeeper:
-        condition: service_healthy
+    volumes:
+      - nidan-kafka-data:/var/lib/kafka/data
     networks:
       - nidan-network
     healthcheck:
@@ -585,8 +579,8 @@ services:
       # OpenMRS
       - OPENMRS_ENABLED=${OPENMRS_ENABLED:-true}
       - OPENMRS_BASE_URL=${OPENMRS_BASE_URL:-http://openmrs-backend:8080/openmrs}
-      - OPENMRS_USERNAME=${OPENMRS_USERNAME:-admin}
-      - OPENMRS_PASSWORD=${OPENMRS_PASSWORD:-Admin123}
+      - OPENMRS_USERNAME=${OPENMRS_USERNAME:-${OPENMRS_ADMIN_USERNAME:-admin}}
+      - OPENMRS_PASSWORD=${OPENMRS_PASSWORD:-${OPENMRS_ADMIN_PASSWORD:-Admin123}}
       # Sync-account provisioning (CIS creates the account in OpenMRS + OpenELIS on startup).
       # NIDAN_SYNC_* = the account CIS authenticates as; OPENMRS_ADMIN_* = real admin used only to create it.
       - NIDAN_SYNC_USERNAME=${NIDAN_SYNC_USERNAME:-nidan-sync}
@@ -594,6 +588,7 @@ services:
       - OPENMRS_ADMIN_USERNAME=${OPENMRS_ADMIN_USERNAME:-admin}
       - OPENMRS_ADMIN_PASSWORD=${OPENMRS_ADMIN_PASSWORD:-Admin123}
       - OPENMRS_IDENTIFIER_TYPE_UUID=${OPENMRS_IDENTIFIER_TYPE_UUID:-05a29f94-c0ed-11e2-94be-8c13b969e334}
+      - OPENMRS_IDENTIFIER_TYPE_UUID_NID=${OPENMRS_IDENTIFIER_TYPE_UUID_NID:-}
       - OPENMRS_DEFAULT_LOCATION_UUID=${OPENMRS_DEFAULT_LOCATION_UUID:-44c3efb0-2583-4c80-a79e-1f756a03c0a1}
       # Encounter type for order-less (Odoo-billed / walk-in) lab results ingested from OpenELIS
       - OPENMRS_LAB_RESULTS_ENCOUNTER_TYPE_UUID=${OPENMRS_LAB_RESULTS_ENCOUNTER_TYPE_UUID:-3596fafb-6f6f-4396-8c87-6e63a0f1bd71}
@@ -647,15 +642,25 @@ services:
       - INTEGRATION_FLOW_DEBEZIUM_PUBLISH_ORDERS_RADIOLOGY_ENABLED=${INTEGRATION_FLOW_DEBEZIUM_PUBLISH_ORDERS_RADIOLOGY_ENABLED:-true}
       # Debezium Embedded (CIS)--var control for debezium
       - DEBEZIUM_ENABLED=${DEBEZIUM_ENABLED:-false}
+      - DEBEZIUM_PUBLISH_ACK_TIMEOUT_MS=${DEBEZIUM_PUBLISH_ACK_TIMEOUT_MS:-30000}
       - DEBEZIUM_DB_USER=${DEBEZIUM_DB_USER:-root}
       - DEBEZIUM_DB_PASSWORD=${DEBEZIUM_DB_PASSWORD:-root}
       - DEBEZIUM_TABLE_INCLUDE_LIST=${DEBEZIUM_TABLE_INCLUDE_LIST:-openmrs.orders,openmrs.drug_order,openmrs.person,openmrs.person_name,openmrs.patient_identifier,openmrs.bed_type,openmrs.bed_patient_assignment_map,openmrs.location,openmrs.provider,openmrs.provider_attribute}
       # Kafka retry topics (opt-in via @KafkaRetryable)
       - INTEGRATION_KAFKA_RETRY_ENABLED=${INTEGRATION_KAFKA_RETRY_ENABLED:-false}
-      - INTEGRATION_KAFKA_RETRY_ATTEMPTS=${INTEGRATION_KAFKA_RETRY_ATTEMPTS:-5}
-      - INTEGRATION_KAFKA_RETRY_INITIAL_DELAY=${INTEGRATION_KAFKA_RETRY_INITIAL_DELAY:-5s}
+      # KC-32-03: CIS calls OpenMRS through Keycloak (central login); 8 attempts at the fixed 90 s delay is about
+      # 10 minutes of retries, so a Keycloak restart does not dead-letter events.
+      - INTEGRATION_KAFKA_RETRY_ATTEMPTS=${CIS_INTEGRATION_KAFKA_RETRY_ATTEMPTS:-8}
+      - INTEGRATION_KAFKA_RETRY_INITIAL_DELAY=${INTEGRATION_KAFKA_RETRY_INITIAL_DELAY:-90s}
       - INTEGRATION_KAFKA_RETRY_MULTIPLIER=${INTEGRATION_KAFKA_RETRY_MULTIPLIER:-2.0}
       - INTEGRATION_KAFKA_RETRY_MAX_DELAY=${INTEGRATION_KAFKA_RETRY_MAX_DELAY:-10m}
+      # Delivery safety: pause switch, automatic replay of stored/prerequisite-blocked events, publish-ack timeout
+      - INTEGRATION_INBOUND_PAUSED=${INTEGRATION_INBOUND_PAUSED:-false}
+      - INTEGRATION_PREREQUISITE_REQUEUE_ENABLED=${INTEGRATION_PREREQUISITE_REQUEUE_ENABLED:-true}
+      - INTEGRATION_PREREQUISITE_REQUEUE_MAX_ATTEMPTS=${INTEGRATION_PREREQUISITE_REQUEUE_MAX_ATTEMPTS:-30}
+      - INTEGRATION_PREREQUISITE_REQUEUE_INTERVAL_MS=${INTEGRATION_PREREQUISITE_REQUEUE_INTERVAL_MS:-120000}
+      - INTEGRATION_PREREQUISITE_REQUEUE_INITIAL_DELAY_MS=${INTEGRATION_PREREQUISITE_REQUEUE_INITIAL_DELAY_MS:-60000}
+      - INTEGRATION_KAFKA_PUBLISH_CONFIRM_TIMEOUT_MS=${INTEGRATION_KAFKA_PUBLISH_CONFIRM_TIMEOUT_MS:-30000}
       - INTEGRATION_KAFKA_RETRY_TOPIC_SUFFIX=${CIS_INTEGRATION_KAFKA_RETRY_TOPIC_SUFFIX:-cis-retry}
       - INTEGRATION_KAFKA_RETRY_DLT_SUFFIX=${CIS_INTEGRATION_KAFKA_RETRY_DLT_SUFFIX:-.cis.DLT}
     depends_on:
@@ -714,11 +719,11 @@ services:
       - NIDAN_SYNC_USERNAME=${NIDAN_SYNC_USERNAME:-nidan-sync}
       - NIDAN_SYNC_PASSWORD=${NIDAN_SYNC_PASSWORD:-}
       # Integration
-      - OIS_WEBHOOK_SECRET=${OIS_WEBHOOK_SECRET:-sample}
+      - OIS_WEBHOOK_SECRET=${OIS_WEBHOOK_SECRET:-${NIDAN_OIS_SECRET:-sample}}
       - SKIP_SOURCE_SYSTEMS_FOR_ODOO=${SKIP_SOURCE_SYSTEMS_FOR_ODOO:-ODOO}
       - NIDAN_OIS_URL=${NIDAN_OIS_URL:-http://nidan-ois:8082}
       - NIDAN_OIS_SECRET=${NIDAN_OIS_SECRET:-sample}
-      - ODOO_NIDAN_SECRET=${ODOO_NIDAN_SECRET:-sample}
+      - ODOO_NIDAN_SECRET=${ODOO_NIDAN_SECRET:-${NIDAN_ODOO_SECRET:-sample}}
       # Align with CIS / application.yml (radiology-mwl fallback)
       - ORTHANC_ENABLED=${ORTHANC_ENABLED:-true}
       # Per-flow toggles (integration.flows.* — see nidan-docker/env.template)
@@ -730,10 +735,17 @@ services:
       - INTEGRATION_FLOW_DEBEZIUM_PUBLISH_ORDERS_RADIOLOGY_ENABLED=${INTEGRATION_FLOW_DEBEZIUM_PUBLISH_ORDERS_RADIOLOGY_ENABLED:-true}
       # Kafka retry topics (opt-in via @KafkaRetryable)
       - INTEGRATION_KAFKA_RETRY_ENABLED=${INTEGRATION_KAFKA_RETRY_ENABLED:-false}
-      - INTEGRATION_KAFKA_RETRY_ATTEMPTS=${INTEGRATION_KAFKA_RETRY_ATTEMPTS:-5}
-      - INTEGRATION_KAFKA_RETRY_INITIAL_DELAY=${INTEGRATION_KAFKA_RETRY_INITIAL_DELAY:-5s}
+      - INTEGRATION_KAFKA_RETRY_ATTEMPTS=${OIS_INTEGRATION_KAFKA_RETRY_ATTEMPTS:-5}
+      - INTEGRATION_KAFKA_RETRY_INITIAL_DELAY=${INTEGRATION_KAFKA_RETRY_INITIAL_DELAY:-90s}
       - INTEGRATION_KAFKA_RETRY_MULTIPLIER=${INTEGRATION_KAFKA_RETRY_MULTIPLIER:-2.0}
       - INTEGRATION_KAFKA_RETRY_MAX_DELAY=${INTEGRATION_KAFKA_RETRY_MAX_DELAY:-10m}
+      # Delivery safety: pause switch, automatic replay of stored/prerequisite-blocked events, publish-ack timeout
+      - INTEGRATION_INBOUND_PAUSED=${INTEGRATION_INBOUND_PAUSED:-false}
+      - INTEGRATION_PREREQUISITE_REQUEUE_ENABLED=${INTEGRATION_PREREQUISITE_REQUEUE_ENABLED:-true}
+      - INTEGRATION_PREREQUISITE_REQUEUE_MAX_ATTEMPTS=${INTEGRATION_PREREQUISITE_REQUEUE_MAX_ATTEMPTS:-30}
+      - INTEGRATION_PREREQUISITE_REQUEUE_INTERVAL_MS=${INTEGRATION_PREREQUISITE_REQUEUE_INTERVAL_MS:-120000}
+      - INTEGRATION_PREREQUISITE_REQUEUE_INITIAL_DELAY_MS=${INTEGRATION_PREREQUISITE_REQUEUE_INITIAL_DELAY_MS:-60000}
+      - INTEGRATION_KAFKA_PUBLISH_CONFIRM_TIMEOUT_MS=${INTEGRATION_KAFKA_PUBLISH_CONFIRM_TIMEOUT_MS:-30000}
       - INTEGRATION_KAFKA_RETRY_TOPIC_SUFFIX=${OIS_INTEGRATION_KAFKA_RETRY_TOPIC_SUFFIX:-ois-retry}
       - INTEGRATION_KAFKA_RETRY_DLT_SUFFIX=${OIS_INTEGRATION_KAFKA_RETRY_DLT_SUFFIX:-.ois.DLT}
     depends_on:
