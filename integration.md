@@ -14,7 +14,7 @@ The `nidan-docker` stack composes the following logical subsystems:
 - **Nidan Integration Middleware**:
   - **CIS** (`nidan-cis`): consumes clinical data (e.g. from OpenMRS) and publishes to Kafka.
   - **OIS** (`nidan-ois`): integrates with Odoo for order/result handling.
-  - **Integration DB** (`nidan-integration-db`) + **Kafka/Zookeeper** (`nidan-kafka`, `nidan-zookeeper`).
+  - **Integration DB** (`nidan-integration-db`) + **Kafka** (`nidan-kafka`, combined KRaft mode).
 - **Odoo**: application (`odoo`) and PostgreSQL (`odoo-db`) with custom addons mounted from the host.
 - **Orthanc**: core and DB for imaging.
 - **Keycloak**: identity provider.
@@ -42,7 +42,7 @@ Only the most relevant env groups for integration are listed here; see `env.temp
 
 - **Integration DB and Kafka**
   - `INTEGRATION_DB_NAME`, `INTEGRATION_DB_USER`, `INTEGRATION_DB_PASSWORD`, `INTEGRATION_DB_HOST`, `INTEGRATION_DB_PORT`
-  - `KAFKA_BROKER_ID`, `KAFKA_PORT`, `KAFKA_ZOOKEEPER_CONNECT`, and related replication/min‑ISR flags.
+  - `KAFKA_NODE_ID`, `KAFKA_PORT`, `KAFKA_CLUSTER_ID` (optional, defaults in compose), `KAFKA_LOG_RETENTION_HOURS`, and related replication/min‑ISR flags.
 
 - **CIS/OIS runtime**
   - `CIS_PORT`, `CIS_KAFKA_GROUP_ID`
