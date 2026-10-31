@@ -647,6 +647,8 @@ services:
       - DEBEZIUM_TABLE_INCLUDE_LIST=${DEBEZIUM_TABLE_INCLUDE_LIST:-openmrs.orders,openmrs.drug_order,openmrs.person,openmrs.person_name,openmrs.patient_identifier,openmrs.bed_type,openmrs.bed_patient_assignment_map,openmrs.location,openmrs.provider,openmrs.provider_attribute}
       # Kafka retry topics (opt-in via @KafkaRetryable)
       - INTEGRATION_KAFKA_RETRY_ENABLED=${INTEGRATION_KAFKA_RETRY_ENABLED:-false}
+      # KC-32-03: CIS calls OpenMRS through Keycloak (central login); 8 attempts at the fixed 90 s delay is about
+      # 10 minutes of retries, so a Keycloak restart does not dead-letter events.
       - INTEGRATION_KAFKA_RETRY_ATTEMPTS=${CIS_INTEGRATION_KAFKA_RETRY_ATTEMPTS:-8}
       - INTEGRATION_KAFKA_RETRY_INITIAL_DELAY=${INTEGRATION_KAFKA_RETRY_INITIAL_DELAY:-90s}
       - INTEGRATION_KAFKA_RETRY_MULTIPLIER=${INTEGRATION_KAFKA_RETRY_MULTIPLIER:-2.0}
