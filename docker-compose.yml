@@ -309,7 +309,8 @@ services:
       ORTHANC_USERNAME: "${ORTHANC_USERNAME:-nidan}"
       ORTHANC_PASSWORD: "${ORTHANC_PASSWORD:-nidan}"
       # Dynamic Webhook to CIS
-      ORTHANC_WEBHOOK_URL: "http://${CIS_HOST:-nidan-cis}:${CIS_PORT:-8081}/orthanc/webhook"
+      ORTHANC_WEBHOOK_URL: "http://${CIS_HOST:-nidan-cis}:${CIS_PORT:-8081}/internal/orthanc/webhook"
+      ORTHANC_WEBHOOK_SECRET: "${ORTHANC_WEBHOOK_SECRET:-sample-orthanc-webhook}"
     networks:
       - nidan-network
     depends_on:
@@ -606,6 +607,7 @@ services:
       - ORTHANC_USERNAME=${ORTHANC_USERNAME:-orthanc}
       - ORTHANC_PASSWORD=${ORTHANC_PASSWORD:-orthanc}
       - ORTHANC_DICOM_UID_ROOT=${ORTHANC_DICOM_UID_ROOT:-1.2.840.10008}
+      - ORTHANC_WEBHOOK_SECRET=${ORTHANC_WEBHOOK_SECRET:-sample-orthanc-webhook}
       - ORTHANC_WORKLIST_DIR=${ORTHANC_WORKLIST_DIR:-/var/lib/orthanc/worklists}
       - DICOM_TYPE=${DICOM_TYPE:-orthanc}
       # Order type UUIDs (Initializer ordertypes.csv); CIS resolves to order_type_id at startup
