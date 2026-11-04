@@ -3,6 +3,82 @@
     "restrictByVisitLocationTag": true,
     "showUpcomingAppointments": true,
     "extensionSlots": {
+      "patient-chart-dashboard-slot": {
+        "remove": [
+          "allergies-summary-dashboard",
+          "conditions-summary-dashboard",
+          "results-summary-dashboard",
+          "medications-summary-dashboard",
+          "patient-orders-summary-dashboard",
+          "patient-orders-fast-summary-dashboard",
+          "test-results-summary-dashboard",
+          "encounters-summary-dashboard",
+          "patient-radiology-orders-summary-dashboard",
+          "patient-procedure-order-summary-dashboard",
+          "patient-medical-supply-summary-dashboard",
+          "immunization-summary-dashboard",
+          "dental-summary-dashboard",
+          "attachments-results-summary-dashboard",
+          "patient-appointments-summary-dashboard",
+          "programs-summary-dashboard"
+        ],
+        "add": [
+          "nav-group#CareManagementGroup",
+          "nav-group#PatientRecordsGroup",
+          "nav-group#OrdersProceduresGroup",
+          "nav-group#ClinicalCareGroup"
+        ],
+        "configure": {
+          "nav-group#ClinicalCareGroup": {
+            "title": "Clinical Care",
+            "slotName": "clinical-care-group-slot"
+          },
+          "nav-group#OrdersProceduresGroup": {
+            "title": "Orders & Procedures",
+            "slotName": "orders-procedures-group-slot"
+          },
+          "nav-group#PatientRecordsGroup": {
+            "title": "Patient Records",
+            "slotName": "patient-records-group-slot"
+          },
+          "nav-group#CareManagementGroup": {
+            "title": "Care Management",
+            "slotName": "care-management-group-slot"
+          }
+        }
+      },
+      "clinical-care-group-slot": {
+        "add": [
+          "encounters-summary-dashboard",
+          "results-summary-dashboard",
+          "conditions-summary-dashboard",
+          "allergies-summary-dashboard",
+          "medications-summary-dashboard",
+          "test-results-summary-dashboard"
+        ]
+      },
+      "orders-procedures-group-slot": {
+        "add": [
+          "patient-orders-summary-dashboard",
+          "patient-orders-fast-summary-dashboard",
+          "patient-radiology-orders-summary-dashboard",
+          "patient-procedure-order-summary-dashboard",
+          "patient-medical-supply-summary-dashboard"
+        ]
+      },
+      "patient-records-group-slot": {
+        "add": [
+          "immunization-summary-dashboard",
+          "dental-summary-dashboard",
+          "attachments-results-summary-dashboard"
+        ]
+      },
+      "care-management-group-slot": {
+        "add": [
+          "patient-appointments-summary-dashboard",
+          "programs-summary-dashboard"
+        ]
+      },
       "action-menu-patient-chart-items-slot": {
         "order": ["order-basket-action-menu"]
       },
@@ -209,6 +285,118 @@
         ]
       }
     }
+  },
+  "@trigonal/esm-report-app": {
+    "concepts": {
+      "systolicBloodPressureUuid": "5085AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "diastolicBloodPressureUuid": "5086AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "pulseUuid": "5087AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "temperatureUuid": "5088AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "oxygenSaturationUuid": "5092AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "heightUuid": "5090AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "weightUuid": "5089AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "respiratoryRateUuid": "5242AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "generalPatientNoteUuid": "165095AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "midUpperArmCircumferenceUuid": "1343AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "notesConceptUuid": [
+        "162169AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      ]
+    },
+    "hospitalName": "Bhalubang Hospital",
+    "hospitalAddress": "Bhalubang, Dang",
+    "hospitalContactInfo": "",
+    "hospitalLetterheadTopLines": [
+      "Lumbini province government",
+      "Ministry of health",
+      "health directorate"
+    ],
+    "hospitalLetterheadBottomLines": [],
+    "printLetterhead": true,
+    "patientSummaryDocument": {
+      "excludeObsForms": [
+        "55fcfbee-6510-3abb-b2da-dbd0d5353b2e",
+        "de010f04-2eb5-3a9c-afec-587868f3c2fa"
+      ]
+    },
+    "dischargeNote": {
+      "excludeObsForms": [
+        "55fcfbee-6510-3abb-b2da-dbd0d5353b2e",
+        "de010f04-2eb5-3a9c-afec-587868f3c2fa"
+      ]
+    }
+  },
+  "@openmrs/esm-odontogram-app": {
+    "permanentTeeth": {
+      "tooth11": "028adf25-8845-4835-a2fc-2f2ac5dafde0",
+      "tooth12": "6c59cf9d-85d5-4094-a58d-c6893ceef943",
+      "tooth13": "7b454412-41d6-4d9b-aca2-b40de7108ad7",
+      "tooth14": "49c26bb1-35dd-4d5b-9ea5-6f1c5771424e",
+      "tooth15": "92bc4b97-9f6f-4e57-a54b-d13918ef45a0",
+      "tooth16": "26089036-61c5-487a-bfdb-4de5019e77b3",
+      "tooth17": "d1b72851-34b9-43f8-aa89-fd1aad34cb66",
+      "tooth18": "af5f5b5e-76f6-47b2-9ecb-c87527695d91",
+      "tooth21": "d794dbd1-6c70-426d-8d49-71fa21cb8fee",
+      "tooth22": "3c300084-f13d-4e10-a7d2-b7b72a16c1c9",
+      "tooth23": "3877b9dd-90bb-4820-96ab-565cadb428c1",
+      "tooth24": "bb6579fa-7f77-4e47-b1d1-e4cf05b38d63",
+      "tooth25": "614cc7c1-0407-479c-94f6-38a916ababc7",
+      "tooth26": "2d6e102d-090a-4da5-9382-14a413c2a354",
+      "tooth27": "95f46161-b9e2-433c-9d15-7f902a11eb8f",
+      "tooth28": "786523ac-0a1e-41ab-b58c-9ae314ffbee7",
+      "tooth31": "6a72974d-31b8-432e-a0eb-b037be5d1b73",
+      "tooth32": "8f4ea278-c35d-490f-beb6-809e25aaab2c",
+      "tooth33": "ac538622-0e4b-473c-8c4a-c6ec63010f1f",
+      "tooth34": "a10b3c2c-5570-464c-b9dc-96ce0be6123f",
+      "tooth35": "06fb0fba-2d86-4db3-bbdd-2876de922a2a",
+      "tooth36": "f0bbab00-3152-45de-bf99-e357954923fb",
+      "tooth37": "33e4f01f-600a-4693-b5de-560632aecbef",
+      "tooth38": "1a0aff25-3fbf-4d52-be20-698e6f264261",
+      "tooth41": "00b3f4ab-9b00-4a1d-be31-e55d234145b4",
+      "tooth42": "9d42c5cb-faff-4d54-b833-369121d41602",
+      "tooth43": "0907fbd0-5487-45d7-8755-37377f4d1884",
+      "tooth44": "a8a1b58c-02be-4e1b-a029-307219456ded",
+      "tooth45": "d44b9838-6d0c-42e2-a38f-4a5f54b1dece",
+      "tooth46": "c4482884-b12c-4e0e-b32c-ec00079c0465",
+      "tooth47": "c32ee0d1-2267-4db8-aba0-32a3b7e58aae",
+      "tooth48": "c6e5b7f3-875c-4808-b5be-0fb9af12d0ce"
+    },
+    "primaryTeeth": {
+      "tooth51": "f9706892-cc28-49a4-b2fd-d65240e8d3ee",
+      "tooth52": "2cba8333-c93b-43dc-9b1e-c369813734a9",
+      "tooth53": "cab12690-f6ed-456b-86ef-4caad163ef91",
+      "tooth54": "99b2e58c-10b8-45d4-bfa4-ed8f7b4d67d4",
+      "tooth55": "926d7509-7bfb-4ca7-a2b4-9d6437d552c8",
+      "tooth61": "7ae35ef4-c17a-455d-955e-a9b36faba146",
+      "tooth62": "310a6438-010e-4715-944c-3589ce0ce27f",
+      "tooth63": "d2d55bd6-a34c-41d7-9a60-4d5f228a3ee4",
+      "tooth64": "7336d55a-0a0c-4ad8-92d0-5ad8e492dd06",
+      "tooth65": "a978a8f9-1dfd-424b-9f9c-afe6c04171b1",
+      "tooth71": "b00562ff-59e1-4bc8-bc56-e1b726e9507c",
+      "tooth72": "1f1e8b75-31de-49c4-8e55-a2f4c4122dd0",
+      "tooth73": "d38e3370-7b6b-4249-aeac-7582fe2a6a4b",
+      "tooth74": "78f96369-eb6a-4eee-90dc-fe8f09cdbcab",
+      "tooth75": "35c2fde9-4126-4c8d-a7f8-4df660928e1b",
+      "tooth81": "1593b87b-58d3-40ac-ba84-a560f4d6a904",
+      "tooth82": "4db3301f-6b3c-4896-bd46-5d8348f98ddc",
+      "tooth83": "041e337b-0ddc-4245-8797-a78572e9c2b4",
+      "tooth84": "a0be6b6d-4148-46ae-bbbc-c93d4fcf2f58",
+      "tooth85": "b0645bcc-5228-4605-a076-02676ac11258"
+    },
+    "concepts": {
+      "surfaceConceptSetUuid": "d76c2fee-ace9-11f1-aa03-0242ac130004",
+      "findingTypeConceptSetUuid": "f0508add-ace9-11f1-aa03-0242ac130004",
+      "procedureConceptSetUuid": "5be3a766-3485-48dd-816c-994f2eeb6739",
+      "notesConceptUuid": "0430ae64-acea-11f1-aa03-0242ac130004",
+      "toothConceptUuid": "b37ec4f6-ace9-11f1-aa03-0242ac130004",
+      "findingGroupConceptUuid": "85a1cd99-ace9-11f1-aa03-0242ac130004"
+    },
+    "encounterTypeUuid": "13cb3a1a-2b2f-405d-b919-330935402029",
+    "filterByLocation": {
+      "enabled": true,
+      "locationUuid": "1ce1b7d4-c865-4178-82b0-5932e51503d6"
+    },
+    "useO3Form": true,
+    "formUuid": "2ceb91b8-0f55-3ea8-8e27-088261e9434f"
   },
   "@openmrs/esm-primary-navigation-app": {
     "extensionSlots": {
