@@ -640,6 +640,8 @@ services:
       # Unset = CIS refuses every OpenELIS webhook; NIDAN_DEPLOYMENT=production also refuses demo values.
       - OPENELIS_CATALOG_WEBHOOK_SECRET=${OPENELIS_MIDDLEWARE_SYNC_SECRET:-}
       - ORTHANC_WEBHOOK_SECRET=${ORTHANC_WEBHOOK_SECRET:-}
+      # Secret the portal's sync service sends on POST /internal/replay/patient. No default: unset = compose refuses to start.
+      - NIDAN_CIS_REPLAY_SECRET=${NIDAN_CIS_REPLAY_SECRET:?set NIDAN_CIS_REPLAY_SECRET in .env.local}
       # Dead-letter UI/API login (HTTP Basic) until the gateway's cis-admin SSO gate (KC-10). Unset = refused.
       - DEAD_LETTER_ADMIN_USERNAME=${DEAD_LETTER_ADMIN_USERNAME:-dead-letter-admin}
       - DEAD_LETTER_ADMIN_PASSWORD=${DEAD_LETTER_ADMIN_PASSWORD:-}
