@@ -7,7 +7,7 @@ FROM --platform=$BUILDPLATFORM node:22-alpine as dev
 
 ARG APP_SHELL_VERSION=10.0.0
 # Bump after repacking nidan-esm-nepali-calendar-1.0.0.tgz to bust docker layer cache.
-ARG NIDAN_CALENDAR_BUNDLE=1.0.0-v9
+ARG NIDAN_CALENDAR_BUNDLE=1.0.0-v10
 
 RUN mkdir -p /app
 WORKDIR /app
